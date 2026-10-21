@@ -200,26 +200,31 @@
                 </div>
             </form>
 
-            <!-- FORMULARIO CLIENTE REGULAR -->
+            <!-- FORMULARIO CLIENTE REGULAR CON BUSCADOR EN TIEMPO REAL -->
             <form id="form-cliente-regular" onsubmit="handleAssignClient(event, 'regular')" class="space-y-3 hidden">
-                <div>
-                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Seleccionar Cliente Regular</label>
-                    <select id="select-regular-client" onchange="loadRegularClientData(this.value)" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                        <option value="">-- Buscar cliente por nombre --</option>
-                    </select>
+                <div class="relative">
+                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Buscar Cliente Regular</label>
+                    <div class="relative">
+                        <input type="text" id="search-regular-input" oninput="filterRegularClients(this.value)" placeholder="Escribe un nombre, apellido o teléfono..." class="w-full bg-gray-900 border border-gray-700 rounded-lg pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                        <i class="fa-solid fa-search absolute left-2.5 top-2.5 text-gray-500 text-xs"></i>
+                    </div>
+
+                    <!-- Lista desplegable flotante de resultados -->
+                    <div id="regular-search-results" class="absolute z-50 left-0 right-0 top-full mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl max-h-40 overflow-y-auto hidden"></div>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
+
+                <div class="grid grid-cols-2 gap-2 pt-1">
                     <div>
                         <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Nombre</label>
-                        <input type="text" id="reg-name" readonly class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-400">
+                        <input type="text" id="reg-name" readonly class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 font-medium">
                     </div>
                     <div>
                         <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Apellido</label>
-                        <input type="text" id="reg-lastname" readonly class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-400">
+                        <input type="text" id="reg-lastname" readonly class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 font-medium">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Teléfono (Editable si cambió)</label>
+                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Teléfono (Editable)</label>
                     <input type="tel" id="reg-phone" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                 </div>
                 <div>
@@ -333,13 +338,54 @@
                 const { data, error } = await supabaseClient.from('clientes').select('*').order('nombre', { ascending: true });
                 if (!error && data) {
                     listaClientesDB = data;
-                    const select = document.getElementById('select-regular-client');
-                    select.innerHTML = `<option value="">-- Seleccionar cliente regular --</option>` + 
-                        data.map(c => `<option value="${c.id}">${c.nombre} ${c.apellido} (${c.telefono})</option>`).join('');
                 }
             } catch (err) {
                 console.error("Error cargando clientes:", err);
             }
+        }
+
+        // BUSCADOR EN TIEMPO REAL CON MENÚ FLOTANTE PREDICTIVO
+        function filterRegularClients(query) {
+            const resultsContainer = document.getElementById('regular-search-results');
+            if (!query.trim()) {
+                resultsContainer.classList.add('hidden');
+                return;
+            }
+
+            const q = query.toLowerCase();
+            const matches = listaClientesDB.filter(c => 
+                (c.nombre && c.nombre.toLowerCase().includes(q)) || 
+                (c.apellido && c.apellido.toLowerCase().includes(q)) || 
+                (c.telefono && c.telefono.includes(q))
+            );
+
+            if (matches.length === 0) {
+                resultsContainer.innerHTML = `<div class="p-2.5 text-xs text-gray-500 italic text-center">No se encontraron clientes.</div>`;
+            } else {
+                resultsContainer.innerHTML = matches.map(c => `
+                    <div onclick="selectRegularClient(${c.id})" class="p-2.5 hover:bg-indigo-600/30 cursor-pointer border-b border-gray-800 transition flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-xs text-white">${c.nombre} ${c.apellido}</p>
+                            <p class="text-[10px] text-gray-400"><i class="fa-solid fa-phone text-[9px] mr-1"></i>${c.telefono || 'Sin tel.'}</p>
+                        </div>
+                        <i class="fa-solid fa-check text-indigo-400 text-xs"></i>
+                    </div>
+                `).join('');
+            }
+            resultsContainer.classList.remove('hidden');
+        }
+
+        function selectRegularClient(clientId) {
+            const cliente = listaClientesDB.find(c => c.id == clientId);
+            if (cliente) {
+                selectedRegularClientId = cliente.id;
+                document.getElementById('search-regular-input').value = `${cliente.nombre} ${cliente.apellido}`;
+                document.getElementById('reg-name').value = cliente.nombre || '';
+                document.getElementById('reg-lastname').value = cliente.apellido || '';
+                document.getElementById('reg-phone').value = cliente.telefono || '';
+                document.getElementById('reg-email').value = cliente.correo || '';
+            }
+            document.getElementById('regular-search-results').classList.add('hidden');
         }
 
         function setUserData(user) {
@@ -423,7 +469,10 @@
             document.getElementById('modal-host').classList.remove('hidden');
         }
 
-        function closeHostModal() { document.getElementById('modal-host').classList.add('hidden'); }
+        function closeHostModal() { 
+            document.getElementById('modal-host').classList.add('hidden'); 
+            document.getElementById('regular-search-results').classList.add('hidden');
+        }
 
         function switchClientTab(tipo) {
             const tabNuevo = document.getElementById('tab-nuevo');
@@ -441,25 +490,6 @@
                 tabNuevo.className = "w-1/2 py-1.5 rounded-md text-xs font-bold transition text-gray-400 hover:text-white";
                 formRegular.classList.remove('hidden');
                 formNuevo.classList.add('hidden');
-            }
-        }
-
-        function loadRegularClientData(clientId) {
-            if (!clientId) {
-                selectedRegularClientId = null;
-                document.getElementById('reg-name').value = '';
-                document.getElementById('reg-lastname').value = '';
-                document.getElementById('reg-phone').value = '';
-                document.getElementById('reg-email').value = '';
-                return;
-            }
-            const cliente = listaClientesDB.find(c => c.id == clientId);
-            if (cliente) {
-                selectedRegularClientId = cliente.id;
-                document.getElementById('reg-name').value = cliente.nombre || '';
-                document.getElementById('reg-lastname').value = cliente.apellido || '';
-                document.getElementById('reg-phone').value = cliente.telefono || '';
-                document.getElementById('reg-email').value = cliente.correo || '';
             }
         }
 
@@ -483,10 +513,9 @@
                 );
 
                 if (clienteExistente) {
-                    let esElMismo = confirm(`⚠️ ¡Atención! Ya existe un cliente registrado con este nombre:\n\n• Nombre: ${clienteExistente.nombre} ${clienteExistente.apellido}\n• Teléfono registrado: ${clienteExistente.telefono}\n\n¿Es este mismo cliente regular?\n\n- Pulsa ACEPTAR si es el mismo (se usará su registro).\n- Pulsa CANCELAR si es una PERSONA DIFERENTE (homónimo) y deseas modificar el nombre/apellido (ej. añadir un segundo nombre o apellido) para diferenciarlos.`);
+                    let esElMismo = confirm(`⚠️ ¡Atención! Ya existe un cliente registrado con este nombre:\n\n• Nombre: ${clienteExistente.nombre} ${clienteExistente.apellido}\n• Teléfono registrado: ${clienteExistente.telefono}\n\n¿Es este mismo cliente regular?\n\n- Pulsa ACEPTAR si es el mismo (se usará su registro).\n- Pulsa CANCELAR si es una PERSONA DIFERENTE (homónimo) y deseas modificar el nombre/apellido en el formulario.`);
                     
                     if (esElMismo) {
-                        // Es el mismo cliente regular, usamos su registro existente
                         selectedRegularClientId = clienteExistente.id;
                         mesa.estado = 'ocupada';
                         mesa.cliente = { nombre: clienteExistente.nombre, apellido: clienteExistente.apellido, telefono: phone, comensales: guests };
@@ -506,13 +535,11 @@
                         alert(`Mesa ${mesa.numero} asignada al cliente regular ${clienteExistente.nombre} ${clienteExistente.apellido}.`);
                         return;
                     } else {
-                        // Es otra persona (homónimo), detenemos el registro para que cambie el nombre/apellido
                         alert("Por favor, modifica el nombre o agrega un segundo nombre/apellido en el formulario para registrar a esta persona como un cliente único y separado.");
                         return;
                     }
                 }
 
-                // Si no existe, se registra como cliente totalmente nuevo
                 mesa.estado = 'ocupada';
                 mesa.cliente = { nombre: name, apellido: lastname, telefono: phone, comensales: guests };
 
@@ -529,9 +556,8 @@
                 } catch (err) { console.error(err); }
 
             } else {
-                // Cliente Regular seleccionado desde el desplegable
                 if (!selectedRegularClientId) {
-                    alert("Por favor selecciona un cliente regular.");
+                    alert("Por favor busca y selecciona un cliente regular.");
                     return;
                 }
                 phone = document.getElementById('reg-phone').value;
