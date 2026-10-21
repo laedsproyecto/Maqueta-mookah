@@ -475,17 +475,16 @@
 
         function filterCategory(cat) { renderMenu(cat); }
 
-        // AGREGAR AL CARRITO CON OPCIÓN DE MODIFICAR INGREDIENTES INDIVIDUALMENTE
+        // AGREGAR AL CARRITO CON OBJETO DE INGREDIENTES ACTIVOS/INACTIVOS (PERMITE DESHACER)
         function addToOrder(itemId) {
             const item = menuCatalog.find(i => i.id === itemId);
-            // Creamos una copia única de los ingredientes para personalizar este plato individualmente
-            const customIngredientes = [...item.ingredientes];
+            // Creamos un arreglo de objetos para cada ingrediente con su estado 'activo'
+            const ingredientesObj = item.ingredientes.map(ing => ({ nombre: ing, activo: true }));
             
             currentOrder.push({ 
                 ...item, 
                 qty: 1, 
-                customId: Date.now() + Math.random(), // ID único por cada plato individual en la orden
-                ingredientesModificados: customIngredientes,
+                ingredientesObj: ingredientesObj,
                 notaIndividual: ''
             });
             renderOrder();
@@ -511,13 +510,13 @@
                                 <button onclick="removeFromOrder(${index})" class="text-red-400 hover:text-red-300"><i class="fa-solid fa-trash"></i></button>
                             </div>
                         </div>
-                        <!-- Sección para personalizar ingredientes de este plato individual -->
+                        <!-- Sección de ingredientes interactivos (Clic para quitar, clic de nuevo para deshacer) -->
                         <div class="text-[10px] text-gray-300 bg-gray-950 p-1.5 rounded border border-gray-800">
-                            <p class="font-semibold text-indigo-300 mb-1">Ingredientes (clic para quitar):</p>
+                            <p class="font-semibold text-indigo-300 mb-1">Ingredientes (clic para quitar/restaurar):</p>
                             <div class="flex flex-wrap gap-1">
-                                ${i.ingredientesModificados.map((ing, ingIdx) => `
-                                    <span onclick="toggleIngredient(${index},${ingIdx})" class="bg-gray-800 hover:bg-red-900/40 text-gray-200 px-1.5 py-0.5 rounded cursor-pointer border border-gray-700">
-                                        ✓ ${ing}
+                                ${i.ingredientesObj.map((ing, ingIdx) => `
+                                    <span onclick="toggleIngredient(${index},${ingIdx})" class="px-1.5 py-0.5 rounded cursor-pointer border transition ${ing.activo ? 'bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700' : 'bg-red-950/80 text-red-400 border-red-800 line-through'}">
+                                        ${ing.activo ? '✓ ' + ing.nombre : '✕ ' + ing.nombre}
                                     </span>
                                 `).join('')}
                             </div>
@@ -529,12 +528,15 @@
             document.getElementById('order-total').innerText = `$${total.toFixed(2)}`;
         }
 
-        // Quitar un ingrediente específico de un plato individual sin afectar los demás
-        function toggleIngredient(orderIndex, ingIndex) {
+        // Alternar ingrediente (Quitar o Deshacer / Restaurar al hacer clic de nuevo)
+        function toggleIngredient(orderIndex, ingIdx) {
             const item = currentOrder[orderIndex];
-            const removed = item.ingredientesModificados.splice(ingIndex, 1);
-            // Añadimos una nota visible de que se removió
-            item.notaIndividual = item.notaIndividual ? `${item.notaIndividual}, Sin ${removed[0]}` : `Sin ${removed[0]}`;
+            // Cambiamos el estado: si estaba activo pasa a inactivo y viceversa (deshacer automático)
+            item.ingredientesObj[ingIdx].activo = !item.ingredientesObj[ingIdx].activo;
+            
+            // Recalculamos la nota individual basada únicamente en los ingredientes desactivados
+            const inactivos = item.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre);
+            item.notaIndividual = inactivos.length > 0 ? `Sin ${inactivos.join(', sin ')}` : '';
             renderOrder();
         }
 
@@ -552,7 +554,6 @@
             if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
 
             const mesa = mesas.find(m => m.id === selectedMesaId);
-            // Formatear texto detallado incluyendo las personalizaciones de cada plato
             const itemsText = currentOrder.map(i => {
                 let desc = `1x ${i.nombre}`;
                 if(i.notaIndividual) desc += ` (${i.notaIndividual})`;
