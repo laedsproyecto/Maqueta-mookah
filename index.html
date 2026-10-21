@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RestoControl POS - Sistema de Restaurante</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- SDK Oficial de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans h-screen flex flex-col">
+
+    <!-- ========================================== -->
+    <!-- PANTALLA DE LOGIN (SOLO CORREO Y CONTRASEÑA) -->
+    <!-- ========================================== -->
+    <div id="auth-screen" class="fixed inset-0 bg-gray-950 flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-2xl border border-gray-700 w-full max-w-md shadow-2xl">
+            <div class="text-center mb-6">
+                <i class="fa-solid fa-utensils text-3xl text-indigo-400 mb-2"></i>
+                <h2 class="text-2xl font-bold">RestoControl POS</h2>
+                <p class="text-gray-400 text-sm">Inicia sesión con tu cuenta de mesero</p>
+            </div>
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-400 mb-1">Correo Electrónico</label>
+                    <input type="email" id="login-email" required placeholder="gustavopd-7a@hotmail.com" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-400 mb-1">Contraseña</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg transition shadow-lg">
+                    Iniciar Sesión
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- APLICACIÓN PRINCIPAL -->
+    <!-- ========================================== -->
+    <div id="app-screen" class="hidden h-screen flex flex-col">
+        <!-- BARRA SUPERIOR -->
+        <header class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid font-bold text-xl text-indigo-400 fa-utensils"></i>
+                <h1 class="text-xl font-bold tracking-wide">RestoControl POS</h1>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <span id="user-name-display" class="text-xs bg-gray-900 px-3 py-1.5 rounded-full border border-gray-700 text-indigo-300 font-medium"></span>
+                <button onclick="handleLogout()" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-red-500/30">
+                    <i class="fa-solid fa-right-from-bracket mr-1"></i> Salir
+                </button>
+            </div>
+        </header>
+
+        <!-- CONTENEDOR DE VISTAS -->
+        <main class="flex-1 overflow-hidden p-6 flex flex-col">
+            <!-- Selector de Rol -->
+            <div class="flex space-x-2 bg-gray-800 p-1 rounded-lg border border-gray-700 w-fit mb-4">
+                <button id="btn-role-host" onclick="switchRole('host')" class="px-4 py-2 rounded-md font-medium text-sm transition bg-indigo-600 text-white">
+                    <i class="fa-solid fa-user-tie mr-2"></i>Recepción (Host)
+                </button>
+                <button id="btn-role-server" onclick="switchRole('server')" class="px-4 py-2 rounded-md font-medium text-sm transition text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-concierge-bell mr-2"></i>Meseros
+                </button>
+            </div>
+
+            <!-- VISTA 1: RECEPCIÓN / HOST -->
+            <section id="view-host" class="flex-1 flex flex-col space-y-4 overflow-hidden">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold">Plano de Sala y Control de Mesas</h2>
+                    <div class="flex space-x-4 text-xs">
+                        <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block mr-1.5"></span> Disponible</span>
+                        <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block mr-1.5"></span> Ocupada</span>
+                        <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block mr-1.5"></span> Por Limpiar</span>
+                    </div>
+                </div>
+                <div id="grid-mesas-host" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 overflow-y-auto p-1 flex-1"></div>
+            </section>
+
+            <!-- VISTA 2: MESEROS -->
+            <section id="view-server" class="flex-1 hidden flex flex-col lg:flex-row gap-6 overflow-hidden">
+                <div class="w-full lg:w-1/4 bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col">
+                    <h3 class="font-bold text-base mb-3 flex items-center">
+                        <i class="fa-solid fa-chair mr-2 text-indigo-400"></i> Mesas Asignadas
+                    </h3>
+                    <div id="grid-mesas-server" class="grid grid-cols-2 gap-2 overflow-y-auto flex-1"></div>
+                </div>
+
+                <!-- Menú Digital -->
+                <div class="w-full lg:w-2/4 bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-base" id="selected-table-title">Mesa: Ninguna</h3>
+                        <span id="cliente-info-tag" class="text-xs bg-indigo-900 text-indigo-200 px-3 py-1 rounded-full hidden"></span>
+                    </div>
+
+                    <div class="flex space-x-2 overflow-x-auto pb-2 mb-3 border-b border-gray-700">
+                        <button onclick="filterCategory('all')" class="px-3 py-1 rounded-md text-xs bg-indigo-600 text-white">Todos</button>
+                        <button onclick="filterCategory('entradas')" class="px-3 py-1 rounded-md text-xs bg-gray-700 text-gray-300">Entradas</button>
+                        <button onclick="filterCategory('sushi')" class="px-3 py-1 rounded-md text-xs bg-gray-700 text-gray-300">Sushi</button>
+                        <button onclick="filterCategory('bebidas')" class="px-3 py-1 rounded-md text-xs bg-gray-700 text-gray-300">Bebidas</button>
+                    </div>
+
+                    <div id="menu-items-grid" class="grid grid-cols-2 gap-3 overflow-y-auto flex-1 pr-1"></div>
+                </div>
+
+                <!-- Comanda Actual y Pedidos Acumulados -->
+                <div class="w-full lg:w-1/4 bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col justify-between">
+                    <div class="overflow-y-auto flex-1 pr-1">
+                        <h3 class="font-bold text-base mb-2 flex items-center border-b border-gray-700 pb-2">
+                            <i class="fa-solid fa-receipt mr-2 text-indigo-400"></i> Comanda Actual
+                        </h3>
+                        <div id="order-items-list" class="space-y-2 mb-4">
+                            <p class="text-gray-500 text-xs italic text-center py-4">Selecciona ítems del menú.</p>
+                        </div>
+
+                        <!-- HISTORIAL DE LO QUE YA PIDIÓ LA MESA -->
+                        <div class="border-t border-gray-700 pt-3">
+                            <h4 class="font-bold text-xs uppercase text-indigo-300 mb-2">Historial de Pedidos en Mesa:</h4>
+                            <div id="table-history-list" class="space-y-1 text-xs text-gray-400 max-h-[140px] overflow-y-auto bg-gray-900 p-2 rounded-lg border border-gray-700">
+                                <p class="italic text-gray-500">Sin pedidos previos.</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <input type="text" id="order-notes" placeholder="Notas (ej: sin salsa)" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-700 pt-3 mt-3 space-y-2">
+                        <div class="flex justify-between items-center text-base font-bold">
+                            <span>Total Nuevo:</span>
+                            <span id="order-total" class="text-emerald-400">$0.00</span>
+                        </div>
+
+                        <button onclick="submitOrder()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg text-sm shadow flex justify-center items-center space-x-2 transition">
+                            <i class="fa-solid fa-plus-circle"></i>
+                            <span>Agregar Pedido a la Mesa</span>
+                        </button>
+
+                        <button id="btn-close-table" onclick="closeTable()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-medium py-2 rounded-lg text-xs flex justify-center items-center space-x-2 transition">
+                            <i class="fa-solid fa-check-circle"></i>
+                            <span>Cerrar Cuenta y Limpiar Mesa</span>
+                        </button>
+
+                        <button id="btn-clean-table" onclick="cleanTable()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 rounded-lg text-xs flex justify-center items-center space-x-2 transition hidden">
+                            <i class="fa-solid fa-broom"></i>
+                            <span>Marcar Mesa Limpia y Disponible</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MODAL: REGISTRO DE CLIENTE -->
+    <div id="modal-host" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center hidden z-40">
+        <div class="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-700 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 flex items-center">
+                <i class="fa-solid fa-user-plus mr-2 text-indigo-400"></i>
+                Asignar Cliente a Mesa <span id="modal-mesa-num" class="ml-1 text-indigo-400"></span>
+            </h3>
+            
+            <form onsubmit="handleAssignClient(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-400 mb-1">Teléfono</label>
+                    <input type="tel" id="client-phone" required placeholder="+58 412 0000000" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-400 mb-1">Nombre</label>
+                        <input type="text" id="client-name" required placeholder="Juan" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-400 mb-1">Apellido</label>
+                        <input type="text" id="client-lastname" required placeholder="Pérez" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-400 mb-1">Comensales</label>
+                    <input type="number" id="client-guests" min="1" value="2" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="flex space-x-3 pt-2">
+                    <button type="button" onclick="closeHostModal()" class="w-1/2 bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 rounded-lg text-sm">Cancelar</button>
+                    <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg text-sm font-bold">Ingresar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SCRIPT PRINCIPAL -->
+    <script>
+        const CONFIG = {
+            SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
+            SUPABASE_KEY: "sb_publishable_NpqD9tgDZeHNrJwTfzs5OA_9WkvaMq1"
+        };
+
+        const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+        let currentMeseroName = "";
+
+        // DIRECTORIO DE MESEROS (Asocia automáticamente el correo con su Nombre)
+        const meserosDirectorio = {
+            "gustavopd-7a@hotmail.com": "Gustavo Prieto"
+            // Puedes agregar más meseros aquí abajo usando el mismo formato:
+            // "correo2@restaurante.com": "Nombre del Mesero 2"
+        };
+
+        let mesas = [
+            { id: 1, numero: "Mesa 01", zona: "Terraza", estado: "disponible", cliente: null },
+            { id: 2, numero: "Mesa 02", zona: "Terraza", estado: "disponible", cliente: null },
+            { id: 3, numero: "Mesa 03", zona: "Salón", estado: "disponible", cliente: null },
+            { id: 4, numero: "Mesa 04", zona: "Salón", estado: "disponible", cliente: null },
+            { id: 5, numero: "Mesa 05", zona: "VIP", estado: "disponible", cliente: null },
+            { id: 6, numero: "Mesa 06", zona: "VIP", estado: "disponible", cliente: null },
+        ];
+
+        const menuCatalog = [
+            { id: 101, nombre: "Kani Kama Tempura", categoria: "entradas", precio: 8.50 },
+            { id: 102, nombre: "Edamames al Vapor", categoria: "entradas", precio: 6.00 },
+            { id: 201, nombre: "Roll Dinamita Especial", categoria: "sushi", precio: 14.00 },
+            { id: 202, nombre: "Alaska Roll", categoria: "sushi", precio: 12.50 },
+            { id: 301, nombre: "Limonada de Menta", categoria: "bebidas", precio: 3.50 },
+            { id: 302, nombre: "Refresco", categoria: "bebidas", precio: 2.50 },
+        ];
+
+        let selectedMesaId = 1;
+        let currentOrder = [];
+        let selectedMesaHostId = null;
+
+        window.onload = async () => {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                setUserData(session.user);
+            }
+        };
+
+        function setUserData(user) {
+            const email = user.email;
+            // Busca el nombre en el directorio, si no está registrado usa el correo como respaldo
+            currentMeseroName = meserosDirectorio[email] || email;
+            
+            document.getElementById('user-name-display').innerText = `Mesero: ${currentMeseroName}`;
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            renderMesasHost();
+            renderMesasServer();
+            renderMenu('all');
+            selectMesaServer(1);
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) {
+                alert("Error de acceso: " + error.message);
+            } else {
+                setUserData(data.user);
+            }
+        }
+
+        async function handleLogout() {
+            await supabaseClient.auth.signOut();
+            location.reload();
+        }
+
+        function switchRole(role) {
+            const viewHost = document.getElementById('view-host');
+            const viewServer = document.getElementById('view-server');
+            const btnHost = document.getElementById('btn-role-host');
+            const btnServer = document.getElementById('btn-role-server');
+
+            if (role === 'host') {
+                viewHost.classList.remove('hidden');
+                viewServer.classList.add('hidden');
+                btnHost.className = "px-4 py-2 rounded-md font-medium text-sm transition bg-indigo-600 text-white";
+                btnServer.className = "px-4 py-2 rounded-md font-medium text-sm transition text-gray-400 hover:text-white";
+            } else {
+                viewHost.classList.add('hidden');
+                viewServer.classList.remove('hidden');
+                btnServer.className = "px-4 py-2 rounded-md font-medium text-sm transition bg-indigo-600 text-white";
+                btnHost.className = "px-4 py-2 rounded-md font-medium text-sm transition text-gray-400 hover:text-white";
+            }
+        }
+
+        function renderMesasHost() {
+            const container = document.getElementById('grid-mesas-host');
+            container.innerHTML = mesas.map(m => {
+                let statusBg = m.estado === 'disponible' ? 'bg-emerald-600/20 border-emerald-500' : 
+                               m.estado === 'ocupada' ? 'bg-red-600/20 border-red-500' : 'bg-amber-600/20 border-amber-500';
+                return `
+                    <div onclick="openHostModal(${m.id})" class="cursor-pointer border-2 ${statusBg} rounded-xl p-3 flex flex-col justify-between h-28 hover:opacity-80 transition">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-base">${m.numero}</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-gray-900/60 uppercase font-semibold">${m.zona}</span>
+                        </div>
+                        <div>
+                            ${m.cliente ? `<p class="text-xs font-semibold text-white"><i class="fa-solid fa-user mr-1"></i>${m.cliente.nombre}${m.cliente.apellido}</p>` : '<p class="text-[10px] text-gray-400">Libre</p>'}
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider ${m.estado === 'disponible' ? 'text-emerald-400' : m.estado === 'ocupada' ? 'text-red-400' : 'text-amber-400'}">${m.estado}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openHostModal(mesaId) {
+            const mesa = mesas.find(m => m.id === mesaId);
+            if(mesa.estado === 'por-limpiar') {
+                cleanTableDirect(mesaId);
+                return;
+            }
+            selectedMesaHostId = mesaId;
+            document.getElementById('modal-mesa-num').innerText = mesa.numero;
+            document.getElementById('modal-host').classList.remove('hidden');
+        }
+
+        function closeHostModal() { document.getElementById('modal-host').classList.add('hidden'); }
+
+        async function handleAssignClient(e) {
+            e.preventDefault();
+            const phone = document.getElementById('client-phone').value;
+            const name = document.getElementById('client-name').value;
+            const lastname = document.getElementById('client-lastname').value;
+            const guests = document.getElementById('client-guests').value;
+
+            const mesa = mesas.find(m => m.id === selectedMesaHostId);
+            mesa.estado = 'ocupada';
+            mesa.cliente = { nombre: name, apellido: lastname, telefono: phone, comensales: guests };
+
+            try {
+                await supabaseClient.from('clientes').insert([{ telefono: phone, nombre: name, apellido: lastname, historial_preferencias: `Comensales: ${guests}` }]);
+                await supabaseClient.from('mesas').insert([{ numero_mesa: mesa.id, zona: mesa.zona, capacidad: parseInt(guests), estado: 'Ocupada' }]);
+            } catch (err) { console.error(err); }
+
+            closeHostModal();
+            renderMesasHost();
+            renderMesasServer();
+            alert(`Mesa ${mesa.numero} asignada a ${name} ${lastname}.`);
+        }
+
+        function renderMesasServer() {
+            const container = document.getElementById('grid-mesas-server');
+            container.innerHTML = mesas.map(m => {
+                let activeBorder = m.id === selectedMesaId ? 'ring-2 ring-indigo-500' : '';
+                return `
+                    <button onclick="selectMesaServer(${m.id})" class="p-3 rounded-lg text-left bg-gray-900 border border-gray-700 ${activeBorder} flex flex-col justify-between">
+                        <span class="font-bold text-xs">${m.numero}</span>
+                        <span class="text-[10px] ${m.estado === 'ocupada' ? 'text-red-400' : m.estado === 'por-limpiar' ? 'text-amber-400' : 'text-emerald-400'} font-semibold capitalize">${m.estado}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        async function selectMesaServer(mesaId) {
+            selectedMesaId = mesaId;
+            const mesa = mesas.find(m => m.id === mesaId);
+            document.getElementById('selected-table-title').innerText = `${mesa.numero} (${mesa.zona})`;
+            
+            const tag = document.getElementById('cliente-info-tag');
+            if (mesa.cliente) {
+                tag.innerText = `Cliente: ${mesa.cliente.nombre} ${mesa.cliente.apellido}`;
+                tag.classList.remove('hidden');
+            } else {
+                tag.classList.add('hidden');
+            }
+
+            const btnClose = document.getElementById('btn-close-table');
+            const btnClean = document.getElementById('btn-clean-table');
+
+            if (mesa.estado === 'por-limpiar') {
+                btnClose.classList.add('hidden');
+                btnClean.classList.remove('hidden');
+            } else {
+                btnClose.classList.remove('hidden');
+                btnClean.classList.add('hidden');
+            }
+
+            renderMesasServer();
+            await loadTableHistory(mesa.id);
+        }
+
+        async function loadTableHistory(mesaId) {
+            const historyContainer = document.getElementById('table-history-list');
+            historyContainer.innerHTML = `<p class="italic text-gray-500">Cargando pedidos...</p>`;
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('pedidos_comandos')
+                    .select('*')
+                    .eq('mesa_id', mesaId)
+                    .order('id', { ascending: true });
+
+                if (error || !data || data.length === 0) {
+                    historyContainer.innerHTML = `<p class="italic text-gray-500">Sin pedidos previos en esta sesión.</p>`;
+                    return;
+                }
+
+                historyContainer.innerHTML = data.map(p => `
+                    <div class="border-b border-gray-800 pb-1 mb-1">
+                        <p class="text-white font-medium">👉 ${p.items_seleccionados}</p>
+                        <p class="text-[10px] text-gray-400">Mesero: ${p.mesero || 'N/A'} | Nota: ${p.modificadores || 'Ninguna'}</p>
+                    </div>
+                `).join('');
+            } catch (err) {
+                historyContainer.innerHTML = `<p class="italic text-red-400">Error al cargar historial.</p>`;
+            }
+        }
+
+        function renderMenu(category) {
+            const container = document.getElementById('menu-items-grid');
+            const items = category === 'all' ? menuCatalog : menuCatalog.filter(i => i.categoria === category);
+            
+            container.innerHTML = items.map(i => `
+                <div onclick="addToOrder(${i.id})" class="bg-gray-900 p-2.5 rounded-lg border border-gray-700 hover:border-indigo-500 cursor-pointer transition flex flex-col justify-between">
+                    <div>
+                        <h4 class="font-bold text-xs text-white">${i.nombre}</h4>
+                        <span class="text-[10px] text-gray-400 uppercase">${i.categoria}</span>
+                    </div>
+                    <span class="font-bold text-indigo-400 text-xs mt-1">$${i.precio.toFixed(2)}</span>
+                </div>
+            `).join('');
+        }
+
+        function filterCategory(cat) { renderMenu(cat); }
+
+        function addToOrder(itemId) {
+            const item = menuCatalog.find(i => i.id === itemId);
+            const existing = currentOrder.find(o => o.id === itemId);
+            if(existing) { existing.qty++; } else { currentOrder.push({ ...item, qty: 1 }); }
+            renderOrder();
+        }
+
+        function renderOrder() {
+            const container = document.getElementById('order-items-list');
+            if (currentOrder.length === 0) {
+                container.innerHTML = `<p class="text-gray-500 text-xs italic text-center py-4">Selecciona ítems del menú.</p>`;
+                document.getElementById('order-total').innerText = '$0.00';
+                return;
+            }
+
+            let total = 0;
+            container.innerHTML = currentOrder.map(i => {
+                total += i.precio * i.qty;
+                return `
+                    <div class="bg-gray-900 p-2 rounded border border-gray-700 text-xs flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-white">${i.nombre}</p>
+                            <p class="text-gray-400">$${i.precio.toFixed(2)} x ${i.qty}</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="font-bold text-indigo-400">$${(i.precio * i.qty).toFixed(2)}</span>
+                            <button onclick="removeFromOrder(${i.id})" class="text-red-400 hover:text-red-300 ml-1"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('order-total').innerText = `$${total.toFixed(2)}`;
+        }
+
+        function removeFromOrder(itemId) {
+            currentOrder = currentOrder.filter(i => i.id !== itemId);
+            renderOrder();
+        }
+
+        async function submitOrder() {
+            if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
+
+            const mesa = mesas.find(m => m.id === selectedMesaId);
+            const itemsText = currentOrder.map(i => `${i.qty}x ${i.nombre}`).join(', ');
+            const noteText = document.getElementById('order-notes').value || 'Sin notas';
+
+            try {
+                const { error } = await supabaseClient.from('pedidos_comandos').insert([{
+                    mesa_id: mesa.id,
+                    items_seleccionados: itemsText,
+                    modificadores: noteText,
+                    estado_envio_cocina: 'Pendiente',
+                    mesero: currentMeseroName
+                }]);
+
+                if (error) {
+                    alert("Error al registrar pedido.");
+                } else {
+                    alert(`✅ ¡Pedido agregado con éxito para ${mesa.numero} por ${currentMeseroName}!`);
+                    currentOrder = [];
+                    document.getElementById('order-notes').value = '';
+                    renderOrder();
+                    await loadTableHistory(mesa.id);
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function closeTable() {
+            const mesa = mesas.find(m => m.id === selectedMesaId);
+            if (mesa.estado === 'disponible') { alert('Mesa ya disponible.'); return; }
+            mesa.estado = 'por-limpiar';
+            mesa.cliente = null;
+
+            try {
+                await supabaseClient.from('mesas').insert([{ numero_mesa: mesa.id, zona: mesa.zona, capacidad: 4, estado: 'Por Limpiar' }]);
+            } catch (err) { console.error(err); }
+
+            selectMesaServer(mesa.id);
+            renderMesasHost();
+            alert(`Mesa ${mesa.numero} enviada a limpieza. Registros guardados.`);
+        }
+
+        async function cleanTable() {
+            const mesa = mesas.find(m => m.id === selectedMesaId);
+            await cleanTableDirect(mesa.id);
+        }
+
+        async function cleanTableDirect(mesaId) {
+            const mesa = mesas.find(m => m.id === mesaId);
+            mesa.estado = 'disponible';
+            mesa.cliente = null;
+
+            try {
+                await supabaseClient.from('mesas').insert([{ numero_mesa: mesa.id, zona: mesa.zona, capacidad: 4, estado: 'Disponible' }]);
+            } catch (err) { console.error(err); }
+
+            selectMesaServer(mesa.id);
+            renderMesasHost();
+            alert(`✨ Mesa ${mesa.numero} limpia y DISPONIBLE.`);
+        }
+    </script>
+</body>
+</html>
