@@ -441,7 +441,7 @@
                 historyContainer.innerHTML = data.map(p => `
                     <div class="border-b border-gray-800 pb-1 mb-1">
                         <p class="text-white font-medium">👉 ${p.items_seleccionados}</p>
-                        <p class="text-[10px] text-gray-400">Mesero: ${p.mesero || 'N/A'} | Nota: ${p.modificadores || 'Ninguna'}</p>
+                        <p class="text-[10px] text-gray-400">Nota: ${p.modificadores || 'Ninguna'}</p>
                     </div>
                 `).join('');
             } catch (err) {
@@ -536,7 +536,7 @@
             renderOrder();
         }
 
-        // ENVIAR COMANDA ROBUSTA (EVITA ERRORES DE LLAVES FORÁNEAS)
+        // ENVIAR COMANDA ADAPTADA A LAS COLUMNAS EXISTENTES DE SUPABASE
         async function submitOrder() {
             if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
 
@@ -547,48 +547,32 @@
                 return desc;
             }).join(' | ');
             
-            const noteText = document.getElementById('order-notes').value || 'Sin notas';
+            const generalNote = document.getElementById('order-notes').value || '';
+            // Incluimos el nombre del mesero dentro de las modificaciones para que no se pierda el dato
+            const noteText = `Mesero: ${currentMeseroName} | ${generalNote}`;
 
             try {
-                // Insertamos enviando únicamente los campos de texto esenciales para evitar conflictos de Foreign Key
                 const { error } = await supabaseClient.from('pedidos_comandos').insert([{
                     mesa_id: mesa.id,
                     items_seleccionados: itemsText,
                     modificadores: noteText,
-                    estado_envio_cocina: 'Pendiente',
-                    mesero: currentMeseroName
+                    estado_envio_cocina: 'Pendiente'
                 }]);
 
                 if (error) {
-                    console.error("Detalle del error Supabase:", error);
-                    // Si el error persiste por restricción estricta de base de datos, reintentamos sin el ID numérico de mesa estricto
-                    const { error: retryError } = await supabaseClient.from('pedidos_comandos').insert([{
-                        items_seleccionados: `[${mesa.numero}] ${itemsText}`,
-                        modificadores: noteText,
-                        estado_envio_cocina: 'Pendiente',
-                        mesero: currentMeseroName
-                    }]);
-                    
-                    if(retryError) {
-                        alert("Error al registrar pedido: " + (error.message || retryError.message));
-                    } else {
-                        successOrderAction(mesa);
-                    }
+                    console.error("Error al registrar:", error);
+                    alert("Error al registrar pedido: " + error.message);
                 } else {
-                    successOrderAction(mesa);
+                    alert(`✅ ¡Comanda enviada a cocina para ${mesa.numero} por ${currentMeseroName}!`);
+                    currentOrder = [];
+                    document.getElementById('order-notes').value = '';
+                    renderOrder();
+                    await loadTableHistory(mesa.id);
                 }
             } catch (err) { 
                 console.error(err);
                 alert("Ocurrió un error inesperado al enviar el pedido.");
             }
-        }
-
-        function successOrderAction(mesa) {
-            alert(`✅ ¡Comanda enviada a cocina para ${mesa.numero} por ${currentMeseroName}!`);
-            currentOrder = [];
-            document.getElementById('order-notes').value = '';
-            renderOrder();
-            loadTableHistory(mesa.id);
         }
 
         async function closeTable() {
