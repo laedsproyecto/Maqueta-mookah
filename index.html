@@ -200,7 +200,7 @@
                 </div>
             </form>
 
-            <!-- FORMULARIO CLIENTE REGULAR CON BUSCADOR CORREGIDO -->
+            <!-- FORMULARIO CLIENTE REGULAR CON SELECCIÓN SEGURA POR ÍNDICE -->
             <form id="form-cliente-regular" onsubmit="handleAssignClient(event, 'regular')" class="space-y-3 hidden">
                 <div class="relative">
                     <div class="flex justify-between items-center mb-1">
@@ -257,6 +257,7 @@
         const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
         let currentMeseroName = "";
         let listaClientesDB = []; 
+        let currentFilteredMatches = []; // Almacena los resultados de la búsqueda actual
 
         const meserosDirectorio = {
             "gustavopd-7a@hotmail.com": "Gustavo Prieto"
@@ -347,7 +348,7 @@
             }
         }
 
-        // FILTRO PREDICTIVO EN TIEMPO REAL
+        // FILTRO PREDICTIVO EN TIEMPO REAL BASADO EN ÍNDICES
         function filterRegularClients(query) {
             const resultsContainer = document.getElementById('regular-search-results');
             if (!query.trim()) {
@@ -356,20 +357,21 @@
             }
 
             const q = query.toLowerCase();
-            const matches = listaClientesDB.filter(c => 
+            // Guardamos los resultados filtrados en el arreglo global temporal
+            currentFilteredMatches = listaClientesDB.filter(c => 
                 (c.nombre && c.nombre.toLowerCase().includes(q)) || 
                 (c.apellido && c.apellido.toLowerCase().includes(q)) || 
                 (c.telefono && c.telefono.includes(q))
             );
 
-            if (matches.length === 0) {
+            if (currentFilteredMatches.length === 0) {
                 resultsContainer.innerHTML = `<div class="p-2.5 text-xs text-gray-500 italic text-center">No se encontraron clientes.</div>`;
             } else {
-                resultsContainer.innerHTML = matches.map(c => {
+                resultsContainer.innerHTML = currentFilteredMatches.map((c, index) => {
                     const nombreMostrar = c.nombre || '';
                     const apellidoMostrar = c.apellido || '';
                     return `
-                        <div onclick="selectRegularClient('${c.id}')" class="p-2.5 hover:bg-indigo-600/30 cursor-pointer border-b border-gray-800 transition flex justify-between items-center">
+                        <div onclick="selectRegularClientByIndex(${index})" class="p-2.5 hover:bg-indigo-600/30 cursor-pointer border-b border-gray-800 transition flex justify-between items-center">
                             <div>
                                 <p class="font-bold text-xs text-white">${nombreMostrar} ${apellidoMostrar}</p>
                                 <p class="text-[10px] text-gray-400"><i class="fa-solid fa-phone text-[9px] mr-1"></i>${c.telefono || 'Sin tel.'}</p>
@@ -382,9 +384,9 @@
             resultsContainer.classList.remove('hidden');
         }
 
-        // SELECCIÓN SEGURA CON COMILLAS PARA EL ID (UUID O TEXTO)
-        function selectRegularClient(clientId) {
-            const cliente = listaClientesDB.find(c => String(c.id) === String(clientId));
+        // SELECCIÓN SEGURA POR ÍNDICE EXACTO DE LA BÚSQUEDA
+        function selectRegularClientByIndex(index) {
+            const cliente = currentFilteredMatches[index];
             if (cliente) {
                 selectedRegularClientId = cliente.id;
                 
@@ -408,6 +410,7 @@
 
         function clearRegularSearch() {
             selectedRegularClientId = null;
+            currentFilteredMatches = [];
             document.getElementById('search-regular-input').value = '';
             document.getElementById('reg-name').value = '';
             document.getElementById('reg-lastname').value = '';
