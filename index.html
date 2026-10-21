@@ -68,7 +68,13 @@
             <!-- VISTA 1: RECEPCIÓN / HOST -->
             <section id="view-host" class="flex-1 flex flex-col space-y-4 overflow-hidden">
                 <div class="flex justify-between items-center">
-                    <h2 class="text-xl font-bold">Plano de Sala y Control de Mesas</h2>
+                    <div class="flex items-center space-x-4">
+                        <h2 class="text-xl font-bold">Plano de Sala y Control de Mesas</h2>
+                        <button onclick="startHostCheckin()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow flex items-center space-x-2 transition">
+                            <i class="fa-solid fa-user-plus"></i>
+                            <span>+ Iniciar Asignación de Mesa</span>
+                        </button>
+                    </div>
                     <div class="flex space-x-4 text-xs">
                         <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block mr-1.5"></span> Disponible</span>
                         <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block mr-1.5"></span> Ocupada</span>
@@ -155,95 +161,105 @@
         </main>
     </div>
 
-    <!-- MODAL: REGISTRO DE CLIENTE (NUEVO O REGULAR) -->
+    <!-- MODAL DE CHECK-IN Y ASIGNACIÓN (NUEVO FLUJO PASO A PASO) -->
     <div id="modal-host" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center hidden z-40">
         <div class="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-700 shadow-2xl">
             <h3 class="text-xl font-bold mb-3 flex items-center justify-between">
-                <span><i class="fa-solid fa-user-plus mr-2 text-indigo-400"></i>Asignar Mesa <span id="modal-mesa-num" class="text-indigo-400"></span></span>
-                <span class="text-xs bg-gray-900 px-2.5 py-1 rounded text-gray-300 font-normal">Mookah</span>
+                <span><i class="fa-solid fa-clipboard-user mr-2 text-indigo-400"></i>Recepción Mookah</span>
+                <span id="step-indicator" class="text-xs bg-gray-900 px-2.5 py-1 rounded text-indigo-300 font-semibold">Paso 1 de 2</span>
             </h3>
 
-            <!-- Pestañas para elegir tipo de cliente -->
-            <div class="flex bg-gray-900 p-1 rounded-lg mb-4 border border-gray-700">
-                <button type="button" onclick="switchClientTab('nuevo')" id="tab-nuevo" class="w-1/2 py-1.5 rounded-md text-xs font-bold transition bg-indigo-600 text-white">Cliente Nuevo</button>
-                <button type="button" onclick="switchClientTab('regular')" id="tab-regular" class="w-1/2 py-1.5 rounded-md text-xs font-bold transition text-gray-400 hover:text-white">Cliente Regular</button>
-            </div>
-            
-            <!-- FORMULARIO CLIENTE NUEVO -->
-            <form id="form-cliente-nuevo" onsubmit="handleAssignClient(event, 'nuevo')" class="space-y-3">
-                <div>
-                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Teléfono</label>
-                    <input type="tel" id="nuevo-phone" required placeholder="+58 412 0000000" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Nombre</label>
-                        <input type="text" id="nuevo-name" required placeholder="Juan" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Apellido</label>
-                        <input type="text" id="nuevo-lastname" required placeholder="Pérez" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Correo (Opcional)</label>
-                    <input type="email" id="nuevo-email" placeholder="cliente@correo.com" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Comensales</label>
-                    <input type="number" id="nuevo-guests" min="1" value="2" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+            <!-- PASO 1: DATOS DEL CLIENTE Y COMENSALES -->
+            <div id="host-step-1" class="space-y-3">
+                <!-- Pestañas para elegir tipo de cliente o omitir -->
+                <div class="grid grid-cols-3 gap-1 bg-gray-900 p-1 rounded-lg mb-3 border border-gray-700 text-center">
+                    <button type="button" onclick="switchClientTab('nuevo')" id="tab-nuevo" class="py-1.5 rounded-md text-[11px] font-bold transition bg-indigo-600 text-white">Nuevo</button>
+                    <button type="button" onclick="switchClientTab('regular')" id="tab-regular" class="py-1.5 rounded-md text-[11px] font-bold transition text-gray-400 hover:text-white">Regular</button>
+                    <button type="button" onclick="switchClientTab('omitir')" id="tab-omitir" class="py-1.5 rounded-md text-[11px] font-bold transition text-gray-400 hover:text-white">Omitir</button>
                 </div>
 
-                <div class="flex space-x-3 pt-2">
-                    <button type="button" onclick="closeHostModal()" class="w-1/2 bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 rounded-lg text-xs font-semibold">Cancelar</button>
-                    <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg text-xs font-bold shadow">Registrar e Ingresar</button>
+                <!-- Campo Comensales (Siempre visible al inicio) -->
+                <div>
+                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Cantidad de Comensales</label>
+                    <input type="number" id="input-guests" min="1" max="20" value="2" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-bold">
                 </div>
-            </form>
 
-            <!-- FORMULARIO CLIENTE REGULAR CON SELECCIÓN SEGURA POR ÍNDICE -->
-            <form id="form-cliente-regular" onsubmit="handleAssignClient(event, 'regular')" class="space-y-3 hidden">
-                <div class="relative">
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="block text-[10px] font-semibold uppercase text-gray-400">Buscar Cliente Regular</label>
-                        <button type="button" onclick="clearRegularSearch()" class="text-[10px] text-indigo-400 hover:underline">Limpiar búsqueda</button>
+                <!-- CONTENEDOR FORMULARIO NUEVO -->
+                <div id="form-cliente-nuevo" class="space-y-3">
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Teléfono</label>
+                        <input type="tel" id="nuevo-phone" placeholder="+58 412 0000000" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                     </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Nombre</label>
+                            <input type="text" id="nuevo-name" placeholder="Juan" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Apellido</label>
+                            <input type="text" id="nuevo-lastname" placeholder="Pérez" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Correo (Opcional)</label>
+                        <input type="email" id="nuevo-email" placeholder="cliente@correo.com" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <!-- CONTENEDOR FORMULARIO REGULAR -->
+                <div id="form-cliente-regular" class="space-y-3 hidden">
                     <div class="relative">
-                        <input type="text" id="search-regular-input" oninput="filterRegularClients(this.value)" placeholder="Escribe un nombre, apellido o teléfono..." class="w-full bg-gray-900 border border-gray-700 rounded-lg pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                        <i class="fa-solid fa-search absolute left-2.5 top-2.5 text-gray-500 text-xs"></i>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-[10px] font-semibold uppercase text-gray-400">Buscar Cliente Regular</label>
+                            <button type="button" onclick="clearRegularSearch()" class="text-[10px] text-indigo-400 hover:underline">Limpiar</button>
+                        </div>
+                        <div class="relative">
+                            <input type="text" id="search-regular-input" oninput="filterRegularClients(this.value)" placeholder="Nombre o teléfono..." class="w-full bg-gray-900 border border-gray-700 rounded-lg pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                            <i class="fa-solid fa-search absolute left-2.5 top-2.5 text-gray-500 text-xs"></i>
+                        </div>
+                        <div id="regular-search-results" class="absolute z-50 left-0 right-0 top-full mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl max-h-36 overflow-y-auto hidden"></div>
                     </div>
-
-                    <!-- Lista desplegable flotante de resultados -->
-                    <div id="regular-search-results" class="absolute z-50 left-0 right-0 top-full mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl max-h-40 overflow-y-auto hidden"></div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Nombre</label>
+                            <input type="text" id="reg-name" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Apellido</label>
+                            <input type="text" id="reg-lastname" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white">
+                        </div>
+                    </div>
                     <div>
-                        <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Nombre</label>
-                        <input type="text" id="reg-name" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                        <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Teléfono</label>
+                        <input type="tel" id="reg-phone" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white">
                     </div>
-                    <div>
-                        <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Apellido</label>
-                        <input type="text" id="reg-lastname" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Teléfono</label>
-                    <input type="tel" id="reg-phone" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Correo (Opcional)</label>
-                    <input type="email" id="reg-email" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Comensales</label>
-                    <input type="number" id="reg-guests" min="1" value="2" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                 </div>
 
-                <div class="flex space-x-3 pt-2">
+                <!-- AVISO OMITIR -->
+                <div id="form-cliente-omitir" class="hidden bg-gray-900 p-4 rounded-lg border border-gray-700 text-center space-y-2">
+                    <i class="fa-solid fa-user-slash text-2xl text-amber-400"></i>
+                    <p class="text-xs text-gray-300">Se registrará la mesa con un cliente anónimo u ocasional sin almacenar datos personales.</p>
+                </div>
+
+                <div class="flex space-x-3 pt-3">
                     <button type="button" onclick="closeHostModal()" class="w-1/2 bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 rounded-lg text-xs font-semibold">Cancelar</button>
-                    <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg text-xs font-bold shadow">Actualizar e Ingresar</button>
+                    <button type="button" onclick="goToStep2()" class="w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg text-xs font-bold shadow">Siguiente: Elegir Mesa ➔</button>
                 </div>
-            </form>
+            </div>
+
+            <!-- PASO 2: SELECCIÓN DE MESA DISPONIBLE -->
+            <div id="host-step-2" class="space-y-3 hidden">
+                <p class="text-xs text-gray-400 mb-2">Selecciona una mesa disponible en el salón para asignar este grupo:</p>
+                
+                <div id="modal-tables-grid" class="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-1">
+                    <!-- Se inyecta dinámicamente -->
+                </div>
+
+                <div class="flex space-x-3 pt-3">
+                    <button type="button" onclick="goToStep1()" class="w-1/2 bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 rounded-lg text-xs font-semibold">⬅ Volver</button>
+                    <button type="button" onclick="confirmTableAssignment()" class="w-1/2 bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-lg text-xs font-bold shadow">Confirmar y Asignar</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -257,19 +273,30 @@
         const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
         let currentMeseroName = "";
         let listaClientesDB = []; 
-        let currentFilteredMatches = []; // Almacena los resultados de la búsqueda actual
+        let currentFilteredMatches = [];
+
+        // Estado temporal del Check-in del Host
+        let checkinData = {
+            tipo: 'nuevo', // 'nuevo', 'regular', 'omitir'
+            nombre: '',
+            apellido: '',
+            telefono: '',
+            correo: '',
+            comensales: 2,
+            selectedMesaId: null
+        };
 
         const meserosDirectorio = {
             "gustavopd-7a@hotmail.com": "Gustavo Prieto"
         };
 
         let mesas = [
-            { id: 1, numero: "Mesa 01", zona: "Terraza", estado: "disponible", cliente: null },
-            { id: 2, numero: "Mesa 02", zona: "Terraza", estado: "disponible", cliente: null },
-            { id: 3, numero: "Mesa 03", zona: "Salón", estado: "disponible", cliente: null },
-            { id: 4, numero: "Mesa 04", zona: "Salón", estado: "disponible", cliente: null },
-            { id: 5, numero: "Mesa 05", zona: "VIP", estado: "disponible", cliente: null },
-            { id: 6, numero: "Mesa 06", zona: "VIP", estado: "disponible", cliente: null },
+            { id: 1, numero: "Mesa 01", zona: "Terraza", capacidad: 4, estado: "disponible", cliente: null },
+            { id: 2, numero: "Mesa 02", zona: "Terraza", capacidad: 4, estado: "disponible", cliente: null },
+            { id: 3, numero: "Mesa 03", zona: "Salón", capacidad: 8, estado: "disponible", cliente: null },
+            { id: 4, numero: "Mesa 04", zona: "Salón", capacidad: 8, estado: "disponible", cliente: null },
+            { id: 5, numero: "Mesa 05", zona: "VIP", capacidad: 6, estado: "disponible", cliente: null },
+            { id: 6, numero: "Mesa 06", zona: "VIP", capacidad: 6, estado: "disponible", cliente: null },
         ];
 
         const menuCatalog = [
@@ -328,8 +355,6 @@
 
         let selectedMesaId = 1;
         let currentOrder = [];
-        let selectedMesaHostId = null;
-        let selectedRegularClientId = null;
 
         window.onload = async () => {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -340,83 +365,8 @@
         async function cargarClientesRegulares() {
             try {
                 const { data, error } = await supabaseClient.from('clientes').select('*').order('nombre', { ascending: true });
-                if (!error && data) {
-                    listaClientesDB = data;
-                }
-            } catch (err) {
-                console.error("Error cargando clientes:", err);
-            }
-        }
-
-        // FILTRO PREDICTIVO EN TIEMPO REAL BASADO EN ÍNDICES
-        function filterRegularClients(query) {
-            const resultsContainer = document.getElementById('regular-search-results');
-            if (!query.trim()) {
-                resultsContainer.classList.add('hidden');
-                return;
-            }
-
-            const q = query.toLowerCase();
-            // Guardamos los resultados filtrados en el arreglo global temporal
-            currentFilteredMatches = listaClientesDB.filter(c => 
-                (c.nombre && c.nombre.toLowerCase().includes(q)) || 
-                (c.apellido && c.apellido.toLowerCase().includes(q)) || 
-                (c.telefono && c.telefono.includes(q))
-            );
-
-            if (currentFilteredMatches.length === 0) {
-                resultsContainer.innerHTML = `<div class="p-2.5 text-xs text-gray-500 italic text-center">No se encontraron clientes.</div>`;
-            } else {
-                resultsContainer.innerHTML = currentFilteredMatches.map((c, index) => {
-                    const nombreMostrar = c.nombre || '';
-                    const apellidoMostrar = c.apellido || '';
-                    return `
-                        <div onclick="selectRegularClientByIndex(${index})" class="p-2.5 hover:bg-indigo-600/30 cursor-pointer border-b border-gray-800 transition flex justify-between items-center">
-                            <div>
-                                <p class="font-bold text-xs text-white">${nombreMostrar} ${apellidoMostrar}</p>
-                                <p class="text-[10px] text-gray-400"><i class="fa-solid fa-phone text-[9px] mr-1"></i>${c.telefono || 'Sin tel.'}</p>
-                            </div>
-                            <i class="fa-solid fa-check text-indigo-400 text-xs"></i>
-                        </div>
-                    `;
-                }).join('');
-            }
-            resultsContainer.classList.remove('hidden');
-        }
-
-        // SELECCIÓN SEGURA POR ÍNDICE EXACTO DE LA BÚSQUEDA
-        function selectRegularClientByIndex(index) {
-            const cliente = currentFilteredMatches[index];
-            if (cliente) {
-                selectedRegularClientId = cliente.id;
-                
-                let nom = cliente.nombre || '';
-                let ape = cliente.apellido || '';
-
-                if (nom && !ape && nom.includes(' ')) {
-                    const partes = nom.trim().split(' ');
-                    nom = partes[0];
-                    ape = partes.slice(1).join(' ');
-                }
-
-                document.getElementById('search-regular-input').value = `${nom} ${ape}`.trim();
-                document.getElementById('reg-name').value = nom;
-                document.getElementById('reg-lastname').value = ape;
-                document.getElementById('reg-phone').value = cliente.telefono || '';
-                document.getElementById('reg-email').value = cliente.correo || '';
-            }
-            document.getElementById('regular-search-results').classList.add('hidden');
-        }
-
-        function clearRegularSearch() {
-            selectedRegularClientId = null;
-            currentFilteredMatches = [];
-            document.getElementById('search-regular-input').value = '';
-            document.getElementById('reg-name').value = '';
-            document.getElementById('reg-lastname').value = '';
-            document.getElementById('reg-phone').value = '';
-            document.getElementById('reg-email').value = '';
-            document.getElementById('regular-search-results').classList.add('hidden');
+                if (!error && data) listaClientesDB = data;
+            } catch (err) { console.error("Error cargando clientes:", err); }
         }
 
         function setUserData(user) {
@@ -435,13 +385,9 @@
             e.preventDefault();
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
-
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) {
-                alert("Error de acceso: " + error.message);
-            } else {
-                setUserData(data.user);
-            }
+            if (error) alert("Error de acceso: " + error.message);
+            else setUserData(data.user);
         }
 
         async function handleLogout() {
@@ -474,13 +420,13 @@
                 let statusBg = m.estado === 'disponible' ? 'bg-emerald-600/20 border-emerald-500' : 
                                m.estado === 'ocupada' ? 'bg-red-600/20 border-red-500' : 'bg-amber-600/20 border-amber-500';
                 return `
-                    <div onclick="openHostModal(${m.id})" class="cursor-pointer border-2 ${statusBg} rounded-xl p-3 flex flex-col justify-between h-28 hover:opacity-80 transition">
+                    <div onclick="handleHostTableClick(${m.id})" class="cursor-pointer border-2 ${statusBg} rounded-xl p-3 flex flex-col justify-between h-28 hover:opacity-80 transition">
                         <div class="flex justify-between items-center">
                             <span class="font-bold text-base">${m.numero}</span>
-                            <span class="text-[10px] px-2 py-0.5 rounded bg-gray-900/60 uppercase font-semibold">${m.zona}</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-gray-900/60 uppercase font-semibold">Cap: ${m.cap} pers.</span>
                         </div>
                         <div>
-                            ${m.cliente ? `<p class="text-xs font-semibold text-white"><i class="fa-solid fa-user mr-1"></i>${m.cliente.nombre}${m.cliente.apellido}</p>` : '<p class="text-[10px] text-gray-400">Libre</p>'}
+                            ${m.cliente ? `<p class="text-xs font-semibold text-white truncate"><i class="fa-solid fa-user mr-1"></i>${m.cliente.nombre}${m.cliente.apellido}</p>` : '<p class="text-[10px] text-emerald-400 font-medium">Libre</p>'}
                         </div>
                         <span class="text-[10px] font-bold uppercase tracking-wider ${m.estado === 'disponible' ? 'text-emerald-400' : m.estado === 'ocupada' ? 'text-red-400' : 'text-amber-400'}">${m.estado}</span>
                     </div>
@@ -488,16 +434,24 @@
             }).join('');
         }
 
-        function openHostModal(mesaId) {
-            const mesa = mesas.find(m => m.id === mesaId);
-            if(mesa.estado === 'por-limpiar') {
-                cleanTableDirect(mesaId);
-                return;
-            }
-            selectedMesaHostId = mesaId;
-            document.getElementById('modal-mesa-num').innerText = mesa.numero;
-            switchClientTab('nuevo'); 
+        // NUEVO FLUJO DE CHECK-IN: Iniciar desde el botón superior
+        function startHostCheckin() {
+            checkinData = { tipo: 'nuevo', nombre: '', apellido: '', telefono: '', correo: '', comensales: 2, selectedMesaId: null };
+            document.getElementById('input-guests').value = 2;
+            switchClientTab('nuevo');
+            document.getElementById('host-step-1').classList.remove('hidden');
+            document.getElementById('host-step-2').classList.add('hidden');
+            document.getElementById('step-indicator').innerText = "Paso 1 de 2";
             document.getElementById('modal-host').classList.remove('hidden');
+        }
+
+        function handleHostTableClick(mesaId) {
+            const mesa = mesas.find(m => m.id === mesaId);
+            if (mesa.estado === 'por-limpiar') {
+                cleanTableDirect(mesaId);
+            } else if (mesa.estado === 'ocupada') {
+                alert(`La ${mesa.numero} está ocupada por ${mesa.cliente ? mesa.cliente.nombre + ' ' + mesa.cliente.apellido : 'un cliente'}.`);
+            }
         }
 
         function closeHostModal() { 
@@ -506,114 +460,182 @@
         }
 
         function switchClientTab(tipo) {
+            checkinData.tipo = tipo;
             const tabNuevo = document.getElementById('tab-nuevo');
             const tabRegular = document.getElementById('tab-regular');
+            const tabOmitir = document.getElementById('tab-omitir');
             const formNuevo = document.getElementById('form-cliente-nuevo');
             const formRegular = document.getElementById('form-cliente-regular');
+            const formOmitir = document.getElementById('form-cliente-omitir');
 
-            if (tipo === 'nuevo') {
-                tabNuevo.className = "w-1/2 py-1.5 rounded-md text-xs font-bold transition bg-indigo-600 text-white";
-                tabRegular.className = "w-1/2 py-1.5 rounded-md text-xs font-bold transition text-gray-400 hover:text-white";
-                formNuevo.classList.remove('hidden');
-                formRegular.classList.add('hidden');
-            } else {
-                tabRegular.className = "w-1/2 py-1.5 rounded-md text-xs font-bold transition bg-indigo-600 text-white";
-                tabNuevo.className = "w-1/2 py-1.5 rounded-md text-xs font-bold transition text-gray-400 hover:text-white";
-                formRegular.classList.remove('hidden');
-                formNuevo.classList.add('hidden');
-            }
+            tabNuevo.className = "py-1.5 rounded-md text-[11px] font-bold transition " + (tipo === 'nuevo' ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white");
+            tabRegular.className = "py-1.5 rounded-md text-[11px] font-bold transition " + (tipo === 'regular' ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white");
+            tabOmitir.className = "py-1.5 rounded-md text-[11px] font-bold transition " + (tipo === 'omitir' ? "bg-amber-600 text-white" : "text-gray-400 hover:text-white");
+
+            formNuevo.classList.toggle('hidden', tipo !== 'nuevo');
+            formRegular.classList.toggle('hidden', tipo !== 'regular');
+            formOmitir.classList.toggle('hidden', tipo !== 'omitir');
         }
 
-        async function handleAssignClient(event, tipo) {
-            event.preventDefault();
-            const mesa = mesas.find(m => m.id === selectedMesaHostId);
-            
-            let name, lastname, phone, email, guests;
+        function filterRegularClients(query) {
+            const resultsContainer = document.getElementById('regular-search-results');
+            if (!query.trim()) { resultsContainer.classList.add('hidden'); return; }
+            const q = query.toLowerCase();
+            currentFilteredMatches = listaClientesDB.filter(c => 
+                (c.nombre && c.nombre.toLowerCase().includes(q)) || 
+                (c.apellido && c.apellido.toLowerCase().includes(q)) || 
+                (c.telefono && c.telefono.includes(q))
+            );
+            if (currentFilteredMatches.length === 0) {
+                resultsContainer.innerHTML = `<div class="p-2.5 text-xs text-gray-500 italic text-center">No se encontraron clientes.</div>`;
+            } else {
+                resultsContainer.innerHTML = currentFilteredMatches.map((c, index) => `
+                    <div onclick="selectRegularClientByIndex(${index})" class="p-2.5 hover:bg-indigo-600/30 cursor-pointer border-b border-gray-800 transition flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-xs text-white">${c.nombre} ${c.apellido}</p>
+                            <p class="text-[10px] text-gray-450"><i class="fa-solid fa-phone text-[9px] mr-1">​</i>${c.telefono || 'Sin tel.'}</p>
+                        </div>
+                        <i class="fa-solid fa-check text-indigo-400 text-xs"></i>
+                    </div>
+                `).join('');
+            }
+            resultsContainer.classList.remove('hidden');
+        }
 
-            if (tipo === 'nuevo') {
-                phone = document.getElementById('nuevo-phone').value;
-                name = document.getElementById('nuevo-name').value.trim();
-                lastname = document.getElementById('nuevo-lastname').value.trim();
-                email = document.getElementById('nuevo-email').value;
-                guests = document.getElementById('nuevo-guests').value;
+        function selectRegularClientByIndex(index) {
+            const cliente = currentFilteredMatches[index];
+            if (cliente) {
+                checkinData.selectedClientId = cliente.id;
+                document.getElementById('search-regular-input').value = `${cliente.nombre} ${cliente.apellido}`;
+                document.getElementById('reg-name').value = cliente.nombre || '';
+                document.getElementById('reg-lastname').value = cliente.apellido || '';
+                document.getElementById('reg-phone').value = cliente.telefono || '';
+            }
+            document.getElementById('regular-search-results').classList.add('hidden');
+        }
 
-                // VALIDACIÓN DE DUPLICADOS Y HOMÓNIMOS
-                const clienteExistente = listaClientesDB.find(c => 
-                    c.nombre && c.nombre.toLowerCase() === name.toLowerCase() && 
-                    c.apellido && c.apellido.toLowerCase() === lastname.toLowerCase()
-                );
+        function clearRegularSearch() {
+            checkinData.selectedClientId = null;
+            document.getElementById('search-regular-input').value = '';
+            document.getElementById('reg-name').value = '';
+            document.getElementById('reg-lastname').value = '';
+            document.getElementById('reg-phone').value = '';
+            document.getElementById('regular-search-results').classList.add('hidden');
+        }
 
-                if (clienteExistente) {
-                    let esElMismo = confirm(`⚠️ ¡Atención! Ya existe un cliente registrado con este nombre:\n\n• Nombre: ${clienteExistente.nombre} ${clienteExistente.apellido}\n• Teléfono registrado: ${clienteExistente.telefono}\n\n¿Es este mismo cliente regular?\n\n- Pulsa ACEPTAR si es el mismo (se usará su registro).\n- Pulsa CANCELAR si es una PERSONA DIFERENTE (homónimo) y deseas modificar el nombre/apellido en el formulario.`);
-                    
-                    if (esElMismo) {
-                        selectedRegularClientId = clienteExistente.id;
-                        mesa.estado = 'ocupada';
-                        mesa.cliente = { nombre: clienteExistente.nombre, apellido: clienteExistente.apellido, telefono: phone, comensales: guests };
+        // VALIDACIÓN Y TRANSICIÓN AL PASO 2 (SELECCIÓN DE MESA)
+        function goToStep2() {
+            checkinData.comensales = parseInt(document.getElementById('input-guests').value) || 2;
 
-                        try {
-                            await supabaseClient.from('clientes').update({
-                                telefono: phone,
-                                correo: email || clienteExistente.correo
-                            }).eq('id', clienteExistente.id);
+            if (checkinData.tipo === 'nuevo') {
+                checkinData.telefono = document.getElementById('nuevo-phone').value.trim();
+                checkinData.nombre = document.getElementById('nuevo-name').value.trim();
+                checkinData.apellido = document.getElementById('nuevo-lastname').value.trim();
+                checkinData.correo = document.getElementById('nuevo-email').value.trim();
 
-                            await supabaseClient.from('mesas').insert([{ numero_mesa: mesa.id, zona: mesa.zona, capacidad: parseInt(guests), estado: 'Ocupada' }]);
-                        } catch (err) { console.error(err); }
+                if (!checkinData.nombre || !checkinData.apellido || !checkinData.telefono) {
+                    alert("Por favor completa los campos de Nombre, Apellido y Teléfono.");
+                    return;
+                }
+            } else if (checkinData.tipo === 'regular') {
+                checkinData.nombre = document.getElementById('reg-name').value.trim();
+                checkinData.apellido = document.getElementById('reg-lastname').value.trim();
+                checkinData.telefono = document.getElementById('reg-phone').value.trim();
 
-                        closeHostModal();
-                        renderMesasHost();
-                        renderMesasServer();
-                        alert(`Mesa ${mesa.numero} asignada al cliente regular ${clienteExistente.nombre} ${clienteExistente.apellido}.`);
-                        return;
-                    } else {
-                        alert("Por favor, modifica el nombre o agrega un segundo nombre/apellido en el formulario para registrar a esta persona como un cliente único y separado.");
-                        return;
-                    }
+                if (!checkinData.nombre) {
+                    alert("Por favor selecciona o busca un cliente regular.");
+                    return;
+                }
+            } else {
+                checkinData.nombre = "Cliente";
+                checkinData.apellido = "Ocasional";
+                checkinData.telefono = "S/N";
+            }
+
+            // Renderizar grilla de mesas disponibles en el Paso 2
+            renderModalTables();
+            document.getElementById('host-step-1').classList.add('hidden');
+            document.getElementById('host-step-2').classList.remove('hidden');
+            document.getElementById('step-indicator').innerText = "Paso 2 de 2";
+        }
+
+        function goToStep1() {
+            document.getElementById('host-step-2').classList.add('hidden');
+            document.getElementById('host-step-1').classList.remove('hidden');
+            document.getElementById('step-indicator').innerText = "Paso 1 de 2";
+        }
+
+        function renderModalTables() {
+            const container = document.getElementById('modal-tables-grid');
+            const disponibles = mesas.filter(m => m.estado === 'disponible');
+
+            if (disponibles.length === 0) {
+                container.innerHTML = `<p class="text-xs text-red-400 italic col-span-2 text-center py-4">No hay mesas disponibles en este momento.</p>`;
+                return;
+            }
+
+            container.innerHTML = disponibles.map(m => `
+                <div onclick="selectModalTable(${m.id})" id="modal-table-card-${m.id}" class="cursor-pointer border border-gray-700 bg-gray-900 rounded-lg p-3 hover:border-indigo-500 transition flex flex-col justify-between">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-xs text-white">${m.numero}</span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-300">${m.zona}</span>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-2">Capacidad: <span class="text-indigo-300 font-bold">${m.cap} pers.</span></p>
+                </div>
+            `).join('');
+        }
+
+        function selectModalTable(mesaId) {
+            // Remover selección anterior
+            document.querySelectorAll('[id^="modal-table-card-"]').forEach(el => {
+                el.classList.remove('border-indigo-500', 'bg-indigo-950/40', 'ring-2', 'ring-indigo-500');
+            });
+            // Marcar nueva selección
+            const card = document.getElementById(`modal-table-card-${mesaId}`);
+            if (card) {
+                card.classList.add('border-indigo-500', 'bg-indigo-950/40', 'ring-2', 'ring-indigo-500');
+            }
+            checkinData.selectedMesaId = mesaId;
+        }
+
+        async function confirmTableAssignment() {
+            if (!checkinData.selectedMesaId) {
+                alert("Por favor selecciona una mesa.");
+                return;
+            }
+
+            const mesa = mesas.find(m => m.id === checkinData.selectedMesaId);
+            mesa.estado = 'ocupada';
+            mesa.cliente = { nombre: checkinData.nombre, apellido: checkinData.apellido, telefono: checkinData.telefono, comensales: checkinData.comensales };
+
+            try {
+                if (checkinData.tipo === 'nuevo') {
+                    await supabaseClient.from('clientes').insert([{ 
+                        telefono: checkinData.telefono, 
+                        nombre: checkinData.nombre, 
+                        apellido: checkinData.apellido, 
+                        correo: checkinData.correo,
+                        historial_preferencias: `Comensales: ${checkinData.comensales}` 
+                    }]);
+                    await cargarClientesRegulares();
+                } else if (checkinData.tipo === 'regular' && checkinData.selectedClientId) {
+                    await supabaseClient.from('clientes').update({
+                        telefono: checkinData.telefono
+                    }).eq('id', checkinData.selectedClientId);
                 }
 
-                mesa.estado = 'ocupada';
-                mesa.cliente = { nombre: name, apellido: lastname, telefono: phone, comensales: guests };
-
-                try {
-                    await supabaseClient.from('clientes').insert([{ 
-                        telefono: phone, 
-                        nombre: name, 
-                        apellido: lastname, 
-                        correo: email,
-                        historial_preferencias: `Comensales: ${guests}` 
-                    }]);
-                    await supabaseClient.from('mesas').insert([{ numero_mesa: mesa.id, zona: mesa.zona, capacidad: parseInt(guests), estado: 'Ocupada' }]);
-                    await cargarClientesRegulares(); 
-                } catch (err) { console.error(err); }
-
-            } else {
-                name = document.getElementById('reg-name').value.trim();
-                lastname = document.getElementById('reg-lastname').value.trim();
-                phone = document.getElementById('reg-phone').value;
-                email = document.getElementById('reg-email').value;
-                guests = document.getElementById('reg-guests').value;
-
-                mesa.estado = 'ocupada';
-                mesa.cliente = { nombre: name, apellido: lastname, telefono: phone, comensales: guests };
-
-                try {
-                    if (selectedRegularClientId) {
-                        await supabaseClient.from('clientes').update({
-                            nombre: name,
-                            apellido: lastname,
-                            telefono: phone,
-                            correo: email
-                        }).eq('id', selectedRegularClientId);
-                    }
-                    await supabaseClient.from('mesas').insert([{ numero_mesa: mesa.id, zona: mesa.zona, capacidad: parseInt(guests), estado: 'Ocupada' }]);
-                    await cargarClientesRegulares();
-                } catch (err) { console.error(err); }
-            }
+                await supabaseClient.from('mesas').insert([{ 
+                    numero_mesa: mesa.id, 
+                    zona: mesa.zona, 
+                    capacidad: parseInt(checkinData.comensales), 
+                    estado: 'Ocupada' 
+                }]);
+            } catch (err) { console.error(err); }
 
             closeHostModal();
             renderMesasHost();
             renderMesasServer();
-            alert(`Mesa ${mesa.numero} asignada exitosamente a ${name} ${lastname}.`);
+            alert(`✅ Mesa ${mesa.numero} asignada exitosamente a ${checkinData.nombre} ${checkinData.apellido} (${checkinData.comensales} comensales).`);
         }
 
         function renderMesasServer() {
@@ -636,7 +658,7 @@
             
             const tag = document.getElementById('cliente-info-tag');
             if (mesa.cliente) {
-                tag.innerText = `Cliente: ${mesa.cliente.nombre} ${mesa.cliente.apellido}`;
+                tag.innerText = `Cliente: ${mesa.cliente.nombre} ${mesa.cliente.apellido} (${mesa.cliente.comensales} pers.)`;
                 tag.classList.remove('hidden');
             } else {
                 tag.classList.add('hidden');
@@ -762,18 +784,11 @@
             renderOrder();
         }
 
-        function updateItemNote(index, note) {
-            currentOrder[index].notaIndividual = note;
-        }
-
-        function removeFromOrder(index) {
-            currentOrder.splice(index, 1);
-            renderOrder();
-        }
+        function updateItemNote(index, note) { currentOrder[index].notaIndividual = note; }
+        function removeFromOrder(index) { currentOrder.splice(index, 1); renderOrder(); }
 
         async function submitOrder() {
             if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
-
             const mesa = mesas.find(m => m.id === selectedMesaId);
             const itemsText = currentOrder.map(i => {
                 let desc = `1x ${i.nombre}`;
@@ -792,19 +807,15 @@
                     estado_envio_cocina: 'Pendiente'
                 }]);
 
-                if (error) {
-                    alert("Error al registrar pedido: " + error.message);
-                } else {
+                if (error) alert("Error al registrar pedido: " + error.message);
+                else {
                     alert(`✅ ¡Comanda enviada a cocina para ${mesa.numero} por ${currentMeseroName}!`);
                     currentOrder = [];
                     document.getElementById('order-notes').value = '';
                     renderOrder();
                     await loadTableHistory(mesa.id);
                 }
-            } catch (err) { 
-                console.error(err);
-                alert("Ocurrió un error inesperado al enviar el pedido.");
-            }
+            } catch (err) { console.error(err); alert("Ocurrió un error inesperado al enviar el pedido."); }
         }
 
         async function closeTable() {
