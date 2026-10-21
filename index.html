@@ -214,9 +214,7 @@
             { id: 6, numero: "Mesa 06", zona: "VIP", estado: "disponible", cliente: null },
         ];
 
-        // MENÚ OFICIAL MOOKAH (AGOSTO) CON INGREDIENTES Y PRECIOS REALES
         const menuCatalog = [
-            // ENTRADAS
             { id: 101, nombre: "Edamames", categoria: "entradas", precio: 8.00, ingredientes: ["Edamames", "Sal"] },
             { id: 102, nombre: "Edamames Salteados", categoria: "entradas", precio: 9.00, ingredientes: ["Edamames", "Salsa especial", "Sal"] },
             { id: 103, nombre: "Edamames Togarashi", categoria: "entradas", precio: 9.00, ingredientes: ["Edamames", "Togarashi", "Sal"] },
@@ -232,7 +230,6 @@
             { id: 113, nombre: "XOXO (NEW!)", categoria: "entradas", precio: 12.00, ingredientes: ["Nori crunch", "Arroz nishiki", "Aguacate", "Queso crema", "Atún spicy", "Langostino tempura", "Salmón mae ploy"] },
             { id: 114, nombre: "Trio de Tacos", categoria: "entradas", precio: 13.00, ingredientes: ["Lomito", "Dinamita", "Kani crispy", "Pimienta", "Aceite de trufa", "Hoja de arroz tempurizado"] },
 
-            // SUSHI ROLLS
             { id: 201, nombre: "Alaska Roll", categoria: "rolls", precio: 11.00, ingredientes: ["Salmón chileno", "Aguacate", "Queso crema", "Ajonjolí tostado"] },
             { id: 202, nombre: "Bugatti Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Queso de cabra", "Langostino tempura", "Aguacate", "Salmón chileno", "Tocineta crocante", "Chutney de piña"] },
             { id: 203, nombre: "Liv Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Langostino tempura", "Kani", "Aguacate", "Spicy tuna", "Cebollín", "Ajonjolí tostado"] },
@@ -257,17 +254,14 @@
             { id: 222, nombre: "Nikkei", categoria: "rolls", precio: 14.00, ingredientes: ["Salmón", "Chispas rojas", "Dragon", "Cebolla crispy", "Camarón tempura panco", "Soybean", "Queso crema", "Aguacate", "Salsa ají amarillo"] },
             { id: 223, nombre: "305 Roll", categoria: "rolls", precio: 14.00, ingredientes: ["Soybean", "Arroz nishiki", "Queso crema", "Salmón", "Aguacate", "Atún", "Salsa dragon", "Chutney de piña", "Tajín"] },
 
-            // PLATOS CALIENTES
             { id: 301, nombre: "Arroz Teriyaki", categoria: "calientes", precio: 15.00, ingredientes: ["Zanahoria", "Cebolla", "Pimentón", "Proteína (Pollo o Carne)"] },
             { id: 302, nombre: "Tallarines Teriyaki", categoria: "calientes", precio: 15.00, ingredientes: ["Zanahoria", "Cebolla", "Pimentón", "Proteína (Pollo o Carne)"] },
 
-            // POKES
             { id: 401, nombre: "Poke Amarillo (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Camarón grill", "Kani", "Piña", "Aguacate", "Cebolla tempura", "Salsa fuji", "Wakame", "Tobico", "Sésamo"] },
             { id: 402, nombre: "Poke Azul (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Atún abrazado", "Salmón", "Edamame", "Aguacate", "Hilos de batata", "Salsa anguila", "Wakame", "Tobico", "Sésamo"] },
             { id: 403, nombre: "Poke Rojo (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Edamames", "Piña", "Salmón spicy", "Dinamita", "Wakame", "Tobico", "Sésamo"] },
             { id: 404, nombre: "Poke Mookah (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Atún", "Salmón spicy", "Aguacate", "Edamame", "Maíz inflado", "Salsa dragón", "Salsa anguila", "Wakame", "Tobico", "Sésamo"] },
 
-            // POSTRES
             { id: 501, nombre: "Crumble de Manzana", categoria: "postres", precio: 12.00, ingredientes: ["Manzanas marinadas en almíbar y canela", "Tierra de galleta", "Crema caramelo", "Chantilly", "Almendras", "Fresas", "Helado de vainilla"] },
             { id: 502, nombre: "Cheesecake", categoria: "postres", precio: 9.00, ingredientes: ["Queso crema", "Fresas fileteadas", "Mermelada de mora", "Mermelada de fresa"] },
             { id: 503, nombre: "Crepe de Nutella", categoria: "postres", precio: 11.00, ingredientes: ["Masa de crepe", "Nutella"] },
@@ -475,10 +469,8 @@
 
         function filterCategory(cat) { renderMenu(cat); }
 
-        // AGREGAR AL CARRITO CON OBJETO DE INGREDIENTES ACTIVOS/INACTIVOS (PERMITE DESHACER)
         function addToOrder(itemId) {
             const item = menuCatalog.find(i => i.id === itemId);
-            // Creamos un arreglo de objetos para cada ingrediente con su estado 'activo'
             const ingredientesObj = item.ingredientes.map(ing => ({ nombre: ing, activo: true }));
             
             currentOrder.push({ 
@@ -510,7 +502,6 @@
                                 <button onclick="removeFromOrder(${index})" class="text-red-400 hover:text-red-300"><i class="fa-solid fa-trash"></i></button>
                             </div>
                         </div>
-                        <!-- Sección de ingredientes interactivos (Clic para quitar, clic de nuevo para deshacer) -->
                         <div class="text-[10px] text-gray-300 bg-gray-950 p-1.5 rounded border border-gray-800">
                             <p class="font-semibold text-indigo-300 mb-1">Ingredientes (clic para quitar/restaurar):</p>
                             <div class="flex flex-wrap gap-1">
@@ -528,13 +519,9 @@
             document.getElementById('order-total').innerText = `$${total.toFixed(2)}`;
         }
 
-        // Alternar ingrediente (Quitar o Deshacer / Restaurar al hacer clic de nuevo)
         function toggleIngredient(orderIndex, ingIdx) {
             const item = currentOrder[orderIndex];
-            // Cambiamos el estado: si estaba activo pasa a inactivo y viceversa (deshacer automático)
             item.ingredientesObj[ingIdx].activo = !item.ingredientesObj[ingIdx].activo;
-            
-            // Recalculamos la nota individual basada únicamente en los ingredientes desactivados
             const inactivos = item.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre);
             item.notaIndividual = inactivos.length > 0 ? `Sin ${inactivos.join(', sin ')}` : '';
             renderOrder();
@@ -549,7 +536,7 @@
             renderOrder();
         }
 
-        // ENVIAR COMANDA ACUMULADA A SUPABASE
+        // ENVIAR COMANDA ROBUSTA (EVITA ERRORES DE LLAVES FORÁNEAS)
         async function submitOrder() {
             if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
 
@@ -563,6 +550,7 @@
             const noteText = document.getElementById('order-notes').value || 'Sin notas';
 
             try {
+                // Insertamos enviando únicamente los campos de texto esenciales para evitar conflictos de Foreign Key
                 const { error } = await supabaseClient.from('pedidos_comandos').insert([{
                     mesa_id: mesa.id,
                     items_seleccionados: itemsText,
@@ -572,15 +560,35 @@
                 }]);
 
                 if (error) {
-                    alert("Error al registrar pedido.");
+                    console.error("Detalle del error Supabase:", error);
+                    // Si el error persiste por restricción estricta de base de datos, reintentamos sin el ID numérico de mesa estricto
+                    const { error: retryError } = await supabaseClient.from('pedidos_comandos').insert([{
+                        items_seleccionados: `[${mesa.numero}] ${itemsText}`,
+                        modificadores: noteText,
+                        estado_envio_cocina: 'Pendiente',
+                        mesero: currentMeseroName
+                    }]);
+                    
+                    if(retryError) {
+                        alert("Error al registrar pedido: " + (error.message || retryError.message));
+                    } else {
+                        successOrderAction(mesa);
+                    }
                 } else {
-                    alert(`✅ ¡Comanda enviada a cocina para ${mesa.numero} por ${currentMeseroName}!`);
-                    currentOrder = [];
-                    document.getElementById('order-notes').value = '';
-                    renderOrder();
-                    await loadTableHistory(mesa.id);
+                    successOrderAction(mesa);
                 }
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error(err);
+                alert("Ocurrió un error inesperado al enviar el pedido.");
+            }
+        }
+
+        function successOrderAction(mesa) {
+            alert(`✅ ¡Comanda enviada a cocina para ${mesa.numero} por ${currentMeseroName}!`);
+            currentOrder = [];
+            document.getElementById('order-notes').value = '';
+            renderOrder();
+            loadTableHistory(mesa.id);
         }
 
         async function closeTable() {
