@@ -299,12 +299,12 @@
         };
 
         let mesas = [
-            { id: 1, numero: "Mesa 01", zona: "Terraza", cap: 4, estado: "disponible", cliente: null, sessionStartTimeMs: null },
-            { id: 2, numero: "Mesa 02", zona: "Terraza", cap: 4, estado: "disponible", cliente: null, sessionStartTimeMs: null },
-            { id: 3, numero: "Mesa 03", zona: "Salón", cap: 8, estado: "disponible", cliente: null, sessionStartTimeMs: null },
-            { id: 4, numero: "Mesa 04", zona: "Salón", cap: 8, estado: "disponible", cliente: null, sessionStartTimeMs: null },
-            { id: 5, numero: "Mesa 05", zona: "VIP", cap: 6, estado: "disponible", cliente: null, sessionStartTimeMs: null },
-            { id: 6, numero: "Mesa 06", zona: "VIP", cap: 6, estado: "disponible", cliente: null, sessionStartTimeMs: null },
+            { id: 1, numero: "Mesa 01", zona: "Terraza", cap: 4, estado: "disponible", cliente: null, sessionStartTimeMs: null, sessionOrders: [] },
+            { id: 2, numero: "Mesa 02", zona: "Terraza", cap: 4, estado: "disponible", cliente: null, sessionStartTimeMs: null, sessionOrders: [] },
+            { id: 3, numero: "Mesa 03", zona: "Salón", cap: 8, estado: "disponible", cliente: null, sessionStartTimeMs: null, sessionOrders: [] },
+            { id: 4, numero: "Mesa 04", zona: "Salón", cap: 8, estado: "disponible", cliente: null, sessionStartTimeMs: null, sessionOrders: [] },
+            { id: 5, numero: "Mesa 05", zona: "VIP", cap: 6, estado: "disponible", cliente: null, sessionStartTimeMs: null, sessionOrders: [] },
+            { id: 6, numero: "Mesa 06", zona: "VIP", cap: 6, estado: "disponible", cliente: null, sessionStartTimeMs: null, sessionOrders: [] },
         ];
 
         const menuCatalog = [
@@ -375,7 +375,7 @@
             if (tableTimeInterval) clearInterval(tableTimeInterval);
             tableTimeInterval = setInterval(() => {
                 updateTableTimersUI();
-            }, 5000);
+            }, 1000); // Actualización continua segundo a segundo
         }
 
         function updateTableTimersUI() {
@@ -740,14 +740,14 @@
                         nombre: checkinData.nombre, 
                         apellido: checkinData.apellido, 
                         correo: checkinData.correo,
-                        historial_preferencias: `[${fechaHoraVisita}] Visita iniciada: ${checkinData.comensales} comensales` 
+                        historial_preferencias: `[${fechaHoraVisita}] Visita iniciada: ${checkinData.comensales} comensales (Atendido por Host/Mesero: ${currentMeseroName})` 
                     }]);
                     telefonoFinal = checkinData.telefono;
                     await cargarClientesRegulares();
                 } else if (checkinData.tipo === 'regular' && telefonoFinal) {
                     const clienteActual = listaClientesDB.find(c => c.telefono === telefonoFinal);
                     const prevHistorial = clienteActual && clienteActual.historial_preferencias ? clienteActual.historial_preferencias : '';
-                    const nuevaVisita = `[${fechaHoraVisita}] Visita iniciada: ${checkinData.comensales} comensales`;
+                    const nuevaVisita = `[${fechaHoraVisita}] Visita iniciada: ${checkinData.comensales} comensales (Atendido por Host/Mesero: ${currentMeseroName})`;
                     const historialActualizado = prevHistorial ? `${prevHistorial} | ${nuevaVisita}` : nuevaVisita;
 
                     await supabaseClient.from('clientes').update({
@@ -763,7 +763,7 @@
                     const mesa = mesas.find(m => m.id === mesaId);
                     mesa.estado = 'ocupada';
                     mesa.sessionStartTimeMs = nowMs;
-                    mesa.sessionOrders = []; // Inicializa el array de pedidos locales para esta sesión
+                    mesa.sessionOrders = [];
                     mesa.cliente = { 
                         telefono: telefonoFinal, 
                         nombre: checkinData.nombre, 
@@ -802,20 +802,29 @@
             const container = document.getElementById('grid-mesas-server');
             container.innerHTML = mesas.map(m => {
                 let activeBorder = m.id === selectedMesaId ? 'ring-2 ring-indigo-500' : '';
-                let timeText = '';
-                if (m.estado === 'ocupada' && m.sessionStartTimeMs) {
-                    const mins = Math.floor((Date.now() - m.sessionStartTimeMs) / 60000);
-                    timeText = ` (${mins} min)`;
+                let statusText = 'Disponible';
+                let statusColor = 'text-emerald-400';
+
+                if (m.estado === 'ocupada') {
+                    const mins = m.sessionStartTimeMs ? Math.floor((Date.now() - m.sessionStartTimeMs) / 60000) : 0;
+                    statusText = `OCUPADA (${mins} MIN)`;
+                    statusColor = 'text-red-400';
+                } else if (m.estado === 'por-limpiar') {
+                    statusText = 'POR LIMPIAR';
+                    statusColor = 'text-amber-400';
                 }
 
                 return `
-                    <button onclick="selectMesaServer(${m.id})" class="p-3 rounded-lg text-left bg-gray-900 border border-gray-700 ${activeBorder} flex flex-col justify-between">
-                        <div class="flex justify-between items-center">
-                            <span class="font-bold text-xs">${m.numero}</span>
-                            <span class="text-[10px] ${m.estado === 'ocupada' ? 'text-red-400' : m.estado === 'por-limpiar' ? 'text-amber-400' : 'text-emerald-400'} font-semibold capitalize">${m.estado}${timeText}</span>
+                    <button onclick="selectMesaServer(${m.id})" class="p-3 rounded-xl text-left bg-gray-900 border border-gray-700 ${activeBorder} flex flex-col justify-between h-24 hover:border-indigo-500 transition">
+                        <div class="flex justify-between items-center w-full">
+                            <span class="font-bold text-sm text-white">${m.numero}</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 font-semibold uppercase">Cap: ${m.cap} pers.</span>
                         </div>
                         <div>
-                            ${m.cliente ? `<p class="text-[10px] text-gray-300 truncate mt-1"><i class="fa-solid fa-user mr-1 text-indigo-400"></i>${m.cliente.nombre} ${m.cliente.apellido}</p>` : ''}
+                            ${m.cliente ? `<p class="text-xs font-bold text-white truncate"><i class="fa-solid fa-user mr-1 text-indigo-400"></i>${m.cliente.nombre.toUpperCase()} ${m.cliente.apellido.toUpperCase()}</p>` : '<p class="text-[10px] text-gray-500">Sin cliente</p>'}
+                        </div>
+                        <div class="text-[10px] font-bold uppercase ${statusColor}">
+                            ${statusText}
                         </div>
                     </button>
                 `;
@@ -861,7 +870,6 @@
             renderTableHistory(mesa);
         }
 
-        // RENDER DIRECTO DEL HISTORIAL DE LA SESIÓN LOCAL (GARANTIZA VISUALIZACIÓN INMEDIATA Y SIN ERRORES 400)
         function renderTableHistory(mesa) {
             const historyContainer = document.getElementById('table-history-list');
 
@@ -876,10 +884,13 @@
             }
 
             historyContainer.innerHTML = mesa.sessionOrders.map((p, index) => `
-                <div class="border-b border-gray-800 pb-1 mb-1">
-                    <p class="text-indigo-300 font-semibold text-[10px]">Tanda #${index + 1} (${p.hora}):</p>
-                    <p class="text-white font-medium">👉 ${p.items}</p>
-                    <p class="text-[10px] text-gray-400">Nota: ${p.nota || 'Ninguna'}</p>
+                <div class="border-b border-gray-800 pb-1.5 mb-1.5">
+                    <div class="flex justify-between items-center mb-0.5">
+                        <span class="text-indigo-300 font-semibold text-[10px]">Tanda #${index + 1} (${p.hora}):</span>
+                        <span class="text-[9px] bg-indigo-950 text-indigo-200 px-1.5 py-0.5 rounded border border-indigo-800/50">👤 Mesero: ${p.mesero}</span>
+                    </div>
+                    <p class="text-white font-medium text-xs">👉 ${p.items}</p>
+                    <p class="text-[10px] text-gray-400 mt-0.5">Nota: ${p.nota || 'Ninguna'}</p>
                 </div>
             `).join('');
         }
@@ -996,7 +1007,7 @@
             const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             try {
-                // 1. Enviar pedido a Supabase
+                // 1. Enviar pedido a Supabase con el nombre del mesero explícito
                 const { error } = await supabaseClient.from('pedidos_comandos').insert([{
                     mesa_id: mesa.id,
                     items_seleccionados: itemsText,
@@ -1009,22 +1020,23 @@
                     return;
                 }
 
-                // 2. Guardar en el historial de la sesión activa de la mesa (solución 100% inmediata)
+                // 2. Guardar en el historial de la sesión activa de la mesa
                 if (!mesa.sessionOrders) mesa.sessionOrders = [];
                 mesa.sessionOrders.push({
                     hora: horaActual,
+                    mesero: currentMeseroName,
                     items: itemsText,
-                    nota: noteText
+                    nota: generalNote
                 });
 
-                // 3. Guardar detallado con fecha y hora en el perfil de Supabase
+                // 3. Guardar con Mesero, Fecha y Hora en el historial de preferencias del cliente en Supabase
                 if (mesa.cliente && mesa.cliente.telefono) {
                     const { data: clienteDB } = await supabaseClient.from('clientes').select('historial_preferencias').eq('telefono', mesa.cliente.telefono).single();
                     let prevHistorial = clienteDB && clienteDB.historial_preferencias ? clienteDB.historial_preferencias : '';
                     
                     const ahora = new Date();
                     const fechaHoraStr = `${ahora.toLocaleDateString()} ${ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                    let detallePedido = `[${fechaHoraStr}] Pedido: ${itemsText}`;
+                    let detallePedido = `[${fechaHoraStr}] Pedido tomado por Mesero: ${currentMeseroName} | ${itemsText}`;
                     if (generalNote) detallePedido += ` (Nota: ${generalNote})`;
 
                     let historialActualizado = prevHistorial ? `${prevHistorial} | ${detallePedido}` : detallePedido;
@@ -1034,7 +1046,7 @@
                     }).eq('telefono', mesa.cliente.telefono);
                 }
 
-                alert(`✅ ¡Comanda enviada a cocina y guardada en el perfil de ${mesa.cliente ? mesa.cliente.nombre : 'el cliente'}!`);
+                alert(`✅ ¡Comanda enviada por ${currentMeseroName} a cocina y guardada en el historial!`);
                 currentOrder = [];
                 document.getElementById('order-notes').value = '';
                 renderOrder();
