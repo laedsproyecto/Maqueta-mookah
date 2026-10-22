@@ -205,6 +205,7 @@
                             <span>Cerrar Cuenta y Limpiar Mesa</span>
                         </button>
 
+                        <!-- BOTÓN AMARILLO/ÁMBAR PARA LIMPIEZA -->
                         <button id="btn-clean-table" onclick="cleanTable()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-lg text-xs shadow flex justify-center items-center space-x-2 transition hidden">
                             <i class="fa-solid fa-broom"></i>
                             <span>Marcar Mesa Limpia y Disponible</span>
@@ -1135,7 +1136,6 @@
             const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             try {
-                // 1. Enviar comandas a cocina
                 await supabaseClient.from('pedidos_comandos').insert([{
                     mesa_id: mesa.id,
                     items_seleccionados: itemsText,
@@ -1143,7 +1143,6 @@
                     estado_envio_cocina: 'Pendiente'
                 }]);
 
-                // 2. Guardar tanda en la sesión de la mesa
                 if (!mesa.sessionOrders) mesa.sessionOrders = [];
                 mesa.sessionOrders.push({
                     hora: horaActual,
@@ -1153,7 +1152,6 @@
                     totalTanda: newOrderTotal
                 });
 
-                // 3. Sincronizar estado global inmediatamente
                 await syncMesaToSupabase(mesa);
 
                 alert(`✅ ¡Comanda de $${newOrderTotal.toFixed(2)} enviada por ${currentMeseroName} a cocina!`);
