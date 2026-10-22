@@ -138,7 +138,7 @@
                                 <h4 class="font-bold text-xs uppercase text-indigo-300">Pedidos de esta Sesión:</h4>
                                 <span id="table-time-tag" class="text-[10px] text-amber-400 font-mono font-bold">⏳ 0 min</span>
                             </div>
-                            <div id="table-history-list" class="space-y-1 text-xs text-gray-400 max-h-[120px] overflow-y-auto bg-gray-900 p-2 rounded-lg border border-gray-700">
+                            <div id="table-history-list" class="space-y-1 text-xs text-gray-400 max-h-[140px] overflow-y-auto bg-gray-900 p-2 rounded-lg border border-gray-700">
                                 <p class="italic text-gray-500">Mesa libre (sin cliente asignado).</p>
                             </div>
                         </div>
@@ -299,12 +299,12 @@
         };
 
         let mesas = [
-            { id: 1, numero: "Mesa 01", zona: "Terraza", cap: 4, estado: "disponible", cliente: null, sessionStartTime: null },
-            { id: 2, numero: "Mesa 02", zona: "Terraza", cap: 4, estado: "disponible", cliente: null, sessionStartTime: null },
-            { id: 3, numero: "Mesa 03", zona: "Salón", cap: 8, estado: "disponible", cliente: null, sessionStartTime: null },
-            { id: 4, numero: "Mesa 04", zona: "Salón", cap: 8, estado: "disponible", cliente: null, sessionStartTime: null },
-            { id: 5, numero: "Mesa 05", zona: "VIP", cap: 6, estado: "disponible", cliente: null, sessionStartTime: null },
-            { id: 6, numero: "Mesa 06", zona: "VIP", cap: 6, estado: "disponible", cliente: null, sessionStartTime: null },
+            { id: 1, numero: "Mesa 01", zona: "Terraza", cap: 4, estado: "disponible", cliente: null, sessionStartTimeMs: null },
+            { id: 2, numero: "Mesa 02", zona: "Terraza", cap: 4, estado: "disponible", cliente: null, sessionStartTimeMs: null },
+            { id: 3, numero: "Mesa 03", zona: "Salón", cap: 8, estado: "disponible", cliente: null, sessionStartTimeMs: null },
+            { id: 4, numero: "Mesa 04", zona: "Salón", cap: 8, estado: "disponible", cliente: null, sessionStartTimeMs: null },
+            { id: 5, numero: "Mesa 05", zona: "VIP", cap: 6, estado: "disponible", cliente: null, sessionStartTimeMs: null },
+            { id: 6, numero: "Mesa 06", zona: "VIP", cap: 6, estado: "disponible", cliente: null, sessionStartTimeMs: null },
         ];
 
         const menuCatalog = [
@@ -374,20 +374,17 @@
         function startTableTimerInterval() {
             if (tableTimeInterval) clearInterval(tableTimeInterval);
             tableTimeInterval = setInterval(() => {
-                // Actualizar contadores visuales en vivo sin bloquear la interfaz
                 updateTableTimersUI();
-            }, 10000); // Cada 10 segundos actualiza los minutos en pantalla
+            }, 5000);
         }
 
         function updateTableTimersUI() {
-            // Actualizar tiempo en el panel derecho si hay una mesa seleccionada ocupada
             const mesa = mesas.find(m => m.id === selectedMesaId);
             const timeTag = document.getElementById('table-time-tag');
-            if (mesa && mesa.estado === 'ocupada' && mesa.sessionStartTime) {
-                const elapsedMins = Math.floor((new Date() - new Date(mesa.sessionStartTime)) / 60000);
+            if (mesa && mesa.estado === 'ocupada' && mesa.sessionStartTimeMs) {
+                const elapsedMins = Math.floor((Date.now() - mesa.sessionStartTimeMs) / 60000);
                 if (timeTag) timeTag.innerText = `⏳ ${elapsedMins} min`;
             }
-            // Re-renderizar tarjetas de servidor para reflejar minutos en vivo
             if (!document.getElementById('view-server').classList.contains('hidden')) {
                 renderMesasServer();
             }
@@ -544,8 +541,8 @@
                                m.estado === 'ocupada' ? 'bg-red-600/20 border-red-500' : 'bg-amber-600/20 border-amber-500';
                 
                 let timeText = '';
-                if (m.estado === 'ocupada' && m.sessionStartTime) {
-                    const mins = Math.floor((new Date() - new Date(m.sessionStartTime)) / 60000);
+                if (m.estado === 'ocupada' && m.sessionStartTimeMs) {
+                    const mins = Math.floor((Date.now() - m.sessionStartTimeMs) / 60000);
                     timeText = ` (${mins} min)`;
                 }
 
@@ -759,13 +756,14 @@
                     }).eq('telefono', telefonoFinal);
                 }
 
-                const startTime = new Date().toISOString();
+                const nowMs = Date.now();
                 let numsMesasAsignadas = [];
 
                 for (let mesaId of checkinData.selectedMesaIds) {
                     const mesa = mesas.find(m => m.id === mesaId);
                     mesa.estado = 'ocupada';
-                    mesa.sessionStartTime = startTime;
+                    mesa.sessionStartTimeMs = nowMs;
+                    mesa.sessionOrders = []; // Inicializa el array de pedidos locales para esta sesión
                     mesa.cliente = { 
                         telefono: telefonoFinal, 
                         nombre: checkinData.nombre, 
@@ -805,8 +803,8 @@
             container.innerHTML = mesas.map(m => {
                 let activeBorder = m.id === selectedMesaId ? 'ring-2 ring-indigo-500' : '';
                 let timeText = '';
-                if (m.estado === 'ocupada' && m.sessionStartTime) {
-                    const mins = Math.floor((new Date() - new Date(m.sessionStartTime)) / 60000);
+                if (m.estado === 'ocupada' && m.sessionStartTimeMs) {
+                    const mins = Math.floor((Date.now() - m.sessionStartTimeMs) / 60000);
                     timeText = ` (${mins} min)`;
                 }
 
@@ -837,8 +835,8 @@
                 tag.innerText = `Cliente: ${mesa.cliente.nombre} ${mesa.cliente.apellido} (${mesa.cliente.comensales} pers.)${extraTag}`;
                 tag.classList.remove('hidden');
 
-                if (mesa.sessionStartTime) {
-                    const elapsedMins = Math.floor((new Date() - new Date(mesa.sessionStartTime)) / 60000);
+                if (mesa.sessionStartTimeMs) {
+                    const elapsedMins = Math.floor((Date.now() - mesa.sessionStartTimeMs) / 60000);
                     timeTag.innerText = `⏳ ${elapsedMins} min`;
                 } else {
                     timeTag.innerText = `⏳ 0 min`;
@@ -860,49 +858,30 @@
             }
 
             renderMesasServer();
-            await loadTableHistory(mesa.id);
+            renderTableHistory(mesa);
         }
 
-        async function loadTableHistory(mesaId) {
+        // RENDER DIRECTO DEL HISTORIAL DE LA SESIÓN LOCAL (GARANTIZA VISUALIZACIÓN INMEDIATA Y SIN ERRORES 400)
+        function renderTableHistory(mesa) {
             const historyContainer = document.getElementById('table-history-list');
-            const mesa = mesas.find(m => m.id === mesaId);
 
-            if (mesa.estado !== 'ocupada' || !mesa.sessionStartTime) {
+            if (mesa.estado !== 'ocupada') {
                 historyContainer.innerHTML = `<p class="italic text-gray-500 text-center py-2">Mesa libre (sin cliente asignado).</p>`;
                 return;
             }
 
-            historyContainer.innerHTML = `<p class="italic text-gray-500">Cargando pedidos del cliente...</p>`;
-
-            try {
-                const startTimeISO = new Date(mesa.sessionStartTime).toISOString();
-
-                const { data, error } = await supabaseClient
-                    .from('pedidos_comandos')
-                    .select('*')
-                    .eq('mesa_id', mesaId)
-                    .gte('created_at', startTimeISO)
-                    .order('id', { ascending: true });
-
-                if (error || !data || data.length === 0) {
-                    historyContainer.innerHTML = `<p class="italic text-gray-500 text-center py-2">El cliente aún no ha realizado pedidos en esta visita.</p>`;
-                    return;
-                }
-
-                historyContainer.innerHTML = data.map((p, index) => {
-                    const horaPedido = new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    return `
-                        <div class="border-b border-gray-800 pb-1 mb-1">
-                            <p class="text-indigo-300 font-semibold text-[10px]">Tanda #${index + 1} (${horaPedido}):</p>
-                            <p class="text-white font-medium">👉 ${p.items_seleccionados}</p>
-                            <p class="text-[10px] text-gray-400">Nota: ${p.modificadores || 'Ninguna'}</p>
-                        </div>
-                    `;
-                }).join('');
-            } catch (err) {
-                console.error(err);
-                historyContainer.innerHTML = `<p class="italic text-red-400">Error al cargar historial del cliente.</p>`;
+            if (!mesa.sessionOrders || mesa.sessionOrders.length === 0) {
+                historyContainer.innerHTML = `<p class="italic text-gray-500 text-center py-2">El cliente aún no ha realizado pedidos en esta visita.</p>`;
+                return;
             }
+
+            historyContainer.innerHTML = mesa.sessionOrders.map((p, index) => `
+                <div class="border-b border-gray-800 pb-1 mb-1">
+                    <p class="text-indigo-300 font-semibold text-[10px]">Tanda #${index + 1} (${p.hora}):</p>
+                    <p class="text-white font-medium">👉 ${p.items}</p>
+                    <p class="text-[10px] text-gray-400">Nota: ${p.nota || 'Ninguna'}</p>
+                </div>
+            `).join('');
         }
 
         function filterCategory(category) {
@@ -1014,9 +993,10 @@
             
             const generalNote = document.getElementById('order-notes').value || '';
             const noteText = `Mesero: ${currentMeseroName} | ${generalNote}`;
+            const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             try {
-                // 1. Enviar pedido a la tabla de comanda/cocina con su timestamp exacto
+                // 1. Enviar pedido a Supabase
                 const { error } = await supabaseClient.from('pedidos_comandos').insert([{
                     mesa_id: mesa.id,
                     items_seleccionados: itemsText,
@@ -1029,7 +1009,15 @@
                     return;
                 }
 
-                // 2. Guardar los platos detallados con fecha y hora exacta en el historial del cliente en Supabase
+                // 2. Guardar en el historial de la sesión activa de la mesa (solución 100% inmediata)
+                if (!mesa.sessionOrders) mesa.sessionOrders = [];
+                mesa.sessionOrders.push({
+                    hora: horaActual,
+                    items: itemsText,
+                    nota: noteText
+                });
+
+                // 3. Guardar detallado con fecha y hora en el perfil de Supabase
                 if (mesa.cliente && mesa.cliente.telefono) {
                     const { data: clienteDB } = await supabaseClient.from('clientes').select('historial_preferencias').eq('telefono', mesa.cliente.telefono).single();
                     let prevHistorial = clienteDB && clienteDB.historial_preferencias ? clienteDB.historial_preferencias : '';
@@ -1050,7 +1038,7 @@
                 currentOrder = [];
                 document.getElementById('order-notes').value = '';
                 renderOrder();
-                await loadTableHistory(mesa.id);
+                renderTableHistory(mesa);
             } catch (err) { console.error(err); alert("Ocurrió un error inesperado al enviar el pedido."); }
         }
 
@@ -1060,7 +1048,8 @@
             
             mesa.estado = 'por-limpiar';
             mesa.cliente = null;
-            mesa.sessionStartTime = null;
+            mesa.sessionStartTimeMs = null;
+            mesa.sessionOrders = [];
 
             try {
                 await supabaseClient.from('mesas').insert([{ numero_mesa: mesa.id, zona: mesa.zona, capacidad: 4, estado: 'Por Limpiar' }]);
@@ -1087,7 +1076,8 @@
             const mesa = mesas.find(m => m.id === mesaId);
             mesa.estado = 'disponible';
             mesa.cliente = null;
-            mesa.sessionStartTime = null;
+            mesa.sessionStartTimeMs = null;
+            mesa.sessionOrders = [];
 
             try {
                 await supabaseClient.from('mesas').insert([{ numero_mesa: mesa.id, zona: mesa.zona, capacidad: 4, estado: 'Disponible' }]);
