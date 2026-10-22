@@ -43,10 +43,14 @@
             <div class="flex items-center space-x-3">
                 <i class="fa-solid font-bold text-xl text-indigo-400 fa-utensils"></i>
                 <h1 class="text-xl font-bold tracking-wide">RestoControl POS - Mookah</h1>
+                <!-- INDICADOR EN VIVO -->
+                <span class="flex items-center bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-semibold">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping mr-1.5 inline-block"></span> En Vivo
+                </span>
             </div>
             
             <div class="flex items-center space-x-4">
-                <!-- INDICADOR DE TASA BCV EN VIVO (SÓLO LECTURA AUTOMATIZADA) -->
+                <!-- INDICADOR DE TASA BCV EN VIVO -->
                 <div class="flex items-center bg-gray-900 px-3 py-1.5 rounded-lg border border-emerald-500/40 text-xs space-x-2">
                     <i class="fa-solid fa-money-bill-transfer text-emerald-400"></i>
                     <span class="text-gray-400">Tasa BCV:</span>
@@ -201,7 +205,6 @@
                             <span>Cerrar Cuenta y Limpiar Mesa</span>
                         </button>
 
-                        <!-- BOTÓN AMARILLO/ÁMBAR PARA LIMPIEZA -->
                         <button id="btn-clean-table" onclick="cleanTable()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-lg text-xs shadow flex justify-center items-center space-x-2 transition hidden">
                             <i class="fa-solid fa-broom"></i>
                             <span>Marcar Mesa Limpia y Disponible</span>
@@ -322,7 +325,6 @@
         let shiftInterval = null;
         let tableTimeInterval = null;
 
-        // TASA BCV POR DEFECTO
         let bcvRate = 884.75; 
 
         let listaClientesDB = []; 
@@ -405,25 +407,82 @@
         let selectedMesaId = 1;
         let currentOrder = [];
 
-        // CONSULTA AUTOMÁTICA DE TASA BCV DESDE API PÚBLICA
+        // --- SINCRONIZACIÓN EN TIEMPO REAL CON SUPABASE ---
+        async function loadMesasFromSupabase() {
+            try {
+                const { data, error } = await supabaseClient.from('mesas_estado').select('*');
+                if (!error && data && data.length > 0) {
+                    data.forEach(dbMesa => {
+                        const local = mesas.find(m => m.id === dbMesa.id);
+                        if (local) {
+                            local.estado = dbMesa.estado;
+                            local.cliente = dbMesa.cliente_json ? JSON.parse(dbMesa.cliente_json) : null;
+                            local.sessionStartTimeMs = dbMesa.session_start_ms;
+                            local.sessionOrders = dbMesa.session_orders_json ? JSON.parse(dbMesa.session_orders_json) : [];
+                        }
+                    });
+                    renderMesasHost();
+                    renderMesasServer();
+                    selectMesaServer(selectedMesaId, false);
+                }
+            } catch (err) { console.error("Error cargando estado de mesas:", err); }
+        }
+
+        async function syncMesaToSupabase(mesa) {
+            try {
+                await supabaseClient.from('mesas_estado').upsert([{
+                    id: mesa.id,
+                    numero: mesa.numero,
+                    zona: mesa.zona,
+                    cap: mesa.cap,
+                    estado: mesa.estado,
+                    cliente_json: mesa.cliente ? JSON.stringify(mesa.cliente) : null,
+                    session_start_ms: mesa.sessionStartTimeMs,
+                    session_orders_json: JSON.stringify(mesa.sessionOrders || [])
+                }]);
+            } catch (err) { console.error("Error sincronizando mesa:", err); }
+        }
+
+        function subscribeToRealtimeChanges() {
+            supabaseClient
+                .channel('public:mesas_estado')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'mesas_estado' }, payload => {
+                    if (payload.new) {
+                        const updated = payload.new;
+                        const local = mesas.find(m => m.id === updated.id);
+                        if (local) {
+                            local.estado = updated.estado;
+                            local.cliente = updated.cliente_json ? JSON.parse(updated.cliente_json) : null;
+                            local.sessionStartTimeMs = updated.session_start_ms;
+                            local.sessionOrders = updated.session_orders_json ? JSON.parse(updated.session_orders_json) : [];
+                            
+                            renderMesasHost();
+                            renderMesasServer();
+                            if (selectedMesaId === updated.id) {
+                                renderTableHistory(local);
+                                updateTotalsDisplay();
+                            }
+                        }
+                    }
+                })
+                .subscribe();
+        }
+
         async function fetchBcvRate() {
             try {
                 const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
                 if (res.ok) {
                     const data = await res.json();
-                    if (data && data.promedio) {
-                        bcvRate = parseFloat(data.promedio);
-                    }
+                    if (data && data.promedio) bcvRate = parseFloat(data.promedio);
                 }
             } catch (err) {
-                console.warn("API principal BCV no disponible. Intentando fuente secundaria...", err);
                 try {
                     const resAlt = await fetch('https://rates.dolarvzla.com/bcv/current.json');
                     if (resAlt.ok) {
                         const dataAlt = await resAlt.json();
                         if (dataAlt && dataAlt.usd) bcvRate = parseFloat(dataAlt.usd);
                     }
-                } catch(e) { console.error("Usando tasa local predeterminada:", bcvRate); }
+                } catch(e) {}
             }
             updateBcvUI();
         }
@@ -438,9 +497,7 @@
         }
 
         function calculateTandaCost(itemsString, totalTandaGuardado) {
-            if (typeof totalTandaGuardado === 'number' && totalTandaGuardado > 0) {
-                return totalTandaGuardado;
-            }
+            if (typeof totalTandaGuardado === 'number' && totalTandaGuardado > 0) return totalTandaGuardado;
             if (!itemsString) return 0;
             let totalCalculado = 0;
             const partes = itemsString.split(' | ');
@@ -450,9 +507,7 @@
                     let cant = parseInt(match[1]) || 1;
                     let nombreItem = match[2].trim();
                     let encontrado = menuCatalog.find(m => m.nombre.toLowerCase() === nombreItem.toLowerCase());
-                    if (encontrado) {
-                        totalCalculado += encontrado.precio * cant;
-                    }
+                    if (encontrado) totalCalculado += encontrado.precio * cant;
                 }
             });
             return totalCalculado;
@@ -463,14 +518,14 @@
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) await setUserData(session.user);
             await cargarClientesRegulares();
+            await loadMesasFromSupabase();
+            subscribeToRealtimeChanges();
             startTableTimerInterval();
         };
 
         function startTableTimerInterval() {
             if (tableTimeInterval) clearInterval(tableTimeInterval);
-            tableTimeInterval = setInterval(() => {
-                updateTableTimersUI();
-            }, 1000);
+            tableTimeInterval = setInterval(() => updateTableTimersUI(), 1000);
         }
 
         function updateTableTimersUI() {
@@ -480,12 +535,8 @@
                 const elapsedMins = Math.floor((Date.now() - mesa.sessionStartTimeMs) / 60000);
                 if (timeTag) timeTag.innerText = `⏳ ${elapsedMins} min`;
             }
-            if (!document.getElementById('view-server').classList.contains('hidden')) {
-                renderMesasServer();
-            }
-            if (!document.getElementById('view-host').classList.contains('hidden')) {
-                renderMesasHost();
-            }
+            if (!document.getElementById('view-server').classList.contains('hidden')) renderMesasServer();
+            if (!document.getElementById('view-host').classList.contains('hidden')) renderMesasHost();
         }
 
         async function cargarClientesRegulares() {
@@ -497,84 +548,51 @@
 
         async function setUserData(user) {
             currentMeseroEmail = user.email.toLowerCase().trim();
-            
             try {
-                const { data, error } = await supabaseClient
-                    .from('meseros')
-                    .select('nombre, apellido')
-                    .ilike('email', currentMeseroEmail);
-
+                const { data, error } = await supabaseClient.from('meseros').select('nombre, apellido').ilike('email', currentMeseroEmail);
                 if (!error && data && data.length > 0 && data[0].nombre) {
-                    const mesero = data[0];
-                    currentMeseroName = `${mesero.nombre} ${mesero.apellido || ''}`.trim();
-                } else {
-                    currentMeseroName = currentMeseroEmail;
-                }
-            } catch (err) {
-                console.error("Error al obtener nombre de mesero:", err);
-                currentMeseroName = currentMeseroEmail;
-            }
+                    currentMeseroName = `${data[0].nombre} ${data[0].apellido || ''}`.trim();
+                } else currentMeseroName = currentMeseroEmail;
+            } catch (err) { currentMeseroName = currentMeseroEmail; }
 
             document.getElementById('user-name-display').innerText = `Mesero: ${currentMeseroName}`;
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('app-screen').classList.remove('hidden');
             
             await startOrResumeShift();
-
             renderMesasHost();
             renderMesasServer();
             filterCategory('all');
-            selectMesaServer(1);
+            selectMesaServer(1, false);
         }
 
         async function startOrResumeShift() {
             try {
-                const { data: activeShifts } = await supabaseClient
-                    .from('turnos_meseros')
-                    .select('*')
-                    .ilike('mesero_email', currentMeseroEmail)
-                    .eq('estado', 'Activo');
-
+                const { data: activeShifts } = await supabaseClient.from('turnos_meseros').select('*').ilike('mesero_email', currentMeseroEmail).eq('estado', 'Activo');
                 if (activeShifts && activeShifts.length > 0) {
-                    const activeShift = activeShifts[0];
-                    currentTurnoId = activeShift.id;
-                    shiftStartTime = new Date(activeShift.inicio_turno);
+                    currentTurnoId = activeShifts[0].id;
+                    shiftStartTime = new Date(activeShifts[0].inicio_turno);
                 } else {
                     const startTimeStr = new Date().toISOString();
-                    const { data: newShift } = await supabaseClient
-                        .from('turnos_meseros')
-                        .insert([{
-                            mesero_email: currentMeseroEmail,
-                            inicio_turno: startTimeStr,
-                            estado: 'Activo'
-                        }])
-                        .select();
-
+                    const { data: newShift } = await supabaseClient.from('turnos_meseros').insert([{ mesero_email: currentMeseroEmail, inicio_turno: startTimeStr, estado: 'Activo' }]).select();
                     if (newShift && newShift.length > 0) {
                         currentTurnoId = newShift[0].id;
                         shiftStartTime = new Date(startTimeStr);
                     }
                 }
-
                 startShiftTimer();
-            } catch (err) {
-                console.error("Error al gestionar el turno:", err);
-            }
+            } catch (err) { console.error("Error al gestionar el turno:", err); }
         }
 
         function startShiftTimer() {
             if (shiftInterval) clearInterval(shiftInterval);
             shiftInterval = setInterval(() => {
                 if (!shiftStartTime) return;
-                const now = new Date();
-                const diffMs = now - shiftStartTime;
-                
+                const diffMs = new Date() - shiftStartTime;
                 const hrs = Math.floor(diffMs / (1000 * 60 * 60));
                 const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
                 const secs = Math.floor((diffMs % (1000 * 60)) / 1000);
-
-                const formatted = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-                document.getElementById('shift-timer').innerText = formatted;
+                document.getElementById('shift-timer').innerText = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
             }, 1000);
         }
 
@@ -589,18 +607,12 @@
 
         async function handleLogout() {
             if (confirm("¿Deseas finalizar tu turno de trabajo y cerrar sesión?")) {
-                const now = new Date();
-                const diffMs = shiftStartTime ? (now - shiftStartTime) : 0;
+                const diffMs = shiftStartTime ? (new Date() - shiftStartTime) : 0;
                 const hrs = Math.floor(diffMs / (1000 * 60 * 60));
                 const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                const totalText = `${hrs}h ${mins}m`;
 
                 if (currentTurnoId) {
-                    await supabaseClient.from('turnos_meseros').update({
-                        fin_turno: now.toISOString(),
-                        horas_trabajadas: totalText,
-                        estado: 'Finalizado'
-                    }).eq('id', currentTurnoId);
+                    await supabaseClient.from('turnos_meseros').update({ fin_turno: new Date().toISOString(), horas_trabajadas: `${hrs}h ${mins}m`, estado: 'Finalizado' }).eq('id', currentTurnoId);
                 }
 
                 if (shiftInterval) clearInterval(shiftInterval);
@@ -670,11 +682,8 @@
 
         function handleHostTableClick(mesaId) {
             const mesa = mesas.find(m => m.id === mesaId);
-            if (mesa.estado === 'por-limpiar') {
-                cleanTableDirect(mesaId);
-            } else if (mesa.estado === 'ocupada') {
-                alert(`La ${mesa.numero} está ocupada por ${mesa.cliente ? mesa.cliente.nombre + ' ' + mesa.cliente.apellido : 'un cliente'}.`);
-            }
+            if (mesa.estado === 'por-limpiar') cleanTableDirect(mesaId);
+            else if (mesa.estado === 'ocupada') alert(`La ${mesa.numero} está ocupada por ${mesa.cliente ? mesa.cliente.nombre + ' ' + mesa.cliente.apellido : 'un cliente'}.`);
         }
 
         function closeHostModal() { 
@@ -684,20 +693,13 @@
 
         function switchClientTab(tipo) {
             checkinData.tipo = tipo;
-            const tabNuevo = document.getElementById('tab-nuevo');
-            const tabRegular = document.getElementById('tab-regular');
-            const tabOmitir = document.getElementById('tab-omitir');
-            const formNuevo = document.getElementById('form-cliente-nuevo');
-            const formRegular = document.getElementById('form-cliente-regular');
-            const formOmitir = document.getElementById('form-cliente-omitir');
+            document.getElementById('tab-nuevo').className = "py-1.5 rounded-md text-[11px] font-bold transition " + (tipo === 'nuevo' ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white");
+            document.getElementById('tab-regular').className = "py-1.5 rounded-md text-[11px] font-bold transition " + (tipo === 'regular' ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white");
+            document.getElementById('tab-omitir').className = "py-1.5 rounded-md text-[11px] font-bold transition " + (tipo === 'omitir' ? "bg-amber-600 text-white" : "text-gray-400 hover:text-white");
 
-            tabNuevo.className = "py-1.5 rounded-md text-[11px] font-bold transition " + (tipo === 'nuevo' ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white");
-            tabRegular.className = "py-1.5 rounded-md text-[11px] font-bold transition " + (tipo === 'regular' ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white");
-            tabOmitir.className = "py-1.5 rounded-md text-[11px] font-bold transition " + (tipo === 'omitir' ? "bg-amber-600 text-white" : "text-gray-400 hover:text-white");
-
-            formNuevo.classList.toggle('hidden', tipo !== 'nuevo');
-            formRegular.classList.toggle('hidden', tipo !== 'regular');
-            formOmitir.classList.toggle('hidden', tipo !== 'omitir');
+            document.getElementById('form-cliente-nuevo').classList.toggle('hidden', tipo !== 'nuevo');
+            document.getElementById('form-cliente-regular').classList.toggle('hidden', tipo !== 'regular');
+            document.getElementById('form-cliente-omitir').classList.toggle('hidden', tipo !== 'omitir');
         }
 
         function filterRegularClients(query) {
@@ -845,10 +847,7 @@
                     const nuevaVisita = `[${fechaHoraVisita}] Visita iniciada: ${checkinData.comensales} comensales (Atendido por Host/Mesero: ${currentMeseroName})`;
                     const historialActualizado = prevHistorial ? `${prevHistorial} | ${nuevaVisita}` : nuevaVisita;
 
-                    await supabaseClient.from('clientes').update({
-                        telefono: checkinData.telefono,
-                        historial_preferencias: historialActualizado
-                    }).eq('telefono', telefonoFinal);
+                    await supabaseClient.from('clientes').update({ telefono: checkinData.telefono, historial_preferencias: historialActualizado }).eq('telefono', telefonoFinal);
                 }
 
                 const nowMs = Date.now();
@@ -868,29 +867,16 @@
                     };
                     numsMesasAsignadas.push(mesa.numero);
 
-                    await supabaseClient.from('mesas').insert([{ 
-                        numero_mesa: mesa.id, 
-                        zona: mesa.zona, 
-                        capacidad: parseInt(checkinData.comensales), 
-                        estado: 'Ocupada' 
-                    }]);
-                }
-
-                if (currentMeseroEmail) {
-                    const { data: mData } = await supabaseClient.from('meseros').select('mesas_atendidas').ilike('email', currentMeseroEmail);
-                    let prevCount = mData && mData.length > 0 && mData[0].mesas_atendidas ? mData[0].mesas_atendidas : 0;
-                    await supabaseClient.from('meseros').update({ mesas_atendidas: prevCount + checkinData.selectedMesaIds.length }).ilike('email', currentMeseroEmail);
+                    // Sincronizar estado global
+                    await syncMesaToSupabase(mesa);
                 }
 
                 closeHostModal();
                 renderMesasHost();
                 renderMesasServer();
-                alert(`✅ Grupo asignado exitosamente a: ${numsMesasAsignadas.join(', ')} para ${checkinData.nombre} ${checkinData.apellido} (${checkinData.comensales} comensales).`);
+                alert(`✅ Grupo asignado exitosamente a: ${numsMesasAsignadas.join(', ')} para ${checkinData.nombre} ${checkinData.apellido}.`);
 
-            } catch (err) { 
-                console.error(err); 
-                alert("Ocurrió un error al asignar las mesas.");
-            }
+            } catch (err) { console.error(err); alert("Ocurrió un error al asignar las mesas."); }
         }
 
         function renderMesasServer() {
@@ -926,7 +912,7 @@
             }).join('');
         }
 
-        async function selectMesaServer(mesaId) {
+        async function selectMesaServer(mesaId, triggerRender = true) {
             selectedMesaId = mesaId;
             const mesa = mesas.find(m => m.id === mesaId);
             document.getElementById('selected-table-title').innerText = `${mesa.numero} (${mesa.zona})`;
@@ -942,9 +928,7 @@
                 if (mesa.sessionStartTimeMs) {
                     const elapsedMins = Math.floor((Date.now() - mesa.sessionStartTimeMs) / 60000);
                     timeTag.innerText = `⏳ ${elapsedMins} min`;
-                } else {
-                    timeTag.innerText = `⏳ 0 min`;
-                }
+                } else timeTag.innerText = `⏳ 0 min`;
             } else {
                 tag.classList.add('hidden');
                 timeTag.innerText = `⏳ 0 min`;
@@ -961,12 +945,11 @@
                 btnClean.classList.add('hidden');
             }
 
-            renderMesasServer();
+            if (triggerRender) renderMesasServer();
             renderTableHistory(mesa);
             updateTotalsDisplay();
         }
 
-        // HISTORIAL CON MONTO SEPARADO LIMPIAMENTE Y SIN SOLAPAMIENTO
         function renderTableHistory(mesa) {
             const historyContainer = document.getElementById('table-history-list');
 
@@ -1016,16 +999,9 @@
 
         function filterCategory(category) {
             const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'postres'];
-            
             categories.forEach(cat => {
                 const btn = document.getElementById(`cat-btn-${cat}`);
-                if (btn) {
-                    if (cat === category) {
-                        btn.className = "px-3 py-1 rounded-md text-xs transition bg-indigo-600 text-white font-bold";
-                    } else {
-                        btn.className = "px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white";
-                    }
-                }
+                if (btn) btn.className = "px-3 py-1 rounded-md text-xs transition " + (cat === category ? "bg-indigo-600 text-white font-bold" : "bg-gray-700 text-gray-300 hover:text-white");
             });
 
             const container = document.getElementById('menu-items-grid');
@@ -1054,13 +1030,7 @@
         function addToOrder(itemId) {
             const item = menuCatalog.find(i => i.id === itemId);
             const ingredientesObj = item.ingredientes.map(ing => ({ nombre: ing, activo: true }));
-            
-            currentOrder.push({ 
-                ...item, 
-                qty: 1, 
-                ingredientesObj: ingredientesObj,
-                notaIndividual: ''
-            });
+            currentOrder.push({ ...item, qty: 1, ingredientesObj: ingredientesObj, notaIndividual: '' });
             renderOrder();
         }
 
@@ -1107,7 +1077,6 @@
 
         function updateTotalsDisplay() {
             const mesa = mesas.find(m => m.id === selectedMesaId);
-            
             let consumedTotal = 0;
             if (mesa && mesa.sessionOrders && mesa.sessionOrders.length > 0) {
                 mesa.sessionOrders.forEach(order => {
@@ -1116,12 +1085,9 @@
             }
 
             let newOrderTotal = 0;
-            currentOrder.forEach(i => {
-                newOrderTotal += i.precio * i.qty;
-            });
+            currentOrder.forEach(i => newOrderTotal += i.precio * i.qty);
 
             let grandTotal = consumedTotal + newOrderTotal;
-
             let consumedTotalBs = consumedTotal * bcvRate;
             let newOrderTotalBs = newOrderTotal * bcvRate;
             let grandTotalBs = grandTotal * bcvRate;
@@ -1169,20 +1135,15 @@
             const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             try {
-                // 1. Enviar pedido a Supabase
-                const { error } = await supabaseClient.from('pedidos_comandos').insert([{
+                // 1. Enviar comandas a cocina
+                await supabaseClient.from('pedidos_comandos').insert([{
                     mesa_id: mesa.id,
                     items_seleccionados: itemsText,
                     modificadores: noteText,
                     estado_envio_cocina: 'Pendiente'
                 }]);
 
-                if (error) {
-                    alert("Error al registrar pedido: " + error.message);
-                    return;
-                }
-
-                // 2. Guardar en la sesión de la mesa con subtotal explícito
+                // 2. Guardar tanda en la sesión de la mesa
                 if (!mesa.sessionOrders) mesa.sessionOrders = [];
                 mesa.sessionOrders.push({
                     hora: horaActual,
@@ -1192,24 +1153,10 @@
                     totalTanda: newOrderTotal
                 });
 
-                // 3. Guardar en el historial de preferencias del cliente
-                if (mesa.cliente && mesa.cliente.telefono) {
-                    const { data: clienteDB } = await supabaseClient.from('clientes').select('historial_preferencias').eq('telefono', mesa.cliente.telefono).single();
-                    let prevHistorial = clienteDB && clienteDB.historial_preferencias ? clienteDB.historial_preferencias : '';
-                    
-                    const ahora = new Date();
-                    const fechaHoraStr = `${ahora.toLocaleDateString()} ${ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                    let detallePedido = `[${fechaHoraStr}] Pedido por ${currentMeseroName} ($${newOrderTotal.toFixed(2)} / Bs. ${(newOrderTotal * bcvRate).toLocaleString('es-VE', {minimumFractionDigits: 2})}): ${itemsText}`;
-                    if (generalNote) detallePedido += ` (Nota: ${generalNote})`;
+                // 3. Sincronizar estado global inmediatamente
+                await syncMesaToSupabase(mesa);
 
-                    let historialActualizado = prevHistorial ? `${prevHistorial} | ${detallePedido}` : detallePedido;
-
-                    await supabaseClient.from('clientes').update({
-                        historial_preferencias: historialActualizado
-                    }).eq('telefono', mesa.cliente.telefono);
-                }
-
-                alert(`✅ ¡Comanda de $${newOrderTotal.toFixed(2)} (Bs. ${(newOrderTotal * bcvRate).toLocaleString('es-VE', {minimumFractionDigits: 2})}) enviada a cocina!`);
+                alert(`✅ ¡Comanda de $${newOrderTotal.toFixed(2)} enviada por ${currentMeseroName} a cocina!`);
                 currentOrder = [];
                 document.getElementById('order-notes').value = '';
                 renderOrder();
@@ -1227,17 +1174,7 @@
             mesa.sessionStartTimeMs = null;
             mesa.sessionOrders = [];
 
-            try {
-                await supabaseClient.from('mesas').insert([{ numero_mesa: mesa.id, zona: mesa.zona, capacidad: 4, estado: 'Por Limpiar' }]);
-                
-                if (currentMeseroEmail) {
-                    const { data: mData } = await supabaseClient.from('meseros').select('mesas_cerradas').ilike('email', currentMeseroEmail);
-                    let prevClosed = mData && mData.length > 0 && mData[0].mesas_cerradas ? mData[0].mesas_cerradas : 0;
-                    await supabaseClient.from('meseros').update({ mesas_cerradas: prevClosed + 1 }).ilike('email', currentMeseroEmail);
-                }
-
-            } catch (err) { console.error(err); }
-
+            await syncMesaToSupabase(mesa);
             selectMesaServer(mesa.id);
             renderMesasHost();
             alert(`Mesa ${mesa.numero} enviada a limpieza. Cuenta cerrada.`);
@@ -1255,10 +1192,7 @@
             mesa.sessionStartTimeMs = null;
             mesa.sessionOrders = [];
 
-            try {
-                await supabaseClient.from('mesas').insert([{ numero_mesa: mesa.id, zona: mesa.zona, capacidad: 4, estado: 'Disponible' }]);
-            } catch (err) { console.error(err); }
-
+            await syncMesaToSupabase(mesa);
             selectMesaServer(mesa.id);
             renderMesasHost();
             alert(`✨ Mesa ${mesa.numero} limpia y DISPONIBLE.`);
