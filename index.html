@@ -18,7 +18,7 @@
             <div class="text-center mb-6">
                 <i class="fa-solid fa-utensils text-3xl text-indigo-400 mb-2"></i>
                 <h2 class="text-2xl font-bold">RestoControl POS</h2>
-                <p class="text-gray-400 text-sm">Inicia sesión con tu cuenta de mesero</p>
+                <p class="text-gray-400 text-sm">Inicia sesión para comenzar tu turno</p>
             </div>
             <form onsubmit="handleLogin(event)" class="space-y-4">
                 <div>
@@ -30,7 +30,7 @@
                     <input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-indigo-500">
                 </div>
                 <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg transition shadow-lg">
-                    Iniciar Sesión
+                    Iniciar Turno
                 </button>
             </form>
         </div>
@@ -46,9 +46,17 @@
             </div>
             
             <div class="flex items-center space-x-4">
+                <!-- CRONÓMETRO DE TURNO -->
+                <div class="flex items-center bg-gray-900 px-3 py-1.5 rounded-lg border border-indigo-500/40 text-xs">
+                    <i class="fa-solid fa-clock text-amber-400 mr-2 animate-pulse"></i>
+                    <span class="text-gray-400 mr-1">Turno:</span>
+                    <span id="shift-timer" class="font-mono font-bold text-amber-300">00:00:00</span>
+                </div>
+
                 <span id="user-name-display" class="text-xs bg-gray-900 px-3 py-1.5 rounded-full border border-gray-700 text-indigo-300 font-medium"></span>
+                
                 <button onclick="handleLogout()" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-red-500/30">
-                    <i class="fa-solid fa-right-from-bracket mr-1"></i> Salir
+                    <i class="fa-solid fa-right-from-bracket mr-1"></i> Finalizar Turno
                 </button>
             </div>
         </header>
@@ -122,9 +130,12 @@
                             <p class="text-gray-500 text-xs italic text-center py-4">Selecciona ítems del menú.</p>
                         </div>
 
-                        <!-- HISTORIAL DE LA SESIÓN DEL CLIENTE -->
+                        <!-- HISTORIAL DE LA SESIÓN DEL CLIENTE Y TIEMPO DE OCUPACIÓN -->
                         <div class="border-t border-gray-700 pt-3">
-                            <h4 class="font-bold text-xs uppercase text-indigo-300 mb-2">Pedidos de esta Sesión:</h4>
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-bold text-xs uppercase text-indigo-300">Pedidos de esta Sesión:</h4>
+                                <span id="table-time-tag" class="text-[10px] text-gray-400"></span>
+                            </div>
                             <div id="table-history-list" class="space-y-1 text-xs text-gray-400 max-h-[120px] overflow-y-auto bg-gray-900 p-2 rounded-lg border border-gray-700">
                                 <p class="italic text-gray-500">Mesa libre (sin cliente asignado).</p>
                             </div>
@@ -265,6 +276,11 @@
 
         const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
         let currentMeseroName = "";
+        let currentMeseroEmail = "";
+        let currentTurnoId = null;
+        let shiftStartTime = null;
+        let shiftInterval = null;
+
         let listaClientesDB = []; 
         let currentFilteredMatches = [];
 
@@ -359,32 +375,85 @@
         }
 
         async function setUserData(user) {
-            const email = user.email;
+            currentMeseroEmail = user.email;
             
-            // Buscar nombre en la nueva tabla 'meseros' de Supabase
             try {
-                const { data, error } = await supabaseClient
+                const { data } = await supabaseClient
                     .from('meseros')
                     .select('nombre, apellido')
-                    .eq('email', email)
+                    .eq('email', currentMeseroEmail)
                     .single();
 
-                if (data && data.nombre) {
-                    currentMeseroName = `${data.nombre} ${data.apellido || ''}`.trim();
-                } else {
-                    currentMeseroName = email; 
-                }
+                currentMeseroName = data && data.nombre ? `${data.nombre} ${data.apellido || ''}`.trim() : currentMeseroEmail;
             } catch (err) {
-                currentMeseroName = email;
+                currentMeseroName = currentMeseroEmail;
             }
 
             document.getElementById('user-name-display').innerText = `Mesero: ${currentMeseroName}`;
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('app-screen').classList.remove('hidden');
+            
+            // Iniciar o recuperar turno activo
+            await startOrResumeShift();
+
             renderMesasHost();
             renderMesasServer();
             renderMenu('all');
             selectMesaServer(1);
+        }
+
+        // CONTROL DEL CRONÓMETRO Y REGISTRO DE TURNO
+        async function startOrResumeShift() {
+            try {
+                // Verificar si hay un turno activo no cerrado
+                const { data: activeShift } = await supabaseClient
+                    .from('turnos_meseros')
+                    .select('*')
+                    .eq('mesero_email', currentMeseroEmail)
+                    .eq('estado', 'Activo')
+                    .single();
+
+                if (activeShift) {
+                    currentTurnoId = activeShift.id;
+                    shiftStartTime = new Date(activeShift.inicio_turno);
+                } else {
+                    // Crear nuevo turno
+                    const startTimeStr = new Date().toISOString();
+                    const { data: newShift } = await supabaseClient
+                        .from('turnos_meseros')
+                        .insert([{
+                            mesero_email: currentMeseroEmail,
+                            inicio_turno: startTimeStr,
+                            estado: 'Activo'
+                        }])
+                        .select();
+
+                    if (newShift && newShift.length > 0) {
+                        currentTurnoId = newShift[0].id;
+                        shiftStartTime = new Date(startTimeStr);
+                    }
+                }
+
+                startShiftTimer();
+            } catch (err) {
+                console.error("Error al gestionar el turno:", err);
+            }
+        }
+
+        function startShiftTimer() {
+            if (shiftInterval) clearInterval(shiftInterval);
+            shiftInterval = setInterval(() => {
+                if (!shiftStartTime) return;
+                const now = new Date();
+                const diffMs = now - shiftStartTime;
+                
+                const hrs = Math.floor(diffMs / (1000 * 60 * 60));
+                const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                const secs = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+                const formatted = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                document.getElementById('shift-timer').innerText = formatted;
+            }, 1000);
         }
 
         async function handleLogin(e) {
@@ -397,8 +466,25 @@
         }
 
         async function handleLogout() {
-            await supabaseClient.auth.signOut();
-            location.reload();
+            if (confirm("¿Deseas finalizar tu turno de trabajo y cerrar sesión?")) {
+                const now = new Date();
+                const diffMs = shiftStartTime ? (now - shiftStartTime) : 0;
+                const hrs = Math.floor(diffMs / (1000 * 60 * 60));
+                const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                const totalText = `${hrs}h ${mins}m`;
+
+                if (currentTurnoId) {
+                    await supabaseClient.from('turnos_meseros').update({
+                        fin_turno: now.toISOString(),
+                        horas_trabajadas: totalText,
+                        estado: 'Finalizado'
+                    }).eq('id', currentTurnoId);
+                }
+
+                if (shiftInterval) clearInterval(shiftInterval);
+                await supabaseClient.auth.signOut();
+                location.reload();
+            }
         }
 
         function switchRole(role) {
@@ -432,7 +518,7 @@
                             <span class="text-[10px] px-2 py-0.5 rounded bg-gray-900/60 uppercase font-semibold">Cap: ${m.cap} pers.</span>
                         </div>
                         <div>
-                            ${m.cliente ? `<p class="text-xs font-semibold text-white truncate"><i class="fa-solid fa-user mr-1"></i>${m.cliente.nombre}${m.cliente.apellido}</p>` : '<p class="text-[10px] text-emerald-400 font-medium">Libre</p>'}
+                            ${m.cliente ? `<p class="text-xs font-semibold text-white truncate"><i class="fa-solid fa-user mr-1"></i>${m.cliente.nombre} ${m.cliente.apellido}</p>` : '<p class="text-[10px] text-emerald-400 font-medium">Libre</p>'}
                         </div>
                         <span class="text-[10px] font-bold uppercase tracking-wider ${m.estado === 'disponible' ? 'text-emerald-400' : m.estado === 'ocupada' ? 'text-red-400' : 'text-amber-400'}">${m.estado}</span>
                     </div>
@@ -651,6 +737,13 @@
                     }]);
                 }
 
+                // Incrementar contador de mesas atendidas para este mesero
+                if (currentMeseroEmail) {
+                    const { data: mData } = await supabaseClient.from('meseros').select('mesas_atendidas').eq('email', currentMeseroEmail).single();
+                    let prevCount = mData && mData.mesas_atendidas ? mData.mesas_atendidas : 0;
+                    await supabaseClient.from('meseros').update({ mesas_atendidas: prevCount + checkinData.selectedMesaIds.length }).eq('email', currentMeseroEmail);
+                }
+
                 closeHostModal();
                 renderMesasHost();
                 renderMesasServer();
@@ -681,12 +774,22 @@
             document.getElementById('selected-table-title').innerText = `${mesa.numero} (${mesa.zona})`;
             
             const tag = document.getElementById('cliente-info-tag');
+            const timeTag = document.getElementById('table-time-tag');
+
             if (mesa.cliente) {
                 let extraTag = mesa.cliente.esCombinada ? " [Mesa Combinada]" : "";
                 tag.innerText = `Cliente: ${mesa.cliente.nombre} ${mesa.cliente.apellido} (${mesa.cliente.comensales} pers.)${extraTag}`;
                 tag.classList.remove('hidden');
+
+                if (mesa.sessionStartTime) {
+                    const elapsedMins = Math.floor((new Date() - new Date(mesa.sessionStartTime)) / 60000);
+                    timeTag.innerText = `⏳ Tiempo ocupada: ${elapsedMins} min`;
+                } else {
+                    timeTag.innerText = '';
+                }
             } else {
                 tag.classList.add('hidden');
+                timeTag.innerText = '';
             }
 
             const btnClose = document.getElementById('btn-close-table');
@@ -881,6 +984,14 @@
 
             try {
                 await supabaseClient.from('mesas').insert([{ numero_mesa: mesa.id, zona: mesa.zona, capacidad: 4, estado: 'Por Limpiar' }]);
+                
+                // Incrementar contador de mesas cerradas por este mesero
+                if (currentMeseroEmail) {
+                    const { data: mData } = await supabaseClient.from('meseros').select('mesas_cerradas').eq('email', currentMeseroEmail).single();
+                    let prevClosed = mData && mData.mesas_cerradas ? mData.mesas_cerradas : 0;
+                    await supabaseClient.from('meseros').update({ mesas_cerradas: prevClosed + 1 }).eq('email', currentMeseroEmail);
+                }
+
             } catch (err) { console.error(err); }
 
             selectMesaServer(mesa.id);
