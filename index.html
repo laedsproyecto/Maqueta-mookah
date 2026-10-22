@@ -23,7 +23,7 @@
             <form onsubmit="handleLogin(event)" class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold uppercase text-gray-400 mb-1">Correo Electrónico</label>
-                    <input type="email" id="login-email" required placeholder="gustavopd-7a@hotmail.com" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-indigo-500">
+                    <input type="email" id="login-email" required placeholder="tu-correo@ejemplo.com" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-indigo-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-gray-400 mb-1">Contraseña</label>
@@ -93,7 +93,7 @@
                     <div id="grid-mesas-server" class="grid grid-cols-2 gap-2 overflow-y-auto flex-1"></div>
                 </div>
 
-                <!-- Menú Digital Oficial -->
+                <!-- Menú Digital -->
                 <div class="w-full lg:w-2/4 bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="font-bold text-base" id="selected-table-title">Mesa: Ninguna</h3>
@@ -112,7 +112,7 @@
                     <div id="menu-items-grid" class="grid grid-cols-2 gap-3 overflow-y-auto flex-1 pr-1"></div>
                 </div>
 
-                <!-- Comanda Actual con Historial del Cliente Activo -->
+                <!-- Comanda Actual -->
                 <div class="w-full lg:w-1/4 bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col justify-between">
                     <div class="overflow-y-auto flex-1 pr-1">
                         <h3 class="font-bold text-base mb-2 flex items-center border-b border-gray-700 pb-2">
@@ -122,7 +122,7 @@
                             <p class="text-gray-500 text-xs italic text-center py-4">Selecciona ítems del menú.</p>
                         </div>
 
-                        <!-- HISTORIAL SOLO PARA EL CLIENTE ACTIVO EN LA MESA -->
+                        <!-- HISTORIAL DE LA SESIÓN DEL CLIENTE -->
                         <div class="border-t border-gray-700 pt-3">
                             <h4 class="font-bold text-xs uppercase text-indigo-300 mb-2">Pedidos de esta Sesión:</h4>
                             <div id="table-history-list" class="space-y-1 text-xs text-gray-400 max-h-[120px] overflow-y-auto bg-gray-900 p-2 rounded-lg border border-gray-700">
@@ -179,7 +179,7 @@
 
                 <div>
                     <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Cantidad de Comensales</label>
-                    <input type="number" id="input-guests" min="1" max="20" value="2" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-bold">
+                    <input type="number" id="input-guests" min="1" max="30" value="2" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-bold">
                 </div>
 
                 <div id="form-cliente-nuevo" class="space-y-3">
@@ -242,9 +242,9 @@
                 </div>
             </div>
 
-            <!-- PASO 2: SELECCIÓN DE MESA DISPONIBLE -->
+            <!-- PASO 2: SELECCIÓN DE MESA -->
             <div id="host-step-2" class="space-y-3 hidden">
-                <p class="text-xs text-gray-400 mb-2">Selecciona una mesa disponible en el salón para asignar este grupo:</p>
+                <p class="text-xs text-gray-400 mb-2">Selecciona una o varias mesas disponibles para este grupo:</p>
                 
                 <div id="modal-tables-grid" class="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-1"></div>
 
@@ -276,11 +276,7 @@
             correo: '',
             comensales: 2,
             selectedClientId: null,
-            selectedMesaId: null
-        };
-
-        const meserosDirectorio = {
-            "gustavopd-7a@hotmail.com": "Gustavo Prieto"
+            selectedMesaIds: []
         };
 
         let mesas = [
@@ -351,7 +347,7 @@
 
         window.onload = async () => {
             const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session) setUserData(session.user);
+            if (session) await setUserData(session.user);
             await cargarClientesRegulares();
         };
 
@@ -362,9 +358,26 @@
             } catch (err) { console.error("Error cargando clientes:", err); }
         }
 
-        function setUserData(user) {
+        async function setUserData(user) {
             const email = user.email;
-            currentMeseroName = meserosDirectorio[email] || email;
+            
+            // Buscar nombre en la nueva tabla 'meseros' de Supabase
+            try {
+                const { data, error } = await supabaseClient
+                    .from('meseros')
+                    .select('nombre, apellido')
+                    .eq('email', email)
+                    .single();
+
+                if (data && data.nombre) {
+                    currentMeseroName = `${data.nombre} ${data.apellido || ''}`.trim();
+                } else {
+                    currentMeseroName = email; 
+                }
+            } catch (err) {
+                currentMeseroName = email;
+            }
+
             document.getElementById('user-name-display').innerText = `Mesero: ${currentMeseroName}`;
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('app-screen').classList.remove('hidden');
@@ -380,7 +393,7 @@
             const password = document.getElementById('login-password').value;
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
             if (error) alert("Error de acceso: " + error.message);
-            else setUserData(data.user);
+            else await setUserData(data.user);
         }
 
         async function handleLogout() {
@@ -419,7 +432,7 @@
                             <span class="text-[10px] px-2 py-0.5 rounded bg-gray-900/60 uppercase font-semibold">Cap: ${m.cap} pers.</span>
                         </div>
                         <div>
-                            ${m.cliente ? `<p class="text-xs font-semibold text-white truncate"><i class="fa-solid fa-user mr-1"></i>${m.cliente.nombre} ${m.cliente.apellido}</p>` : '<p class="text-[10px] text-emerald-400 font-medium">Libre</p>'}
+                            ${m.cliente ? `<p class="text-xs font-semibold text-white truncate"><i class="fa-solid fa-user mr-1"></i>${m.cliente.nombre}${m.cliente.apellido}</p>` : '<p class="text-[10px] text-emerald-400 font-medium">Libre</p>'}
                         </div>
                         <span class="text-[10px] font-bold uppercase tracking-wider ${m.estado === 'disponible' ? 'text-emerald-400' : m.estado === 'ocupada' ? 'text-red-400' : 'text-amber-400'}">${m.estado}</span>
                     </div>
@@ -428,7 +441,7 @@
         }
 
         function startHostCheckin() {
-            checkinData = { tipo: 'nuevo', nombre: '', apellido: '', telefono: '', correo: '', comensales: 2, selectedClientId: null, selectedMesaId: null };
+            checkinData = { tipo: 'nuevo', nombre: '', apellido: '', telefono: '', correo: '', comensales: 2, selectedClientId: null, selectedMesaIds: [] };
             document.getElementById('input-guests').value = 2;
             switchClientTab('nuevo');
             document.getElementById('host-step-1').classList.remove('hidden');
@@ -565,7 +578,7 @@
             }
 
             container.innerHTML = disponibles.map(m => `
-                <div onclick="selectModalTable(${m.id})" id="modal-table-card-${m.id}" class="cursor-pointer border border-gray-700 bg-gray-900 rounded-lg p-3 hover:border-indigo-500 transition flex flex-col justify-between">
+                <div onclick="toggleModalTable(${m.id})" id="modal-table-card-${m.id}" class="cursor-pointer border border-gray-700 bg-gray-900 rounded-lg p-3 hover:border-indigo-500 transition flex flex-col justify-between">
                     <div class="flex justify-between items-center">
                         <span class="font-bold text-xs text-white">${m.numero}</span>
                         <span class="text-[9px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-300">${m.zona}</span>
@@ -575,27 +588,25 @@
             `).join('');
         }
 
-        function selectModalTable(mesaId) {
-            document.querySelectorAll('[id^="modal-table-card-"]').forEach(el => {
-                el.classList.remove('border-indigo-500', 'bg-indigo-950/40', 'ring-2', 'ring-indigo-500');
-            });
+        function toggleModalTable(mesaId) {
             const card = document.getElementById(`modal-table-card-${mesaId}`);
-            if (card) {
+            const index = checkinData.selectedMesaIds.indexOf(mesaId);
+
+            if (index > -1) {
+                checkinData.selectedMesaIds.splice(index, 1);
+                card.classList.remove('border-indigo-500', 'bg-indigo-950/40', 'ring-2', 'ring-indigo-500');
+            } else {
+                checkinData.selectedMesaIds.push(mesaId);
                 card.classList.add('border-indigo-500', 'bg-indigo-950/40', 'ring-2', 'ring-indigo-500');
             }
-            checkinData.selectedMesaId = mesaId;
         }
 
         async function confirmTableAssignment() {
-            if (!checkinData.selectedMesaId) {
-                alert("Por favor selecciona una mesa.");
+            if (checkinData.selectedMesaIds.length === 0) {
+                alert("Por favor selecciona al menos una mesa.");
                 return;
             }
 
-            const mesa = mesas.find(m => m.id === checkinData.selectedMesaId);
-            mesa.estado = 'ocupada';
-            mesa.sessionStartTime = new Date().toISOString(); // Guarda la hora exacta de la llegada de este cliente
-            
             let idClienteFinal = checkinData.selectedClientId;
 
             try {
@@ -615,20 +626,40 @@
                     }).eq('id', idClienteFinal);
                 }
 
-                mesa.cliente = { id: idClienteFinal, nombre: checkinData.nombre, apellido: checkinData.apellido, telefono: checkinData.telefono, comensales: checkinData.comensales };
+                const startTime = new Date().toISOString();
+                let numsMesasAsignadas = [];
 
-                await supabaseClient.from('mesas').insert([{ 
-                    numero_mesa: mesa.id, 
-                    zona: mesa.zona, 
-                    capacidad: parseInt(checkinData.comensales), 
-                    estado: 'Ocupada' 
-                }]);
-            } catch (err) { console.error(err); }
+                for (let mesaId of checkinData.selectedMesaIds) {
+                    const mesa = mesas.find(m => m.id === mesaId);
+                    mesa.estado = 'ocupada';
+                    mesa.sessionStartTime = startTime;
+                    mesa.cliente = { 
+                        id: idClienteFinal, 
+                        nombre: checkinData.nombre, 
+                        apellido: checkinData.apellido, 
+                        telefono: checkinData.telefono, 
+                        comensales: checkinData.comensales,
+                        esCombinada: checkinData.selectedMesaIds.length > 1
+                    };
+                    numsMesasAsignadas.push(mesa.numero);
 
-            closeHostModal();
-            renderMesasHost();
-            renderMesasServer();
-            alert(`✅ Mesa ${mesa.numero} asignada exitosamente a ${checkinData.nombre} ${checkinData.apellido} (${checkinData.comensales} comensales).`);
+                    await supabaseClient.from('mesas').insert([{ 
+                        numero_mesa: mesa.id, 
+                        zona: mesa.zona, 
+                        capacidad: parseInt(checkinData.comensales), 
+                        estado: 'Ocupada' 
+                    }]);
+                }
+
+                closeHostModal();
+                renderMesasHost();
+                renderMesasServer();
+                alert(`✅ Grupo asignado exitosamente a: ${numsMesasAsignadas.join(', ')} para ${checkinData.nombre} ${checkinData.apellido} (${checkinData.comensales} comensales).`);
+
+            } catch (err) { 
+                console.error(err); 
+                alert("Ocurrió un error al asignar las mesas.");
+            }
         }
 
         function renderMesasServer() {
@@ -651,7 +682,8 @@
             
             const tag = document.getElementById('cliente-info-tag');
             if (mesa.cliente) {
-                tag.innerText = `Cliente: ${mesa.cliente.nombre} ${mesa.cliente.apellido} (${mesa.cliente.comensales} pers.)`;
+                let extraTag = mesa.cliente.esCombinada ? " [Mesa Combinada]" : "";
+                tag.innerText = `Cliente: ${mesa.cliente.nombre} ${mesa.cliente.apellido} (${mesa.cliente.comensales} pers.)${extraTag}`;
                 tag.classList.remove('hidden');
             } else {
                 tag.classList.add('hidden');
@@ -672,12 +704,10 @@
             await loadTableHistory(mesa.id);
         }
 
-        // CARGAR HISTORIAL DE LA MESA (SOLO SI TIENE CLIENTE ACTIVO EN ESA SESIÓN)
         async function loadTableHistory(mesaId) {
             const historyContainer = document.getElementById('table-history-list');
             const mesa = mesas.find(m => m.id === mesaId);
 
-            // Si la mesa no está ocupada, NO se muestra nada de pedidos anteriores
             if (mesa.estado !== 'ocupada' || !mesa.sessionStartTime) {
                 historyContainer.innerHTML = `<p class="italic text-gray-500 text-center py-2">Mesa libre (sin cliente asignado).</p>`;
                 return;
@@ -686,7 +716,6 @@
             historyContainer.innerHTML = `<p class="italic text-gray-500">Cargando pedidos del cliente...</p>`;
 
             try {
-                // Filtramos por mesa_id y aseguramos traer solo lo pedido desde que el cliente se sentó
                 const { data, error } = await supabaseClient
                     .from('pedidos_comandos')
                     .select('*')
@@ -792,7 +821,6 @@
         function updateItemNote(index, note) { currentOrder[index].notaIndividual = note; }
         function removeFromOrder(index) { currentOrder.splice(index, 1); renderOrder(); }
 
-        // ENVIAR PEDIDO Y ACUMULAR EN LAS PREFERENCIAS DEL CLIENTE EN BD
         async function submitOrder() {
             if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
             const mesa = mesas.find(m => m.id === selectedMesaId);
@@ -812,7 +840,6 @@
             const noteText = `Mesero: ${currentMeseroName} | ${generalNote}`;
 
             try {
-                // 1. Guardar comanda en pedidos_comandos
                 const { error } = await supabaseClient.from('pedidos_comandos').insert([{
                     mesa_id: mesa.id,
                     items_seleccionados: itemsText,
@@ -825,7 +852,6 @@
                     return;
                 }
 
-                // 2. Acumular ítems en el perfil del cliente en la Base de Datos
                 if (mesa.cliente && mesa.cliente.id) {
                     const { data: clienteDB } = await supabaseClient.from('clientes').select('historial_preferencias').eq('id', mesa.cliente.id).single();
                     let prevHistorial = clienteDB && clienteDB.historial_preferencias ? clienteDB.historial_preferencias : '';
