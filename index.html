@@ -109,7 +109,7 @@
                         <span id="cliente-info-tag" class="text-xs bg-indigo-900 text-indigo-200 px-3 py-1 rounded-full hidden"></span>
                     </div>
 
-                    <!-- BOTONES DE CATEGORÍA CORREGIDOS -->
+                    <!-- BOTONES DE CATEGORÍA CON CAMBIO DE COLOR DINÁMICO -->
                     <div class="flex space-x-2 overflow-x-auto pb-2 mb-3 border-b border-gray-700">
                         <button id="cat-btn-all" onclick="filterCategory('all')" class="px-3 py-1 rounded-md text-xs transition bg-indigo-600 text-white font-bold">Todos</button>
                         <button id="cat-btn-entradas" onclick="filterCategory('entradas')" class="px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white">Entradas</button>
@@ -826,11 +826,13 @@
             historyContainer.innerHTML = `<p class="italic text-gray-500">Cargando pedidos del cliente...</p>`;
 
             try {
+                const startTimeISO = new Date(mesa.sessionStartTime).toISOString();
+
                 const { data, error } = await supabaseClient
                     .from('pedidos_comandos')
                     .select('*')
                     .eq('mesa_id', mesaId)
-                    .gte('created_at', mesa.sessionStartTime)
+                    .gte('created_at', startTimeISO)
                     .order('id', { ascending: true });
 
                 if (error || !data || data.length === 0) {
@@ -846,6 +848,7 @@
                     </div>
                 `).join('');
             } catch (err) {
+                console.error(err);
                 historyContainer.innerHTML = `<p class="italic text-red-400">Error al cargar historial del cliente.</p>`;
             }
         }
@@ -961,6 +964,7 @@
             const noteText = `Mesero: ${currentMeseroName} | ${generalNote}`;
 
             try {
+                // 1. Enviar pedido a la tabla de comanda/cocina
                 const { error } = await supabaseClient.from('pedidos_comandos').insert([{
                     mesa_id: mesa.id,
                     items_seleccionados: itemsText,
@@ -973,7 +977,7 @@
                     return;
                 }
 
-                // Guardar los platos pedidos en el historial del cliente usando el teléfono como llave primaria
+                // 2. Guardar los platos en el historial de preferencias del cliente en Supabase
                 if (mesa.cliente && mesa.cliente.telefono) {
                     const { data: clienteDB } = await supabaseClient.from('clientes').select('historial_preferencias').eq('telefono', mesa.cliente.telefono).single();
                     let prevHistorial = clienteDB && clienteDB.historial_preferencias ? clienteDB.historial_preferencias : '';
@@ -985,7 +989,7 @@
                     }).eq('telefono', mesa.cliente.telefono);
                 }
 
-                alert(`✅ ¡Comanda enviada a cocina para ${mesa.numero} por ${currentMeseroName}!`);
+                alert(`✅ ¡Comanda enviada a cocina y guardada en el perfil de ${mesa.cliente ? mesa.cliente.nombre : 'el cliente'}!`);
                 currentOrder = [];
                 document.getElementById('order-notes').value = '';
                 renderOrder();
