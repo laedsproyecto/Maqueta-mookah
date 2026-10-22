@@ -46,6 +46,16 @@
             </div>
             
             <div class="flex items-center space-x-4">
+                <!-- INDICADOR DE TASA BCV EN VIVO -->
+                <div class="flex items-center bg-gray-900 px-3 py-1.5 rounded-lg border border-emerald-500/40 text-xs space-x-2">
+                    <i class="fa-solid fa-money-bill-transfer text-emerald-400"></i>
+                    <span class="text-gray-400">Tasa BCV:</span>
+                    <span id="bcv-rate-display" class="font-mono font-bold text-emerald-300">Cargando...</span>
+                    <button onclick="promptManualBcvRate()" title="Ajustar tasa manualmente" class="text-gray-500 hover:text-indigo-400 ml-1">
+                        <i class="fa-solid fa-pen-to-square text-[11px]"></i>
+                    </button>
+                </div>
+
                 <!-- CRONÓMETRO DE TURNO -->
                 <div class="flex items-center bg-gray-900 px-3 py-1.5 rounded-lg border border-indigo-500/40 text-xs">
                     <i class="fa-solid fa-clock text-amber-400 mr-2 animate-pulse"></i>
@@ -95,7 +105,7 @@
 
             <!-- VISTA 2: MESEROS -->
             <section id="view-server" class="flex-1 hidden flex flex-col lg:flex-row gap-6 overflow-hidden">
-                <!-- COLUMNA MESAS ASIGNADAS (AJUSTADA COMPACTA) -->
+                <!-- COLUMNA MESAS ASIGNADAS COMPACTA -->
                 <div class="w-full lg:w-1/4 bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col">
                     <h3 class="font-bold text-base mb-3 flex items-center border-b border-gray-700 pb-2">
                         <i class="fa-solid fa-chair mr-2 text-indigo-400"></i> Mesas Asignadas
@@ -141,7 +151,10 @@
                             </div>
                             <div class="flex justify-between items-center text-xs bg-gray-950 px-2 py-1.5 rounded mb-2 border border-gray-800">
                                 <span class="text-gray-400 font-medium">Acumulado Consumido:</span>
-                                <span id="session-accumulated-total" class="font-bold text-emerald-400">$0.00</span>
+                                <div class="text-right">
+                                    <span id="session-accumulated-total" class="font-bold text-emerald-400 block">$0.00</span>
+                                    <span id="session-accumulated-ves" class="text-[10px] text-gray-400 block font-mono">Bs. 0,00</span>
+                                </div>
                             </div>
                             <div id="table-history-list" class="space-y-2 text-xs text-gray-400 max-h-[160px] overflow-y-auto bg-gray-900 p-2 rounded-lg border border-gray-700">
                                 <p class="italic text-gray-500">Mesa libre (sin cliente asignado).</p>
@@ -154,18 +167,27 @@
                     </div>
 
                     <div class="border-t border-gray-700 pt-3 mt-3 space-y-2">
-                        <div class="space-y-1 text-xs">
+                        <div class="space-y-1.5 text-xs">
                             <div class="flex justify-between items-center text-gray-400">
                                 <span>Consumido Previo:</span>
-                                <span id="summary-consumed-total" class="font-semibold text-white">$0.00</span>
+                                <div class="text-right">
+                                    <span id="summary-consumed-total" class="font-semibold text-white block">$0.00</span>
+                                    <span id="summary-consumed-ves" class="text-[10px] text-gray-400 block font-mono">Bs. 0,00</span>
+                                </div>
                             </div>
                             <div class="flex justify-between items-center text-gray-400">
                                 <span>Nueva Tanda:</span>
-                                <span id="order-total" class="font-semibold text-emerald-400">$0.00</span>
+                                <div class="text-right">
+                                    <span id="order-total" class="font-semibold text-emerald-400 block">$0.00</span>
+                                    <span id="order-total-ves" class="text-[10px] text-emerald-300/70 block font-mono">Bs. 0,00</span>
+                                </div>
                             </div>
                             <div class="flex justify-between items-center text-sm font-bold border-t border-gray-700 pt-1.5 mt-1">
-                                <span class="text-indigo-300">Total Proyectado:</span>
-                                <span id="grand-total-account" class="text-emerald-400 text-base">$0.00</span>
+                                <span class="text-indigo-300">Total Cuenta BCV:</span>
+                                <div class="text-right">
+                                    <span id="grand-total-account" class="text-emerald-400 text-base block">$0.00</span>
+                                    <span id="grand-total-ves" class="text-xs text-amber-300 font-mono block">Bs. 0,00</span>
+                                </div>
                             </div>
                         </div>
 
@@ -299,6 +321,9 @@
         let shiftInterval = null;
         let tableTimeInterval = null;
 
+        // TASA BCV POR DEFECTO
+        let bcvRate = 884.75; 
+
         let listaClientesDB = []; 
         let currentFilteredMatches = [];
 
@@ -379,7 +404,47 @@
         let selectedMesaId = 1;
         let currentOrder = [];
 
-        // Función utilitaria para evaluar automáticamente el valor total de una tanda
+        // CONSULTA AUTOMÁTICA DE TASA BCV DESDE API PÚBLICA
+        async function fetchBcvRate() {
+            try {
+                const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.promedio) {
+                        bcvRate = parseFloat(data.promedio);
+                    }
+                }
+            } catch (err) {
+                console.warn("API principal BCV no disponible. Intentando fuente secundaria...", err);
+                try {
+                    const resAlt = await fetch('https://rates.dolarvzla.com/bcv/current.json');
+                    if (resAlt.ok) {
+                        const dataAlt = await resAlt.json();
+                        if (dataAlt && dataAlt.usd) bcvRate = parseFloat(dataAlt.usd);
+                    }
+                } catch(e) { console.error("Usando tasa local predeterminada:", bcvRate); }
+            }
+            updateBcvUI();
+        }
+
+        function updateBcvUI() {
+            const display = document.getElementById('bcv-rate-display');
+            if (display) display.innerText = `Bs. ${bcvRate.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            
+            // Re-renderizar catálogo y totales con la nueva tasa
+            const currentCat = document.querySelector('.bg-indigo-600.font-bold')?.id.replace('cat-btn-', '') || 'all';
+            filterCategory(currentCat);
+            updateTotalsDisplay();
+        }
+
+        function promptManualBcvRate() {
+            const val = prompt("Modificar Tasa BCV manualmente (Bs./USD):", bcvRate);
+            if (val && !isNaN(val) && parseFloat(val) > 0) {
+                bcvRate = parseFloat(val);
+                updateBcvUI();
+            }
+        }
+
         function calculateTandaCost(itemsString, totalTandaGuardado) {
             if (typeof totalTandaGuardado === 'number' && totalTandaGuardado > 0) {
                 return totalTandaGuardado;
@@ -402,6 +467,7 @@
         }
 
         window.onload = async () => {
+            await fetchBcvRate();
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) await setUserData(session.user);
             await cargarClientesRegulares();
@@ -835,7 +901,6 @@
             }
         }
 
-        // RENDERIZADO COMPACTO Y APILADO DE MESAS EN PANEL MESEROS
         function renderMesasServer() {
             const container = document.getElementById('grid-mesas-server');
             container.innerHTML = mesas.map(m => {
@@ -915,12 +980,14 @@
             if (mesa.estado !== 'ocupada') {
                 historyContainer.innerHTML = `<p class="italic text-gray-500 text-center py-2">Mesa libre (sin cliente asignado).</p>`;
                 document.getElementById('session-accumulated-total').innerText = '$0.00';
+                document.getElementById('session-accumulated-ves').innerText = 'Bs. 0,00';
                 return;
             }
 
             if (!mesa.sessionOrders || mesa.sessionOrders.length === 0) {
                 historyContainer.innerHTML = `<p class="italic text-gray-500 text-center py-2">El cliente aún no ha realizado pedidos en esta visita.</p>`;
                 document.getElementById('session-accumulated-total').innerText = '$0.00';
+                document.getElementById('session-accumulated-ves').innerText = 'Bs. 0,00';
                 return;
             }
 
@@ -929,12 +996,16 @@
             historyContainer.innerHTML = mesa.sessionOrders.map((p, index) => {
                 let costoTanda = calculateTandaCost(p.items, p.totalTanda);
                 sessionAccumulated += costoTanda;
+                let costoTandaBs = costoTanda * bcvRate;
 
                 return `
                     <div class="border-b border-gray-800 pb-2 mb-1.5">
                         <div class="flex justify-between items-center mb-1">
                             <span class="text-indigo-300 font-bold text-xs">Tanda #${index + 1} (${p.hora}):</span>
-                            <span class="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-1.5 py-0.5 rounded">$${costoTanda.toFixed(2)}</span>
+                            <div class="text-right">
+                                <span class="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-1.5 py-0.5 rounded">$${costoTanda.toFixed(2)}</span>
+                                <span class="text-[10px] text-gray-400 font-mono block">Bs. ${costoTandaBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            </div>
                         </div>
                         <p class="text-white font-medium text-xs leading-relaxed">👉 ${p.items}</p>
                         <div class="flex justify-between items-center mt-1 text-[10px] text-gray-400">
@@ -945,9 +1016,12 @@
                 `;
             }).join('');
 
+            let sessionAccumulatedBs = sessionAccumulated * bcvRate;
             document.getElementById('session-accumulated-total').innerText = `$${sessionAccumulated.toFixed(2)}`;
+            document.getElementById('session-accumulated-ves').innerText = `Bs. ${sessionAccumulatedBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         }
 
+        // RENDERIZADO DEL MENÚ CON EQUIVALENCIA EN BOLÍVARES AL INSTANTE
         function filterCategory(category) {
             const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'postres'];
             
@@ -965,18 +1039,24 @@
             const container = document.getElementById('menu-items-grid');
             const items = category === 'all' ? menuCatalog : menuCatalog.filter(i => i.categoria === category);
             
-            container.innerHTML = items.map(i => `
-                <div onclick="addToOrder(${i.id})" class="bg-gray-900 p-2.5 rounded-lg border border-gray-700 hover:border-indigo-500 cursor-pointer transition flex flex-col justify-between">
-                    <div>
-                        <h4 class="font-bold text-xs text-white">${i.nombre}</h4>
-                        <p class="text-[9px] text-gray-400 mt-0.5 line-clamp-2">Ings: ${i.ingredientes.join(', ')}</p>
+            container.innerHTML = items.map(i => {
+                let precioBs = i.precio * bcvRate;
+                return `
+                    <div onclick="addToOrder(${i.id})" class="bg-gray-900 p-2.5 rounded-lg border border-gray-700 hover:border-indigo-500 cursor-pointer transition flex flex-col justify-between">
+                        <div>
+                            <h4 class="font-bold text-xs text-white">${i.nombre}</h4>
+                            <p class="text-[9px] text-gray-400 mt-0.5 line-clamp-2">Ings: ${i.ingredientes.join(', ')}</p>
+                        </div>
+                        <div class="flex justify-between items-end mt-2">
+                            <div>
+                                <span class="font-bold text-indigo-400 text-xs block">$${i.precio.toFixed(2)}</span>
+                                <span class="text-[10px] text-emerald-400/90 font-mono block">Bs. ${precioBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            </div>
+                            <span class="text-[9px] bg-indigo-950 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-800/50">Agregar +</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between items-center mt-2">
-                        <span class="font-bold text-indigo-400 text-xs">$${i.precio.toFixed(2)}</span>
-                        <span class="text-[9px] bg-indigo-950 text-indigo-300 px-1.5 py-0.5 rounded">Agregar +</span>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function addToOrder(itemId) {
@@ -1001,13 +1081,18 @@
             }
 
             container.innerHTML = currentOrder.map((i, index) => {
+                let subtotalUsd = i.precio * i.qty;
+                let subtotalBs = subtotalUsd * bcvRate;
                 return `
                     <div class="bg-gray-900 p-2.5 rounded border border-gray-700 text-xs space-y-2">
                         <div class="flex justify-between items-center">
                             <span class="font-bold text-white">${i.nombre}</span>
                             <div class="flex items-center space-x-2">
-                                <span class="font-bold text-indigo-400">$${(i.precio * i.qty).toFixed(2)}</span>
-                                <button onclick="removeFromOrder(${index})" class="text-red-400 hover:text-red-300"><i class="fa-solid fa-trash"></i></button>
+                                <div class="text-right">
+                                    <span class="font-bold text-indigo-400 block">$${subtotalUsd.toFixed(2)}</span>
+                                    <span class="text-[9px] text-gray-400 font-mono block">Bs. ${subtotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                </div>
+                                <button onclick="removeFromOrder(${index})" class="text-red-400 hover:text-red-300 ml-1"><i class="fa-solid fa-trash"></i></button>
                             </div>
                         </div>
                         <div class="text-[10px] text-gray-300 bg-gray-950 p-1.5 rounded border border-gray-800">
@@ -1031,7 +1116,6 @@
         function updateTotalsDisplay() {
             const mesa = mesas.find(m => m.id === selectedMesaId);
             
-            // Evaluar total consumido de tandas servidas previamente
             let consumedTotal = 0;
             if (mesa && mesa.sessionOrders && mesa.sessionOrders.length > 0) {
                 mesa.sessionOrders.forEach(order => {
@@ -1039,7 +1123,6 @@
                 });
             }
 
-            // Evaluar total de la nueva tanda actual
             let newOrderTotal = 0;
             currentOrder.forEach(i => {
                 newOrderTotal += i.precio * i.qty;
@@ -1047,9 +1130,19 @@
 
             let grandTotal = consumedTotal + newOrderTotal;
 
+            // Totales en Bolívares
+            let consumedTotalBs = consumedTotal * bcvRate;
+            let newOrderTotalBs = newOrderTotal * bcvRate;
+            let grandTotalBs = grandTotal * bcvRate;
+
             document.getElementById('summary-consumed-total').innerText = `$${consumedTotal.toFixed(2)}`;
+            document.getElementById('summary-consumed-ves').innerText = `Bs. ${consumedTotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
             document.getElementById('order-total').innerText = `$${newOrderTotal.toFixed(2)}`;
+            document.getElementById('order-total-ves').innerText = `Bs. ${newOrderTotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
             document.getElementById('grand-total-account').innerText = `$${grandTotal.toFixed(2)}`;
+            document.getElementById('grand-total-ves').innerText = `Bs. ${grandTotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         }
 
         function toggleIngredient(orderIndex, ingIdx) {
@@ -1115,7 +1208,7 @@
                     
                     const ahora = new Date();
                     const fechaHoraStr = `${ahora.toLocaleDateString()} ${ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                    let detallePedido = `[${fechaHoraStr}] Pedido por ${currentMeseroName} ($${newOrderTotal.toFixed(2)}): ${itemsText}`;
+                    let detallePedido = `[${fechaHoraStr}] Pedido por ${currentMeseroName} ($${newOrderTotal.toFixed(2)} / Bs. ${(newOrderTotal * bcvRate).toLocaleString('es-VE', {minimumFractionDigits: 2})}): ${itemsText}`;
                     if (generalNote) detallePedido += ` (Nota: ${generalNote})`;
 
                     let historialActualizado = prevHistorial ? `${prevHistorial} | ${detallePedido}` : detallePedido;
@@ -1125,7 +1218,7 @@
                     }).eq('telefono', mesa.cliente.telefono);
                 }
 
-                alert(`✅ ¡Comanda de $${newOrderTotal.toFixed(2)} enviada por ${currentMeseroName} a cocina!`);
+                alert(`✅ ¡Comanda de $${newOrderTotal.toFixed(2)} (Bs. ${(newOrderTotal * bcvRate).toLocaleString('es-VE', {minimumFractionDigits: 2})}) enviada a cocina!`);
                 currentOrder = [];
                 document.getElementById('order-notes').value = '';
                 renderOrder();
