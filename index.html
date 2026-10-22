@@ -109,13 +109,14 @@
                         <span id="cliente-info-tag" class="text-xs bg-indigo-900 text-indigo-200 px-3 py-1 rounded-full hidden"></span>
                     </div>
 
+                    <!-- BOTONES DE CATEGORÍA CORREGIDOS -->
                     <div class="flex space-x-2 overflow-x-auto pb-2 mb-3 border-b border-gray-700">
-                        <button onclick="filterCategory('all')" class="px-3 py-1 rounded-md text-xs bg-indigo-600 text-white">Todos</button>
-                        <button onclick="filterCategory('entradas')" class="px-3 py-1 rounded-md text-xs bg-gray-700 text-gray-300">Entradas</button>
-                        <button onclick="filterCategory('rolls')" class="px-3 py-1 rounded-md text-xs bg-gray-700 text-gray-300">Sushi Rolls</button>
-                        <button onclick="filterCategory('calientes')" class="px-3 py-1 rounded-md text-xs bg-gray-700 text-gray-300">Calientes</button>
-                        <button onclick="filterCategory('pokes')" class="px-3 py-1 rounded-md text-xs bg-gray-700 text-gray-300">Pokes</button>
-                        <button onclick="filterCategory('postres')" class="px-3 py-1 rounded-md text-xs bg-gray-700 text-gray-300">Postres</button>
+                        <button id="cat-btn-all" onclick="filterCategory('all')" class="px-3 py-1 rounded-md text-xs transition bg-indigo-600 text-white font-bold">Todos</button>
+                        <button id="cat-btn-entradas" onclick="filterCategory('entradas')" class="px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white">Entradas</button>
+                        <button id="cat-btn-rolls" onclick="filterCategory('rolls')" class="px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white">Sushi Rolls</button>
+                        <button id="cat-btn-calientes" onclick="filterCategory('calientes')" class="px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white">Calientes</button>
+                        <button id="cat-btn-pokes" onclick="filterCategory('pokes')" class="px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white">Pokes</button>
+                        <button id="cat-btn-postres" onclick="filterCategory('postres')" class="px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white">Postres</button>
                     </div>
 
                     <div id="menu-items-grid" class="grid grid-cols-2 gap-3 overflow-y-auto flex-1 pr-1"></div>
@@ -292,7 +293,7 @@
             telefono: '',
             correo: '',
             comensales: 2,
-            selectedClientId: null,
+            selectedClienteTelefono: null,
             selectedMesaIds: []
         };
 
@@ -379,7 +380,6 @@
             currentMeseroEmail = user.email.toLowerCase().trim();
             
             try {
-                // Búsqueda flexible en la tabla 'meseros'
                 const { data, error } = await supabaseClient
                     .from('meseros')
                     .select('nombre, apellido')
@@ -400,16 +400,14 @@
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('app-screen').classList.remove('hidden');
             
-            // Iniciar o recuperar turno activo
             await startOrResumeShift();
 
             renderMesasHost();
             renderMesasServer();
-            renderMenu('all');
+            filterCategory('all');
             selectMesaServer(1);
         }
 
-        // CONTROL DEL CRONÓMETRO Y REGISTRO DE TURNO
         async function startOrResumeShift() {
             try {
                 const { data: activeShifts } = await supabaseClient
@@ -532,7 +530,7 @@
         }
 
         function startHostCheckin() {
-            checkinData = { tipo: 'nuevo', nombre: '', apellido: '', telefono: '', correo: '', comensales: 2, selectedClientId: null, selectedMesaIds: [] };
+            checkinData = { tipo: 'nuevo', nombre: '', apellido: '', telefono: '', correo: '', comensales: 2, selectedClienteTelefono: null, selectedMesaIds: [] };
             document.getElementById('input-guests').value = 2;
             switchClientTab('nuevo');
             document.getElementById('host-step-1').classList.remove('hidden');
@@ -601,7 +599,7 @@
         function selectRegularClientByIndex(index) {
             const cliente = currentFilteredMatches[index];
             if (cliente) {
-                checkinData.selectedClientId = cliente.id;
+                checkinData.selectedClienteTelefono = cliente.telefono;
                 document.getElementById('search-regular-input').value = `${cliente.nombre} ${cliente.apellido}`;
                 document.getElementById('reg-name').value = cliente.nombre || '';
                 document.getElementById('reg-lastname').value = cliente.apellido || '';
@@ -611,7 +609,7 @@
         }
 
         function clearRegularSearch() {
-            checkinData.selectedClientId = null;
+            checkinData.selectedClienteTelefono = null;
             document.getElementById('search-regular-input').value = '';
             document.getElementById('reg-name').value = '';
             document.getElementById('reg-lastname').value = '';
@@ -698,23 +696,29 @@
                 return;
             }
 
-            let idClienteFinal = checkinData.selectedClientId;
+            let telefonoFinal = checkinData.selectedClienteTelefono || checkinData.telefono;
 
             try {
                 if (checkinData.tipo === 'nuevo') {
-                    const { data: newClient } = await supabaseClient.from('clientes').insert([{ 
+                    await supabaseClient.from('clientes').insert([{ 
                         telefono: checkinData.telefono, 
                         nombre: checkinData.nombre, 
                         apellido: checkinData.apellido, 
                         correo: checkinData.correo,
-                        historial_preferencias: '' 
-                    }]).select();
-                    if (newClient && newClient.length > 0) idClienteFinal = newClient[0].id;
+                        historial_preferencias: `Visita ${new Date().toLocaleDateString()}: ${checkinData.comensales} comensales` 
+                    }]);
+                    telefonoFinal = checkinData.telefono;
                     await cargarClientesRegulares();
-                } else if (checkinData.tipo === 'regular' && idClienteFinal) {
+                } else if (checkinData.tipo === 'regular' && telefonoFinal) {
+                    const clienteActual = listaClientesDB.find(c => c.telefono === telefonoFinal);
+                    const prevHistorial = clienteActual && clienteActual.historial_preferencias ? clienteActual.historial_preferencias : '';
+                    const nuevaVisita = `Visita ${new Date().toLocaleDateString()}: ${checkinData.comensales} comensales`;
+                    const historialActualizado = prevHistorial ? `${prevHistorial} | ${nuevaVisita}` : nuevaVisita;
+
                     await supabaseClient.from('clientes').update({
-                        telefono: checkinData.telefono
-                    }).eq('id', idClienteFinal);
+                        telefono: checkinData.telefono,
+                        historial_preferencias: historialActualizado
+                    }).eq('telefono', telefonoFinal);
                 }
 
                 const startTime = new Date().toISOString();
@@ -725,10 +729,9 @@
                     mesa.estado = 'ocupada';
                     mesa.sessionStartTime = startTime;
                     mesa.cliente = { 
-                        id: idClienteFinal, 
+                        telefono: telefonoFinal, 
                         nombre: checkinData.nombre, 
                         apellido: checkinData.apellido, 
-                        telefono: checkinData.telefono, 
                         comensales: checkinData.comensales,
                         esCombinada: checkinData.selectedMesaIds.length > 1
                     };
@@ -742,7 +745,6 @@
                     }]);
                 }
 
-                // Incrementar contador de mesas atendidas
                 if (currentMeseroEmail) {
                     const { data: mData } = await supabaseClient.from('meseros').select('mesas_atendidas').ilike('email', currentMeseroEmail);
                     let prevCount = mData && mData.length > 0 && mData[0].mesas_atendidas ? mData[0].mesas_atendidas : 0;
@@ -848,7 +850,20 @@
             }
         }
 
-        function renderMenu(category) {
+        function filterCategory(category) {
+            const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'postres'];
+            
+            categories.forEach(cat => {
+                const btn = document.getElementById(`cat-btn-${cat}`);
+                if (btn) {
+                    if (cat === category) {
+                        btn.className = "px-3 py-1 rounded-md text-xs transition bg-indigo-600 text-white font-bold";
+                    } else {
+                        btn.className = "px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white";
+                    }
+                }
+            });
+
             const container = document.getElementById('menu-items-grid');
             const items = category === 'all' ? menuCatalog : menuCatalog.filter(i => i.categoria === category);
             
@@ -865,8 +880,6 @@
                 </div>
             `).join('');
         }
-
-        function filterCategory(cat) { renderMenu(cat); }
 
         function addToOrder(itemId) {
             const item = menuCatalog.find(i => i.id === itemId);
@@ -960,15 +973,16 @@
                     return;
                 }
 
-                if (mesa.cliente && mesa.cliente.id) {
-                    const { data: clienteDB } = await supabaseClient.from('clientes').select('historial_preferencias').eq('id', mesa.cliente.id).single();
+                // Guardar los platos pedidos en el historial del cliente usando el teléfono como llave primaria
+                if (mesa.cliente && mesa.cliente.telefono) {
+                    const { data: clienteDB } = await supabaseClient.from('clientes').select('historial_preferencias').eq('telefono', mesa.cliente.telefono).single();
                     let prevHistorial = clienteDB && clienteDB.historial_preferencias ? clienteDB.historial_preferencias : '';
                     let nuevoPlatosNombres = currentOrder.map(i => i.nombre).join(', ');
                     let historialActualizado = prevHistorial ? `${prevHistorial} | Pedido: ${nuevoPlatosNombres}` : `Pedido: ${nuevoPlatosNombres}`;
 
                     await supabaseClient.from('clientes').update({
                         historial_preferencias: historialActualizado
-                    }).eq('id', mesa.cliente.id);
+                    }).eq('telefono', mesa.cliente.telefono);
                 }
 
                 alert(`✅ ¡Comanda enviada a cocina para ${mesa.numero} por ${currentMeseroName}!`);
