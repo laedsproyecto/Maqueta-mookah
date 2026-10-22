@@ -53,7 +53,8 @@
                     <span id="shift-timer" class="font-mono font-bold text-amber-300">00:00:00</span>
                 </div>
 
-                <span id="user-name-display" class="text-xs bg-gray-900 px-3 py-1.5 rounded-full border border-gray-700 text-indigo-300 font-medium"></span>
+                <!-- NOMBRE DEL MESERO -->
+                <span id="user-name-display" class="text-xs bg-gray-900 px-3 py-1.5 rounded-full border border-gray-700 text-indigo-300 font-semibold"></span>
                 
                 <button onclick="handleLogout()" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-red-500/30">
                     <i class="fa-solid fa-right-from-bracket mr-1"></i> Finalizar Turno
@@ -130,7 +131,7 @@
                             <p class="text-gray-500 text-xs italic text-center py-4">Selecciona ítems del menú.</p>
                         </div>
 
-                        <!-- HISTORIAL DE LA SESIÓN DEL CLIENTE Y TIEMPO DE OCUPACIÓN -->
+                        <!-- HISTORIAL DE LA SESIÓN DEL CLIENTE -->
                         <div class="border-t border-gray-700 pt-3">
                             <div class="flex justify-between items-center mb-2">
                                 <h4 class="font-bold text-xs uppercase text-indigo-300">Pedidos de esta Sesión:</h4>
@@ -375,17 +376,23 @@
         }
 
         async function setUserData(user) {
-            currentMeseroEmail = user.email;
+            currentMeseroEmail = user.email.toLowerCase().trim();
             
             try {
-                const { data } = await supabaseClient
+                // Búsqueda flexible en la tabla 'meseros'
+                const { data, error } = await supabaseClient
                     .from('meseros')
                     .select('nombre, apellido')
-                    .eq('email', currentMeseroEmail)
-                    .single();
+                    .ilike('email', currentMeseroEmail);
 
-                currentMeseroName = data && data.nombre ? `${data.nombre} ${data.apellido || ''}`.trim() : currentMeseroEmail;
+                if (!error && data && data.length > 0 && data[0].nombre) {
+                    const mesero = data[0];
+                    currentMeseroName = `${mesero.nombre} ${mesero.apellido || ''}`.trim();
+                } else {
+                    currentMeseroName = currentMeseroEmail;
+                }
             } catch (err) {
+                console.error("Error al obtener nombre de mesero:", err);
                 currentMeseroName = currentMeseroEmail;
             }
 
@@ -405,19 +412,17 @@
         // CONTROL DEL CRONÓMETRO Y REGISTRO DE TURNO
         async function startOrResumeShift() {
             try {
-                // Verificar si hay un turno activo no cerrado
-                const { data: activeShift } = await supabaseClient
+                const { data: activeShifts } = await supabaseClient
                     .from('turnos_meseros')
                     .select('*')
-                    .eq('mesero_email', currentMeseroEmail)
-                    .eq('estado', 'Activo')
-                    .single();
+                    .ilike('mesero_email', currentMeseroEmail)
+                    .eq('estado', 'Activo');
 
-                if (activeShift) {
+                if (activeShifts && activeShifts.length > 0) {
+                    const activeShift = activeShifts[0];
                     currentTurnoId = activeShift.id;
                     shiftStartTime = new Date(activeShift.inicio_turno);
                 } else {
-                    // Crear nuevo turno
                     const startTimeStr = new Date().toISOString();
                     const { data: newShift } = await supabaseClient
                         .from('turnos_meseros')
@@ -737,11 +742,11 @@
                     }]);
                 }
 
-                // Incrementar contador de mesas atendidas para este mesero
+                // Incrementar contador de mesas atendidas
                 if (currentMeseroEmail) {
-                    const { data: mData } = await supabaseClient.from('meseros').select('mesas_atendidas').eq('email', currentMeseroEmail).single();
-                    let prevCount = mData && mData.mesas_atendidas ? mData.mesas_atendidas : 0;
-                    await supabaseClient.from('meseros').update({ mesas_atendidas: prevCount + checkinData.selectedMesaIds.length }).eq('email', currentMeseroEmail);
+                    const { data: mData } = await supabaseClient.from('meseros').select('mesas_atendidas').ilike('email', currentMeseroEmail);
+                    let prevCount = mData && mData.length > 0 && mData[0].mesas_atendidas ? mData[0].mesas_atendidas : 0;
+                    await supabaseClient.from('meseros').update({ mesas_atendidas: prevCount + checkinData.selectedMesaIds.length }).ilike('email', currentMeseroEmail);
                 }
 
                 closeHostModal();
@@ -985,11 +990,10 @@
             try {
                 await supabaseClient.from('mesas').insert([{ numero_mesa: mesa.id, zona: mesa.zona, capacidad: 4, estado: 'Por Limpiar' }]);
                 
-                // Incrementar contador de mesas cerradas por este mesero
                 if (currentMeseroEmail) {
-                    const { data: mData } = await supabaseClient.from('meseros').select('mesas_cerradas').eq('email', currentMeseroEmail).single();
-                    let prevClosed = mData && mData.mesas_cerradas ? mData.mesas_cerradas : 0;
-                    await supabaseClient.from('meseros').update({ mesas_cerradas: prevClosed + 1 }).eq('email', currentMeseroEmail);
+                    const { data: mData } = await supabaseClient.from('meseros').select('mesas_cerradas').ilike('email', currentMeseroEmail);
+                    let prevClosed = mData && mData.length > 0 && mData[0].mesas_cerradas ? mData[0].mesas_cerradas : 0;
+                    await supabaseClient.from('meseros').update({ mesas_cerradas: prevClosed + 1 }).ilike('email', currentMeseroEmail);
                 }
 
             } catch (err) { console.error(err); }
