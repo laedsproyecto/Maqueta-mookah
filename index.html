@@ -1114,6 +1114,7 @@
         function updateItemNote(index, note) { currentOrder[index].notaIndividual = note; }
         function removeFromOrder(index) { currentOrder.splice(index, 1); renderOrder(); }
 
+        // --- FUNCIÓN CORREGIDA PARA INSERTAR EN LA TABLA HISTÓRICA DE SUPABASE ---
         async function submitOrder() {
             if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
             const mesa = mesas.find(m => m.id === selectedMesaId);
@@ -1136,13 +1137,22 @@
             const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             try {
-                await supabaseClient.from('pedidos_comandos').insert([{
+                // 1. Guardamos el pedido de forma permanente en la tabla de Supabase para análisis y fidelización
+                const { error: dbError } = await supabaseClient.from('pedidos_comandos').insert([{
                     mesa_id: mesa.id,
+                    mesero_nombre: currentMeseroName,
                     items_seleccionados: itemsText,
                     modificadores: noteText,
+                    total_tanda: newOrderTotal,
                     estado_envio_cocina: 'Pendiente'
                 }]);
 
+                if (dbError) {
+                    console.error("Error al registrar en pedidos_comandos:", dbError);
+                    alert("Aviso: El pedido se agregó a la mesa pero hubo un fallo al registrarlo en la tabla histórica.");
+                }
+
+                // 2. Actualizamos la sesión en la memoria local y sincronizamos el estado de la mesa
                 if (!mesa.sessionOrders) mesa.sessionOrders = [];
                 mesa.sessionOrders.push({
                     hora: horaActual,
@@ -1154,7 +1164,7 @@
 
                 await syncMesaToSupabase(mesa);
 
-                alert(`✅ ¡Comanda de $${newOrderTotal.toFixed(2)} enviada por ${currentMeseroName} a cocina!`);
+                alert(`✅ ¡Comanda de $${newOrderTotal.toFixed(2)} enviada a cocina y guardada en el historial de Supabase!`);
                 currentOrder = [];
                 document.getElementById('order-notes').value = '';
                 renderOrder();
