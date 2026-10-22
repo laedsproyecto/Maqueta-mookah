@@ -95,11 +95,12 @@
 
             <!-- VISTA 2: MESEROS -->
             <section id="view-server" class="flex-1 hidden flex flex-col lg:flex-row gap-6 overflow-hidden">
+                <!-- COLUMNA MESAS ASIGNADAS (AJUSTADA COMPACTA) -->
                 <div class="w-full lg:w-1/4 bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col">
-                    <h3 class="font-bold text-base mb-3 flex items-center">
+                    <h3 class="font-bold text-base mb-3 flex items-center border-b border-gray-700 pb-2">
                         <i class="fa-solid fa-chair mr-2 text-indigo-400"></i> Mesas Asignadas
                     </h3>
-                    <div id="grid-mesas-server" class="grid grid-cols-2 gap-2 overflow-y-auto flex-1"></div>
+                    <div id="grid-mesas-server" class="flex flex-col space-y-2.5 overflow-y-auto flex-1 pr-1"></div>
                 </div>
 
                 <!-- Menú Digital -->
@@ -132,17 +133,17 @@
                             <p class="text-gray-500 text-xs italic text-center py-4">Selecciona ítems del menú.</p>
                         </div>
 
-                        <!-- HISTORIAL DE LA SESIÓN DEL CLIENTE CON SUBTOTALES Y ACUMULADO -->
+                        <!-- HISTORIAL DE LA SESIÓN DEL CLIENTE -->
                         <div class="border-t border-gray-700 pt-3">
                             <div class="flex justify-between items-center mb-1">
-                                <h4 class="font-bold text-xs uppercase text-indigo-300">Pedidos de esta Sesión:</h4>
+                                <h4 class="font-bold text-xs uppercase text-indigo-300">PEDIDOS DE ESTA SESIÓN:</h4>
                                 <span id="table-time-tag" class="text-[10px] text-amber-400 font-mono font-bold">⏳ 0 min</span>
                             </div>
-                            <div class="flex justify-between items-center text-xs bg-gray-950 px-2 py-1 rounded mb-2 border border-gray-800">
-                                <span class="text-gray-400 font-medium">Acumulado Servido:</span>
+                            <div class="flex justify-between items-center text-xs bg-gray-950 px-2 py-1.5 rounded mb-2 border border-gray-800">
+                                <span class="text-gray-400 font-medium">Acumulado Consumido:</span>
                                 <span id="session-accumulated-total" class="font-bold text-emerald-400">$0.00</span>
                             </div>
-                            <div id="table-history-list" class="space-y-1.5 text-xs text-gray-400 max-h-[140px] overflow-y-auto bg-gray-900 p-2 rounded-lg border border-gray-700">
+                            <div id="table-history-list" class="space-y-2 text-xs text-gray-400 max-h-[160px] overflow-y-auto bg-gray-900 p-2 rounded-lg border border-gray-700">
                                 <p class="italic text-gray-500">Mesa libre (sin cliente asignado).</p>
                             </div>
                         </div>
@@ -155,7 +156,7 @@
                     <div class="border-t border-gray-700 pt-3 mt-3 space-y-2">
                         <div class="space-y-1 text-xs">
                             <div class="flex justify-between items-center text-gray-400">
-                                <span>Subtotal Consumido:</span>
+                                <span>Consumido Previo:</span>
                                 <span id="summary-consumed-total" class="font-semibold text-white">$0.00</span>
                             </div>
                             <div class="flex justify-between items-center text-gray-400">
@@ -163,7 +164,7 @@
                                 <span id="order-total" class="font-semibold text-emerald-400">$0.00</span>
                             </div>
                             <div class="flex justify-between items-center text-sm font-bold border-t border-gray-700 pt-1.5 mt-1">
-                                <span class="text-indigo-300">Gran Total Cuenta:</span>
+                                <span class="text-indigo-300">Total Proyectado:</span>
                                 <span id="grand-total-account" class="text-emerald-400 text-base">$0.00</span>
                             </div>
                         </div>
@@ -377,6 +378,28 @@
 
         let selectedMesaId = 1;
         let currentOrder = [];
+
+        // Función utilitaria para evaluar automáticamente el valor total de una tanda
+        function calculateTandaCost(itemsString, totalTandaGuardado) {
+            if (typeof totalTandaGuardado === 'number' && totalTandaGuardado > 0) {
+                return totalTandaGuardado;
+            }
+            if (!itemsString) return 0;
+            let totalCalculado = 0;
+            const partes = itemsString.split(' | ');
+            partes.forEach(p => {
+                let match = p.match(/(\d+)x\s+([^(\n]+)/);
+                if (match) {
+                    let cant = parseInt(match[1]) || 1;
+                    let nombreItem = match[2].trim();
+                    let encontrado = menuCatalog.find(m => m.nombre.toLowerCase() === nombreItem.toLowerCase());
+                    if (encontrado) {
+                        totalCalculado += encontrado.precio * cant;
+                    }
+                }
+            });
+            return totalCalculado;
+        }
 
         window.onload = async () => {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -812,10 +835,11 @@
             }
         }
 
+        // RENDERIZADO COMPACTO Y APILADO DE MESAS EN PANEL MESEROS
         function renderMesasServer() {
             const container = document.getElementById('grid-mesas-server');
             container.innerHTML = mesas.map(m => {
-                let activeBorder = m.id === selectedMesaId ? 'ring-2 ring-indigo-500' : '';
+                let activeBorder = m.id === selectedMesaId ? 'ring-2 ring-indigo-500 border-indigo-500' : 'border-gray-700';
                 let statusText = 'Disponible';
                 let statusColor = 'text-emerald-400';
 
@@ -829,15 +853,15 @@
                 }
 
                 return `
-                    <button onclick="selectMesaServer(${m.id})" class="p-3 rounded-xl text-left bg-gray-900 border border-gray-700 ${activeBorder} flex flex-col justify-between h-24 hover:border-indigo-500 transition">
-                        <div class="flex justify-between items-center w-full">
-                            <span class="font-bold text-xs text-white">${m.numero}</span>
-                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 font-semibold uppercase">Cap: ${m.cap} pers.</span>
+                    <button onclick="selectMesaServer(${m.id})" class="p-3 rounded-xl text-left bg-gray-900 border ${activeBorder} flex flex-col justify-between hover:border-indigo-500 transition w-full shadow-sm">
+                        <div class="flex justify-between items-center w-full mb-1">
+                            <span class="font-bold text-sm text-white">${m.numero}</span>
+                            <span class="text-[9px] px-2 py-0.5 rounded bg-gray-800 text-gray-300 font-semibold uppercase">CAP: ${m.cap} PERS.</span>
                         </div>
-                        <div>
-                            ${m.cliente ? `<p class="text-xs font-bold text-white truncate"><i class="fa-solid fa-user mr-1 text-indigo-400"></i>${m.cliente.nombre.toUpperCase()} ${m.cliente.apellido.toUpperCase()}</p>` : '<p class="text-[10px] text-gray-500">Sin cliente</p>'}
+                        <div class="my-1">
+                            ${m.cliente ? `<p class="text-xs font-bold text-white truncate"><i class="fa-solid fa-user mr-1.5 text-indigo-400"></i>${m.cliente.nombre.toUpperCase()} ${m.cliente.apellido.toUpperCase()}</p>` : '<p class="text-[10px] text-gray-500 font-medium">Sin cliente</p>'}
                         </div>
-                        <div class="text-[10px] font-bold uppercase ${statusColor}">
+                        <div class="text-[10px] font-bold uppercase ${statusColor} mt-1">
                             ${statusText}
                         </div>
                     </button>
@@ -903,17 +927,19 @@
             let sessionAccumulated = 0;
 
             historyContainer.innerHTML = mesa.sessionOrders.map((p, index) => {
-                sessionAccumulated += p.totalTanda;
+                let costoTanda = calculateTandaCost(p.items, p.totalTanda);
+                sessionAccumulated += costoTanda;
+
                 return `
-                    <div class="border-b border-gray-800 pb-1.5 mb-1.5">
-                        <div class="flex justify-between items-center mb-0.5">
-                            <span class="text-indigo-300 font-semibold text-[10px]">Tanda #${index + 1} (${p.hora}):</span>
-                            <span class="text-xs font-bold text-emerald-400">$${p.totalTanda.toFixed(2)}</span>
+                    <div class="border-b border-gray-800 pb-2 mb-1.5">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-indigo-300 font-bold text-xs">Tanda #${index + 1} (${p.hora}):</span>
+                            <span class="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-1.5 py-0.5 rounded">$${costoTanda.toFixed(2)}</span>
                         </div>
-                        <p class="text-white font-medium text-xs">👉 ${p.items}</p>
-                        <div class="flex justify-between items-center mt-0.5 text-[10px] text-gray-400">
+                        <p class="text-white font-medium text-xs leading-relaxed">👉 ${p.items}</p>
+                        <div class="flex justify-between items-center mt-1 text-[10px] text-gray-400">
                             <span>Nota: ${p.nota || 'Ninguna'}</span>
-                            <span class="text-[9px] bg-indigo-950 text-indigo-200 px-1.5 py-0.5 rounded border border-indigo-800/50">👤 ${p.mesero}</span>
+                            <span class="text-[9px] bg-indigo-950 text-indigo-200 px-1.5 py-0.5 rounded border border-indigo-800/50">👤 Mesero: ${p.mesero || currentMeseroName}</span>
                         </div>
                     </div>
                 `;
@@ -1005,19 +1031,20 @@
         function updateTotalsDisplay() {
             const mesa = mesas.find(m => m.id === selectedMesaId);
             
-            // Calc total consumido de tandas previas
+            // Evaluar total consumido de tandas servidas previamente
             let consumedTotal = 0;
             if (mesa && mesa.sessionOrders && mesa.sessionOrders.length > 0) {
-                consumedTotal = mesa.sessionOrders.reduce((sum, order) => sum + order.totalTanda, 0);
+                mesa.sessionOrders.forEach(order => {
+                    consumedTotal += calculateTandaCost(order.items, order.totalTanda);
+                });
             }
 
-            // Calc total nueva tanda actual
+            // Evaluar total de la nueva tanda actual
             let newOrderTotal = 0;
             currentOrder.forEach(i => {
                 newOrderTotal += i.precio * i.qty;
             });
 
-            // Gran total proyectado
             let grandTotal = consumedTotal + newOrderTotal;
 
             document.getElementById('summary-consumed-total').innerText = `$${consumedTotal.toFixed(2)}`;
@@ -1071,7 +1098,7 @@
                     return;
                 }
 
-                // 2. Guardar en el historial local de la sesión de la mesa con su subtotal financiero
+                // 2. Guardar en la sesión de la mesa con subtotal explícito
                 if (!mesa.sessionOrders) mesa.sessionOrders = [];
                 mesa.sessionOrders.push({
                     hora: horaActual,
