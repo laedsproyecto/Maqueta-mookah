@@ -46,14 +46,11 @@
             </div>
             
             <div class="flex items-center space-x-4">
-                <!-- INDICADOR DE TASA BCV EN VIVO -->
+                <!-- INDICADOR DE TASA BCV EN VIVO (SÓLO LECTURA AUTOMATIZADA) -->
                 <div class="flex items-center bg-gray-900 px-3 py-1.5 rounded-lg border border-emerald-500/40 text-xs space-x-2">
                     <i class="fa-solid fa-money-bill-transfer text-emerald-400"></i>
                     <span class="text-gray-400">Tasa BCV:</span>
                     <span id="bcv-rate-display" class="font-mono font-bold text-emerald-300">Cargando...</span>
-                    <button onclick="promptManualBcvRate()" title="Ajustar tasa manualmente" class="text-gray-500 hover:text-indigo-400 ml-1">
-                        <i class="fa-solid fa-pen-to-square text-[11px]"></i>
-                    </button>
                 </div>
 
                 <!-- CRONÓMETRO DE TURNO -->
@@ -120,7 +117,7 @@
                         <span id="cliente-info-tag" class="text-xs bg-indigo-900 text-indigo-200 px-3 py-1 rounded-full hidden"></span>
                     </div>
 
-                    <!-- BOTONES DE CATEGORÍA CON CAMBIO DE COLOR DINÁMICO -->
+                    <!-- BOTONES DE CATEGORÍA -->
                     <div class="flex space-x-2 overflow-x-auto pb-2 mb-3 border-b border-gray-700">
                         <button id="cat-btn-all" onclick="filterCategory('all')" class="px-3 py-1 rounded-md text-xs transition bg-indigo-600 text-white font-bold">Todos</button>
                         <button id="cat-btn-entradas" onclick="filterCategory('entradas')" class="px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white">Entradas</button>
@@ -182,11 +179,14 @@
                                     <span id="order-total-ves" class="text-[10px] text-emerald-300/70 block font-mono">Bs. 0,00</span>
                                 </div>
                             </div>
-                            <div class="flex justify-between items-center text-sm font-bold border-t border-gray-700 pt-1.5 mt-1">
-                                <span class="text-indigo-300">Total Cuenta BCV:</span>
-                                <div class="text-right">
-                                    <span id="grand-total-account" class="text-emerald-400 text-base block">$0.00</span>
-                                    <span id="grand-total-ves" class="text-xs text-amber-300 font-mono block">Bs. 0,00</span>
+                            <div class="flex justify-between items-start border-t border-gray-700 pt-2 mt-1">
+                                <div class="space-y-1">
+                                    <p class="font-bold text-xs text-indigo-300">Cuenta Dólares:</p>
+                                    <p class="font-bold text-xs text-amber-300">Cuenta Bolívares (BCV):</p>
+                                </div>
+                                <div class="text-right space-y-1">
+                                    <span id="grand-total-account" class="text-emerald-400 font-bold text-sm block">$0.00</span>
+                                    <span id="grand-total-ves" class="text-amber-300 font-mono font-bold text-xs block">Bs. 0,00</span>
                                 </div>
                             </div>
                         </div>
@@ -201,7 +201,8 @@
                             <span>Cerrar Cuenta y Limpiar Mesa</span>
                         </button>
 
-                        <button id="btn-clean-table" onclick="cleanTable()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 rounded-lg text-xs flex justify-center items-center space-x-2 transition hidden">
+                        <!-- BOTÓN AMARILLO/ÁMBAR PARA LIMPIEZA -->
+                        <button id="btn-clean-table" onclick="cleanTable()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-lg text-xs shadow flex justify-center items-center space-x-2 transition hidden">
                             <i class="fa-solid fa-broom"></i>
                             <span>Marcar Mesa Limpia y Disponible</span>
                         </button>
@@ -431,18 +432,9 @@
             const display = document.getElementById('bcv-rate-display');
             if (display) display.innerText = `Bs. ${bcvRate.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             
-            // Re-renderizar catálogo y totales con la nueva tasa
             const currentCat = document.querySelector('.bg-indigo-600.font-bold')?.id.replace('cat-btn-', '') || 'all';
             filterCategory(currentCat);
             updateTotalsDisplay();
-        }
-
-        function promptManualBcvRate() {
-            const val = prompt("Modificar Tasa BCV manualmente (Bs./USD):", bcvRate);
-            if (val && !isNaN(val) && parseFloat(val) > 0) {
-                bcvRate = parseFloat(val);
-                updateBcvUI();
-            }
         }
 
         function calculateTandaCost(itemsString, totalTandaGuardado) {
@@ -974,6 +966,7 @@
             updateTotalsDisplay();
         }
 
+        // HISTORIAL CON MONTO SEPARADO LIMPIAMENTE Y SIN SOLAPAMIENTO
         function renderTableHistory(mesa) {
             const historyContainer = document.getElementById('table-history-list');
 
@@ -999,12 +992,12 @@
                 let costoTandaBs = costoTanda * bcvRate;
 
                 return `
-                    <div class="border-b border-gray-800 pb-2 mb-1.5">
-                        <div class="flex justify-between items-center mb-1">
+                    <div class="border-b border-gray-800 pb-2 mb-2">
+                        <div class="flex justify-between items-start mb-1.5">
                             <span class="text-indigo-300 font-bold text-xs">Tanda #${index + 1} (${p.hora}):</span>
-                            <div class="text-right">
-                                <span class="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-1.5 py-0.5 rounded">$${costoTanda.toFixed(2)}</span>
-                                <span class="text-[10px] text-gray-400 font-mono block">Bs. ${costoTandaBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            <div class="text-right flex flex-col items-end space-y-0.5">
+                                <span class="text-xs font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-2 py-0.5 rounded leading-none">$${costoTanda.toFixed(2)}</span>
+                                <span class="text-[10px] text-gray-400 font-mono block pt-0.5">Bs. ${costoTandaBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                             </div>
                         </div>
                         <p class="text-white font-medium text-xs leading-relaxed">👉 ${p.items}</p>
@@ -1021,7 +1014,6 @@
             document.getElementById('session-accumulated-ves').innerText = `Bs. ${sessionAccumulatedBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         }
 
-        // RENDERIZADO DEL MENÚ CON EQUIVALENCIA EN BOLÍVARES AL INSTANTE
         function filterCategory(category) {
             const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'postres'];
             
@@ -1130,7 +1122,6 @@
 
             let grandTotal = consumedTotal + newOrderTotal;
 
-            // Totales en Bolívares
             let consumedTotalBs = consumedTotal * bcvRate;
             let newOrderTotalBs = newOrderTotal * bcvRate;
             let grandTotalBs = grandTotal * bcvRate;
@@ -1201,7 +1192,7 @@
                     totalTanda: newOrderTotal
                 });
 
-                // 3. Guardar con Mesero, Fecha, Hora y Monto en el historial de preferencias del cliente en Supabase
+                // 3. Guardar en el historial de preferencias del cliente
                 if (mesa.cliente && mesa.cliente.telefono) {
                     const { data: clienteDB } = await supabaseClient.from('clientes').select('historial_preferencias').eq('telefono', mesa.cliente.telefono).single();
                     let prevHistorial = clienteDB && clienteDB.historial_preferencias ? clienteDB.historial_preferencias : '';
