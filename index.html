@@ -134,6 +134,11 @@
                     <div class="w-full lg:w-2/4 bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col">
                         <div class="flex justify-between items-center mb-3">
                             <h3 class="font-bold text-base" id="selected-table-title">Mesa: Ninguna</h3>
+                            <!-- BARRA DE BÚSQUEDA INSTANTÁNEA EN EL MENÚ -->
+                            <div class="relative w-56">
+                                <input type="text" id="menu-search-input" oninput="filterMenuBySearch(this.value)" placeholder="Buscar plato, bebida..." class="w-full bg-gray-900 border border-gray-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                                <i class="fa-solid fa-search absolute left-2.5 top-2.5 text-gray-400 text-xs"></i>
+                            </div>
                             <span id="cliente-info-tag" class="text-xs bg-indigo-900 text-indigo-200 px-3 py-1 rounded-full hidden"></span>
                         </div>
 
@@ -236,9 +241,9 @@
                 <div class="flex justify-between items-center bg-gray-800 p-4 rounded-xl border border-gray-700">
                     <div class="flex items-center space-x-3">
                         <i class="fa-solid fa-fire-burner text-amber-400 text-2xl"></i>
-                        <h2 class="text-lg font-bold">Pantalla KDS - Cocina</h2>
+                        <h2 class="text-lg font-bold">Pantalla KDS - Cocina (Comidas y Postres)</h2>
                     </div>
-                    <button onclick="toggle86Modal()" class="bg-red-600/30 hover:bg-red-600 border border-red-500 text-red-300 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center space-x-2">
+                    <button onclick="toggle86Modal('cocina')" class="bg-red-600/30 hover:bg-red-600 border border-red-500 text-red-300 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center space-x-2">
                         <i class="fa-solid fa-ban"></i>
                         <span>Gestionar Platos Agotados</span>
                     </button>
@@ -246,13 +251,17 @@
                 <div id="kds-kitchen-orders-grid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto flex-1 p-1"></div>
             </div>
 
-            <!-- SECCIÓN KDS BARRA / POSTRES -->
+            <!-- SECCIÓN KDS BARRA / BEBIDAS -->
             <div id="main-view-kds-bar" class="hidden flex-1 flex flex-col space-y-4 overflow-hidden">
                 <div class="flex justify-between items-center bg-gray-800 p-4 rounded-xl border border-gray-700">
                     <div class="flex items-center space-x-3">
                         <i class="fa-solid fa-martini-glass-citrus text-indigo-400 text-2xl"></i>
-                        <h2 class="text-lg font-bold">Pantalla KDS - Barra & Postres</h2>
+                        <h2 class="text-lg font-bold">Pantalla KDS - Barra (Solo Bebidas)</h2>
                     </div>
+                    <button onclick="toggle86Modal('barra')" class="bg-red-600/30 hover:bg-red-600 border border-red-500 text-red-300 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center space-x-2">
+                        <i class="fa-solid fa-ban"></i>
+                        <span>Gestionar Bebidas Agotadas</span>
+                    </button>
                 </div>
                 <div id="kds-bar-orders-grid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto flex-1 p-1"></div>
             </div>
@@ -359,15 +368,15 @@
     <div id="modal-86" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center hidden z-50">
         <div class="bg-gray-800 rounded-xl p-6 w-full max-w-lg border border-gray-700 shadow-2xl flex flex-col max-h-[80vh]">
             <h3 class="text-base font-bold mb-3 flex justify-between items-center border-b border-gray-700 pb-2">
-                <span><i class="fa-solid fa-ban text-red-400 mr-2"></i>Gestión de Platos Agotados</span>
+                <span id="modal-86-title"><i class="fa-solid fa-ban text-red-400 mr-2"></i>Gestión de Agotados</span>
                 <button onclick="toggle86Modal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
             </h3>
-            <p class="text-xs text-gray-400 mb-3">Marca los platos agotados para deshabilitarlos inmediatamente en el menú de meseros:</p>
+            <p class="text-xs text-gray-400 mb-3">Marca los ítems agotados para deshabilitarlos inmediatamente en el menú de meseros:</p>
             <div id="list-86-items" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL COMPLETO CON DETALLES KDS Y NOTAS DESTACADAS -->
+    <!-- SCRIPT PRINCIPAL CON DESTINO DE POSTRES EN COCINA Y BUSCADOR INSTANTÁNEO -->
     <script>
         const CONFIG = {
             SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
@@ -386,6 +395,7 @@
         let listaClientesDB = []; 
         let currentFilteredMatches = [];
         let agotados86List = [];
+        let modalFilterDestino = 'cocina'; // 'cocina' o 'barra'
 
         let checkinData = {
             tipo: 'nuevo',
@@ -457,7 +467,7 @@
             { id: 403, nombre: "Poke Rojo (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Edamames", "Piña", "Salmón spicy", "Dinamita", "Wakame", "Tobico", "Sésamo"], destino: "cocina" },
             { id: 404, nombre: "Poke Mookah (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Atún", "Salmón spicy", "Aguacate", "Edamame", "Maíz inflado", "Salsa dragón", "Salsa anguila", "Wakame", "Tobico", "Sésamo"], destino: "cocina" },
 
-            // BEBIDAS Y COCTELES (DESTINO: BARRA)
+            // BEBIDAS (DESTINO: BARRA)
             { id: 601, nombre: "Coca-Cola", categoria: "bebidas", precio: 2.50, ingredientes: ["Lata 355ml", "Hielo"], destino: "barra" },
             { id: 602, nombre: "Pepsi", categoria: "bebidas", precio: 2.50, ingredientes: ["Lata 355ml", "Hielo"], destino: "barra" },
             { id: 603, nombre: "Agua con Hielo", categoria: "bebidas", precio: 1.50, ingredientes: ["Agua mineral 500ml", "Hielo"], destino: "barra" },
@@ -465,10 +475,11 @@
             { id: 605, nombre: "Mojito Tradicional", categoria: "bebidas", precio: 7.00, ingredientes: ["Ron Blanco", "Hierbabuena", "Limón", "Soda", "Azúcar"], destino: "barra" },
             { id: 606, nombre: "Margarita Mookah", categoria: "bebidas", precio: 8.00, ingredientes: ["Tequila", "Triple Sec", "Jugo de Limón", "Sal en borde"], destino: "barra" },
 
-            { id: 501, nombre: "Crumble de Manzana", categoria: "postres", precio: 12.00, ingredientes: ["Manzanas marinadas en almíbar y canela", "Tierra de galleta", "Crema caramelo", "Chantilly", "Almendras", "Fresas", "Helado de vainilla"], destino: "barra" },
-            { id: 502, nombre: "Cheesecake", categoria: "postres", precio: 9.00, ingredientes: ["Queso crema", "Fresas fileteadas", "Mermelada de mora", "Mermelada de fresa"], destino: "barra" },
-            { id: 503, nombre: "Crepe de Nutella", categoria: "postres", precio: 11.00, ingredientes: ["Masa de crepe", "Nutella"], destino: "barra" },
-            { id: 504, nombre: "Volcán de Chocolate", categoria: "postres", precio: 12.00, ingredientes: ["Brownie relleno de chocolate", "Fresas", "Helado", "Glaseado de dulce de leche"], destino: "barra" }
+            // POSTRES (DESTINO: COCINA)
+            { id: 501, nombre: "Crumble de Manzana", categoria: "postres", precio: 12.00, ingredientes: ["Manzanas marinadas en almíbar y canela", "Tierra de galleta", "Crema caramelo", "Chantilly", "Almendras", "Fresas", "Helado de vainilla"], destino: "cocina" },
+            { id: 502, nombre: "Cheesecake", categoria: "postres", precio: 9.00, ingredientes: ["Queso crema", "Fresas fileteadas", "Mermelada de mora", "Mermelada de fresa"], destino: "cocina" },
+            { id: 503, nombre: "Crepe de Nutella", categoria: "postres", precio: 11.00, ingredientes: ["Masa de crepe", "Nutella"], destino: "cocina" },
+            { id: 504, nombre: "Volcán de Chocolate", categoria: "postres", precio: 12.00, ingredientes: ["Brownie relleno de chocolate", "Fresas", "Helado", "Glaseado de dulce de leche"], destino: "cocina" }
         ];
 
         let selectedMesaId = 1;
@@ -1129,9 +1140,29 @@
                 if (btn) btn.className = "px-3 py-1 rounded-md text-xs transition " + (cat === category ? "bg-indigo-600 text-white font-bold" : "bg-gray-700 text-gray-300 hover:text-white");
             });
 
+            document.getElementById('menu-search-input').value = '';
+            renderMenuItems(category === 'all' ? menuCatalog : menuCatalog.filter(i => i.categoria === category));
+        }
+
+        function filterMenuBySearch(query) {
+            const q = query.toLowerCase().trim();
+            if (!q) {
+                const activeCatBtn = document.querySelector('.bg-indigo-600.font-bold');
+                const cat = activeCatBtn ? activeCatBtn.id.replace('cat-btn-', '') : 'all';
+                filterCategory(cat);
+                return;
+            }
+
+            const matched = menuCatalog.filter(i => 
+                i.nombre.toLowerCase().includes(q) || 
+                i.ingredientes.some(ing => ing.toLowerCase().includes(q)) ||
+                i.categoria.toLowerCase().includes(q)
+            );
+            renderMenuItems(matched);
+        }
+
+        function renderMenuItems(items) {
             const container = document.getElementById('menu-items-grid');
-            const items = category === 'all' ? menuCatalog : menuCatalog.filter(i => i.categoria === category);
-            
             container.innerHTML = items.map(i => {
                 const isAgotado = agotados86List.includes(i.id);
                 let precioBs = i.precio * bcvRate;
@@ -1252,7 +1283,7 @@
         function updateItemNote(index, note) { currentOrder[index].notaIndividual = note; }
         function removeFromOrder(index) { currentOrder.splice(index, 1); renderOrder(); }
 
-        // --- ENVIAR PEDIDO, HISTORIAL Y KDS ---
+        // --- ENVIAR PEDIDO, HISTORIAL Y KDS SEPARADOS ---
         async function submitOrder() {
             if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
             
@@ -1341,7 +1372,7 @@
 
                 await syncMesaToSupabase(mesa);
 
-                alert(`✅ ¡Pedido de $${newOrderTotal.toFixed(2)} (${cantidadComensales} comensales) enviado correctamente!`);
+                alert(`✅ ¡Pedido de $${newOrderTotal.toFixed(2)} (${cantidadComensales} comensales) enviado correctamente a Cocina/Barra!`);
                 currentOrder = [];
                 document.getElementById('order-notes').value = '';
                 renderOrder();
@@ -1372,7 +1403,7 @@
                 const mins = Math.floor((Date.now() - o.creado_ms) / 60000);
                 
                 let cardBg = o.estado === 'por_empezar' ? 'border-red-500 bg-red-950/20' : 'border-amber-500 bg-amber-950/20';
-                let statusBadge = o.estado === 'por_empezar' ? '<span class="bg-red-900 text-red-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Por Empezar</span>' : '<span class="bg-amber-900 text-amber-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Cocinando / Preparando</span>';
+                let statusBadge = o.estado === 'por_empezar' ? '<span class="bg-red-900 text-red-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Por Empezar</span>' : '<span class="bg-amber-900 text-amber-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Preparando</span>';
 
                 let tieneNotaGeneral = o.nota && o.nota.trim() !== '' && o.nota.toLowerCase() !== 'sin notas';
 
@@ -1385,7 +1416,6 @@
                             </div>
                             <p class="text-[10px] text-gray-400 mb-2">Mesero: <span class="text-indigo-300 font-bold">${o.mesero}</span> • Hace ${mins} min</p>
                             
-                            <!-- DETALLE DE PLATOS Y NOTAS INDIVIDUALES (SIN QUESO, SIN HIELO, ETC) -->
                             <div class="space-y-2 my-2">
                                 ${items.map(i => `
                                     <div>
@@ -1395,7 +1425,6 @@
                                 `).join('')}
                             </div>
 
-                            <!-- NOTA GENERAL DE TANDA RESALTADA EN VISUAL DESTACADO -->
                             ${tieneNotaGeneral ? `
                                 <div class="mt-3 bg-amber-500/20 border-2 border-amber-400 p-2.5 rounded-lg text-center shadow animate-pulse">
                                     <span class="text-[10px] uppercase font-black text-amber-300 block tracking-wider">📌 NOTA ESPECIAL / INSTRUCCIÓN</span>
@@ -1420,16 +1449,22 @@
             await loadKdsOrdersFromSupabase();
         }
 
-        // --- GESTIÓN DE PLATOS AGOTADOS EN VIVO ---
-        function toggle86Modal() {
+        // --- GESTIÓN DE PLATOS AGOTADOS SEPARADA (COCINA VS BARRA) ---
+        function toggle86Modal(destino = 'cocina') {
+            modalFilterDestino = destino;
             const modal = document.getElementById('modal-86');
             modal.classList.toggle('hidden');
-            if (!modal.classList.contains('hidden')) render86List();
+            if (!modal.classList.contains('hidden')) {
+                document.getElementById('modal-86-title').innerHTML = `<i class="fa-solid fa-ban text-red-400 mr-2"></i>Gestión de Agotados (${destino === 'cocina' ? 'Comidas y Postres' : 'Bebidas'})`;
+                render86List();
+            }
         }
 
         function render86List() {
             const container = document.getElementById('list-86-items');
-            container.innerHTML = menuCatalog.map(item => {
+            const itemsFiltrados = menuCatalog.filter(item => item.destino === modalFilterDestino);
+
+            container.innerHTML = itemsFiltrados.map(item => {
                 const isAgotado = agotados86List.includes(item.id);
                 return `
                     <div class="flex justify-between items-center bg-gray-900 p-3 rounded-lg border border-gray-700">
