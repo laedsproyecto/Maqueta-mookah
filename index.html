@@ -548,15 +548,13 @@
                 const { data, error } = await supabaseClient.from('platos_agotados').select('item_id');
                 if (!error && data) {
                     const newList = data.map(d => d.item_id);
-                    if (JSON.stringify(newList) !== JSON.stringify(agotados86List)) {
+                    if (JSON.stringify(newList.sort()) !== JSON.stringify([...agotados86List].sort())) {
                         agotados86List = newList;
-                        
-                        // Refrescar únicamente la vista actual del menú sin alterar la posición ni borrar campos
                         refreshCurrentMenuView();
 
                         const modal86 = document.getElementById('modal-86');
                         if (modal86 && !modal86.classList.contains('hidden') && !silent) {
-                            const modalSearchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
+                            const modalSearchVal = document.getElementById('modal-86-search-input')?.value.toLowerCase().trim() || '';
                             render86List(modalSearchVal);
                         }
                     }
@@ -666,9 +664,17 @@
             await cargarClientesRegulares();
             await loadMesasFromSupabase();
             await loadKdsOrdersFromSupabase();
+            
+            // Carga inicial y activación del sondeo automático cada 3 segundos
             await loadAgotadosFromSupabase(true);
+            
             subscribeToRealtimeChanges();
             startTableTimerInterval();
+
+            if (window.agotadosInterval) clearInterval(window.agotadosInterval);
+            window.agotadosInterval = setInterval(() => {
+                loadAgotadosFromSupabase(true);
+            }, 3000);
         };
 
         function startTableTimerInterval() {
@@ -802,6 +808,7 @@
 
                 if (shiftInterval) clearInterval(shiftInterval);
                 if (tableTimeInterval) clearInterval(tableTimeInterval);
+                if (window.agotadosInterval) clearInterval(window.agotadosInterval);
                 await supabaseClient.auth.signOut();
                 location.reload();
             }
@@ -1583,14 +1590,14 @@
         async function toggleAgotado(itemId) {
             const isAgotado = agotados86List.includes(itemId);
             
-            // Actualización local inmediata para evitar parpadeos
+            // Actualización local inmediata
             if (isAgotado) {
                 agotados86List = agotados86List.filter(id => id !== itemId);
             } else {
                 if (!agotados86List.includes(itemId)) agotados86List.push(itemId);
             }
 
-            const searchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
+            const searchVal = document.getElementById('modal-86-search-input')?.value.toLowerCase().trim() || '';
             render86List(searchVal);
             refreshCurrentMenuView();
 
@@ -1601,7 +1608,7 @@
                     await supabaseClient.from('platos_agotados').upsert([{ item_id: itemId }], { onConflict: 'item_id' });
                 }
             } catch (err) {
-                console.error("Error en toggleAgotado:", err);
+                console.error("Error al actualizar estado en Supabase:", err);
             }
         }
 
