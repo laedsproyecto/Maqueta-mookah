@@ -386,7 +386,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL COMPLETO CON ACTUALIZACIÓN INTELIGENTE QUE CONSERVA EL ESTADO VISUAL -->
+    <!-- SCRIPT PRINCIPAL COMPLETO CON ACTUALIZACIÓN ESTABLE Y SINCRONIZACIÓN FLUIDA -->
     <script>
         const CONFIG = {
             SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
@@ -401,7 +401,6 @@
         let shiftStartTime = null;
         let shiftInterval = null;
         let tableTimeInterval = null;
-        let agotadosPollInterval = null;
 
         let bcvRate = 884.75; 
         let listaClientesDB = []; 
@@ -544,7 +543,7 @@
             } catch (err) { console.error("Error cargando KDS:", err); }
         }
 
-        async function loadAgotadosFromSupabase() {
+        async function loadAgotadosFromSupabase(silent = true) {
             try {
                 const { data, error } = await supabaseClient.from('platos_agotados').select('item_id');
                 if (!error && data) {
@@ -552,24 +551,29 @@
                     if (JSON.stringify(newList) !== JSON.stringify(agotados86List)) {
                         agotados86List = newList;
                         
-                        // Refrescar conservando exactamente el filtro de categoría o búsqueda actual (sin resetear nada)
-                        const searchVal = document.getElementById('menu-search-input').value.toLowerCase().trim();
-                        if (searchVal) {
-                            filterMenuBySearch(searchVal);
-                        } else {
-                            const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
-                            const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
-                            filterCategory(currentCat);
-                        }
+                        // Refrescar únicamente la vista actual del menú sin alterar la posición ni borrar campos
+                        refreshCurrentMenuView();
 
                         const modal86 = document.getElementById('modal-86');
-                        if (modal86 && !modal86.classList.contains('hidden')) {
+                        if (modal86 && !modal86.classList.contains('hidden') && !silent) {
                             const modalSearchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
                             render86List(modalSearchVal);
                         }
                     }
                 }
             } catch (err) { console.error("Error cargando agotados:", err); }
+        }
+
+        function refreshCurrentMenuView() {
+            const searchInput = document.getElementById('menu-search-input');
+            const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            if (searchVal) {
+                filterMenuBySearch(searchVal);
+            } else {
+                const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
+                const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
+                filterCategory(currentCat, true);
+            }
         }
 
         function subscribeToRealtimeChanges() {
@@ -607,14 +611,9 @@
             supabaseClient
                 .channel('public:platos_agotados')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'platos_agotados' }, () => {
-                    loadAgotadosFromSupabase();
+                    loadAgotadosFromSupabase(true);
                 })
                 .subscribe();
-
-            if (agotadosPollInterval) clearInterval(agotadosPollInterval);
-            agotadosPollInterval = setInterval(() => {
-                loadAgotadosFromSupabase();
-            }, 2500);
         }
 
         async function fetchBcvRate() {
@@ -639,10 +638,7 @@
         function updateBcvUI() {
             const display = document.getElementById('bcv-rate-display');
             if (display) display.innerText = `Bs. ${bcvRate.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            
-            const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
-            const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
-            filterCategory(currentCat);
+            refreshCurrentMenuView();
             updateTotalsDisplay();
         }
 
@@ -670,7 +666,7 @@
             await cargarClientesRegulares();
             await loadMesasFromSupabase();
             await loadKdsOrdersFromSupabase();
-            await loadAgotadosFromSupabase();
+            await loadAgotadosFromSupabase(true);
             subscribeToRealtimeChanges();
             startTableTimerInterval();
         };
@@ -806,7 +802,6 @@
 
                 if (shiftInterval) clearInterval(shiftInterval);
                 if (tableTimeInterval) clearInterval(tableTimeInterval);
-                if (agotadosPollInterval) clearInterval(agotadosPollInterval);
                 await supabaseClient.auth.signOut();
                 location.reload();
             }
@@ -1218,14 +1213,18 @@
             document.getElementById('session-accumulated-ves').innerText = `Bs. ${sessionAccumulatedBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         }
 
-        function filterCategory(category) {
+        function filterCategory(category, keepSearchInput = false) {
             const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'bebidas', 'postres'];
             categories.forEach(cat => {
                 const btn = document.getElementById(`cat-btn-${cat}`);
                 if (btn) btn.className = "px-3 py-1 rounded-md text-xs transition " + (cat === category ? "bg-indigo-600 text-white font-bold" : "bg-gray-700 text-gray-300 hover:text-white");
             });
 
-            document.getElementById('menu-search-input').value = '';
+            if (!keepSearchInput) {
+                const searchInput = document.getElementById('menu-search-input');
+                if (searchInput) searchInput.value = '';
+            }
+
             renderMenuItems(category === 'all' ? menuCatalog : menuCatalog.filter(i => i.categoria === category));
         }
 
@@ -1234,7 +1233,7 @@
             if (!q) {
                 const activeCatBtn = document.querySelector('.bg-indigo-600.font-bold');
                 const cat = activeCatBtn ? activeCatBtn.id.replace('cat-btn-', '') : 'all';
-                filterCategory(cat);
+                filterCategory(cat, true);
                 return;
             }
 
@@ -1584,6 +1583,7 @@
         async function toggleAgotado(itemId) {
             const isAgotado = agotados86List.includes(itemId);
             
+            // Actualización local inmediata para evitar parpadeos
             if (isAgotado) {
                 agotados86List = agotados86List.filter(id => id !== itemId);
             } else {
@@ -1592,9 +1592,7 @@
 
             const searchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
             render86List(searchVal);
-            const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
-            const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
-            filterCategory(currentCat);
+            refreshCurrentMenuView();
 
             try {
                 if (isAgotado) {
@@ -1602,7 +1600,6 @@
                 } else {
                     await supabaseClient.from('platos_agotados').upsert([{ item_id: itemId }], { onConflict: 'item_id' });
                 }
-                await loadAgotadosFromSupabase();
             } catch (err) {
                 console.error("Error en toggleAgotado:", err);
             }
