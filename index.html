@@ -144,6 +144,7 @@
                             <button id="cat-btn-rolls" onclick="filterCategory('rolls')" class="px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white">Sushi Rolls</button>
                             <button id="cat-btn-calientes" onclick="filterCategory('calientes')" class="px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white">Calientes</button>
                             <button id="cat-btn-pokes" onclick="filterCategory('pokes')" class="px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white">Pokes</button>
+                            <button id="cat-btn-bebidas" onclick="filterCategory('bebidas')" class="px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white">Bebidas & Cocteles</button>
                             <button id="cat-btn-postres" onclick="filterCategory('postres')" class="px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white">Postres</button>
                         </div>
 
@@ -259,7 +260,7 @@
         </main>
     </div>
 
-    <!-- MODAL DE CHECK-IN Y ASIGNACIÓN PASO A PASO (INTACTO) -->
+    <!-- MODAL DE CHECK-IN Y ASIGNACIÓN PASO A PASO -->
     <div id="modal-host" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center hidden z-40">
         <div class="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-700 shadow-2xl">
             <h3 class="text-xl font-bold mb-3 flex items-center justify-between">
@@ -366,7 +367,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL COMPLETO CON CONSERVACIÓN DE CÓDIGO Y NADA RECORTADO -->
+    <!-- SCRIPT PRINCIPAL COMPLETO CON SINCRONIZACIÓN EN VIVO DE 86 LIST -->
     <script>
         const CONFIG = {
             SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
@@ -456,6 +457,14 @@
             { id: 403, nombre: "Poke Rojo (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Edamames", "Piña", "Salmón spicy", "Dinamita", "Wakame", "Tobico", "Sésamo"], destino: "cocina" },
             { id: 404, nombre: "Poke Mookah (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Atún", "Salmón spicy", "Aguacate", "Edamame", "Maíz inflado", "Salsa dragón", "Salsa anguila", "Wakame", "Tobico", "Sésamo"], destino: "cocina" },
 
+            // BEBIDAS Y COCTELES (DESTINO: BARRA)
+            { id: 601, nombre: "Coca-Cola", categoria: "bebidas", precio: 2.50, ingredientes: ["Lata 355ml", "Hielo"], destino: "barra" },
+            { id: 602, nombre: "Pepsi", categoria: "bebidas", precio: 2.50, ingredientes: ["Lata 355ml", "Hielo"], destino: "barra" },
+            { id: 603, nombre: "Agua con Hielo", categoria: "bebidas", precio: 1.50, ingredientes: ["Agua mineral 500ml", "Hielo"], destino: "barra" },
+            { id: 604, nombre: "Agua con Gas", categoria: "bebidas", precio: 2.00, ingredientes: ["Agua con gas 500ml", "Rodaja de limón"], destino: "barra" },
+            { id: 605, nombre: "Mojito Tradicional", categoria: "bebidas", precio: 7.00, ingredientes: ["Ron Blanco", "Hierbabuena", "Limón", "Soda", "Azúcar"], destino: "barra" },
+            { id: 606, nombre: "Margarita Mookah", categoria: "bebidas", precio: 8.00, ingredientes: ["Tequila", "Triple Sec", "Jugo de Limón", "Sal en borde"], destino: "barra" },
+
             { id: 501, nombre: "Crumble de Manzana", categoria: "postres", precio: 12.00, ingredientes: ["Manzanas marinadas en almíbar y canela", "Tierra de galleta", "Crema caramelo", "Chantilly", "Almendras", "Fresas", "Helado de vainilla"], destino: "barra" },
             { id: 502, nombre: "Cheesecake", categoria: "postres", precio: 9.00, ingredientes: ["Queso crema", "Fresas fileteadas", "Mermelada de mora", "Mermelada de fresa"], destino: "barra" },
             { id: 503, nombre: "Crepe de Nutella", categoria: "postres", precio: 11.00, ingredientes: ["Masa de crepe", "Nutella"], destino: "barra" },
@@ -465,7 +474,7 @@
         let selectedMesaId = 1;
         let currentOrder = [];
 
-        // --- SINCRONIZACIÓN ÚNICA CON MESAS_ESTADO EN SUPABASE ---
+        // --- SINCRONIZACIÓN CON SUPABASE ---
         async function loadMesasFromSupabase() {
             try {
                 const { data, error } = await supabaseClient.from('mesas_estado').select('*');
@@ -512,6 +521,17 @@
             } catch (err) { console.error("Error cargando KDS:", err); }
         }
 
+        async function loadAgotadosFromSupabase() {
+            try {
+                const { data, error } = await supabaseClient.from('platos_agotados').select('item_id');
+                if (!error && data) {
+                    agotados86List = data.map(d => d.item_id);
+                    const currentCat = document.querySelector('.bg-indigo-600.font-bold')?.id.replace('cat-btn-', '') || 'all';
+                    filterCategory(currentCat);
+                }
+            } catch (err) { console.error("Error cargando 86 list:", err); }
+        }
+
         function subscribeToRealtimeChanges() {
             supabaseClient
                 .channel('public:mesas_estado')
@@ -541,6 +561,13 @@
                 .channel('public:kds_comandas')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_comandas' }, () => {
                     loadKdsOrdersFromSupabase();
+                })
+                .subscribe();
+
+            supabaseClient
+                .channel('public:platos_agotados')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'platos_agotados' }, () => {
+                    loadAgotadosFromSupabase();
                 })
                 .subscribe();
         }
@@ -597,6 +624,7 @@
             await cargarClientesRegulares();
             await loadMesasFromSupabase();
             await loadKdsOrdersFromSupabase();
+            await loadAgotadosFromSupabase();
             subscribeToRealtimeChanges();
             startTableTimerInterval();
         };
@@ -1091,7 +1119,7 @@
         }
 
         function filterCategory(category) {
-            const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'postres'];
+            const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'bebidas', 'postres'];
             categories.forEach(cat => {
                 const btn = document.getElementById(`cat-btn-${cat}`);
                 if (btn) btn.className = "px-3 py-1 rounded-md text-xs transition " + (cat === category ? "bg-indigo-600 text-white font-bold" : "bg-gray-700 text-gray-300 hover:text-white");
@@ -1104,7 +1132,7 @@
                 const isAgotado = agotados86List.includes(i.id);
                 let precioBs = i.precio * bcvRate;
                 return `
-                    <div ${isAgotado ? '' : `onclick="addToOrder(${i.id})"`} class="bg-gray-900 p-2.5 rounded-lg border ${isAgotado ? 'border-red-800 opacity-40 cursor-not-allowed' : 'border-gray-700 hover:border-indigo-500 cursor-pointer'} transition flex flex-col justify-between">
+                    <div ${isAgotado ? '' : `onclick="addToOrder(${i.id})"`} class="bg-gray-900 p-2.5 rounded-lg border ${isAgotado ? 'border-red-800 opacity-40 cursor-not-allowed bg-red-950/10' : 'border-gray-700 hover:border-indigo-500 cursor-pointer'} transition flex flex-col justify-between">
                         <div>
                             <h4 class="font-bold text-xs text-white">${i.nombre}</h4>
                             <p class="text-[9px] text-gray-400 mt-0.5 line-clamp-2">Ings: ${i.ingredientes.join(', ')}</p>
@@ -1124,6 +1152,10 @@
         }
 
         function addToOrder(itemId) {
+            if (agotados86List.includes(itemId)) {
+                alert("Este plato se encuentra agotado (86).");
+                return;
+            }
             const item = menuCatalog.find(i => i.id === itemId);
             const ingredientesObj = item.ingredientes.map(ing => ({ nombre: ing, activo: true }));
             currentOrder.push({ ...item, qty: 1, ingredientesObj: ingredientesObj, notaIndividual: '' });
@@ -1209,9 +1241,18 @@
         function updateItemNote(index, note) { currentOrder[index].notaIndividual = note; }
         function removeFromOrder(index) { currentOrder.splice(index, 1); renderOrder(); }
 
-        // --- ENVIAR PEDIDO, HISTORIAL DE CLIENTES Y REGISTRO EN KDS ---
+        // --- ENVIAR PEDIDO, HISTORIAL Y KDS ---
         async function submitOrder() {
             if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
+            
+            // Validación por seguridad si intentan colar un plato 86
+            for (let item of currentOrder) {
+                if (agotados86List.includes(item.id)) {
+                    alert(`El plato "${item.nombre}" acaba de ser marcado como AGOTADO (86). No se puede procesar el pedido.`);
+                    return;
+                }
+            }
+
             const mesa = mesas.find(m => m.id === selectedMesaId);
             
             if (mesa.estado !== 'ocupada') {
@@ -1233,7 +1274,6 @@
             const cantidadComensales = mesa.cliente && mesa.cliente.comensales ? mesa.cliente.comensales : 1;
 
             try {
-                // 1. Guardar en CLIENTES (Historial)
                 if (mesa.cliente && mesa.cliente.telefono && mesa.cliente.telefono !== "S/N") {
                     const telefonoCliente = mesa.cliente.telefono;
 
@@ -1253,7 +1293,6 @@
                         .eq('telefono', telefonoCliente);
                 }
 
-                // 2. Enviar a KDS (Cocina y Barra)
                 const kitchenItems = currentOrder.filter(i => i.destino === 'cocina');
                 const barItems = currentOrder.filter(i => i.destino === 'barra');
 
@@ -1281,7 +1320,6 @@
                     }]);
                 }
 
-                // 3. Sincronización en memoria de la mesa en vivo
                 if (!mesa.sessionOrders) mesa.sessionOrders = [];
                 mesa.sessionOrders.push({
                     hora: horaActual,
@@ -1293,7 +1331,7 @@
 
                 await syncMesaToSupabase(mesa);
 
-                alert(`✅ ¡Pedido de $${newOrderTotal.toFixed(2)} (${cantidadComensales} comensales) enviado a cocina y guardado en el historial!`);
+                alert(`✅ ¡Pedido de $${newOrderTotal.toFixed(2)} (${cantidadComensales} comensales) enviado correctamente!`);
                 currentOrder = [];
                 document.getElementById('order-notes').value = '';
                 renderOrder();
@@ -1303,7 +1341,7 @@
                 await loadKdsOrdersFromSupabase();
 
             } catch (err) { 
-                console.error("Error en la ejecución:", err); 
+                console.error("Error:", err); 
                 alert("Ocurrió un error al procesar el pedido."); 
             }
         }
@@ -1324,7 +1362,7 @@
                 const mins = Math.floor((Date.now() - o.creado_ms) / 60000);
                 
                 let cardBg = o.estado === 'por_empezar' ? 'border-red-500 bg-red-950/20' : 'border-amber-500 bg-amber-950/20';
-                let statusBadge = o.estado === 'por_empezar' ? '<span class="bg-red-900 text-red-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Por Empezar</span>' : '<span class="bg-amber-900 text-amber-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Cocinando</span>';
+                let statusBadge = o.estado === 'por_empezar' ? '<span class="bg-red-900 text-red-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Por Empezar</span>' : '<span class="bg-amber-900 text-amber-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Cocinando / Preparando</span>';
 
                 return `
                     <div class="border-2 ${cardBg} rounded-xl p-4 flex flex-col justify-between shadow-lg">
@@ -1356,7 +1394,7 @@
             await loadKdsOrdersFromSupabase();
         }
 
-        // --- GESTIÓN DE PLATOS AGOTADOS (86 LIST) ---
+        // --- GESTIÓN DE PLATOS AGOTADOS (86 LIST) EN VIVO ---
         function toggle86Modal() {
             const modal = document.getElementById('modal-86');
             modal.classList.toggle('hidden');
@@ -1378,12 +1416,19 @@
             }).join('');
         }
 
-        function toggleAgotado(itemId) {
-            const idx = agotados86List.indexOf(itemId);
-            if (idx > -1) agotados86List.splice(idx, 1);
-            else agotados86List.push(itemId);
-            render86List();
-            filterCategory(document.querySelector('.bg-indigo-600.font-bold')?.id.replace('cat-btn-', '') || 'all');
+        async function toggleAgotado(itemId) {
+            const isAgotado = agotados86List.includes(itemId);
+            try {
+                if (isAgotado) {
+                    await supabaseClient.from('platos_agotados').delete().eq('item_id', itemId);
+                } else {
+                    await supabaseClient.from('platos_agotados').upsert([{ item_id: itemId }]);
+                }
+                await loadAgotadosFromSupabase();
+                render86List();
+            } catch (err) {
+                console.error("Error actualizando estado 86:", err);
+            }
         }
 
         async function closeTable() {
