@@ -386,7 +386,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL COMPLETO CON ACTUALIZACIÓN INSTANTÁNEA OPTIMISTA -->
+    <!-- SCRIPT PRINCIPAL COMPLETO CON ACTUALIZACIÓN EN TIEMPO REAL -->
     <script>
         const CONFIG = {
             SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
@@ -1566,34 +1566,31 @@
             }).join('');
         }
 
-        // --- ACTUALIZACIÓN OPTIMISTA INMEDIATA PARA AGOTADOS ---
+        // --- GESTIÓN DE AGOTADOS CON SINCRONIZACIÓN ROBUSTA Y EN TIEMPO REAL ---
         async function toggleAgotado(itemId) {
-            const index = agotados86List.indexOf(itemId);
-            const isCurrentlyAgotado = index > -1;
-
-            // 1. Actualización local inmediata (Optimista UI) para que el botón responda al instante
-            if (isCurrentlyAgotado) {
-                agotados86List.splice(index, 1);
-            } else {
-                agotados86List.push(itemId);
-            }
+            const isAgotado = agotados86List.includes(itemId);
             
-            // Refrescar el modal y el menú del mesero de inmediato
-            const searchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
-            render86List(searchVal);
-            const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
-            const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
-            filterCategory(currentCat);
-
-            // 2. Sincronización en segundo plano con la base de datos Supabase
             try {
-                if (isCurrentlyAgotado) {
-                    await supabaseClient.from('platos_agotados').delete().eq('item_id', itemId);
+                if (isAgotado) {
+                    const { error } = await supabaseClient
+                        .from('platos_agotados')
+                        .delete()
+                        .eq('item_id', itemId);
+                    
+                    if (error) console.error("Error al eliminar agotado:", error);
                 } else {
-                    await supabaseClient.from('platos_agotados').upsert([{ item_id: itemId }]);
+                    const { error } = await supabaseClient
+                        .from('platos_agotados')
+                        .upsert([{ item_id: itemId }], { onConflict: 'item_id' });
+                    
+                    if (error) console.error("Error al insertar agotado:", error);
                 }
+
+                // Recargar desde Supabase para disparar la actualización en vivo en todos los clientes
+                await loadAgotadosFromSupabase();
+
             } catch (err) {
-                console.error("Error sincronizando estado agotado:", err);
+                console.error("Error de red en toggleAgotado:", err);
             }
         }
 
