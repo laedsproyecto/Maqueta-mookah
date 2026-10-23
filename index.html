@@ -386,7 +386,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL COMPLETO CON ACTUALIZACIÓN EN TIEMPO REAL -->
+    <!-- SCRIPT PRINCIPAL COMPLETO CON SINCRONIZACIÓN AUTOMÁTICA EN TIEMPO REAL -->
     <script>
         const CONFIG = {
             SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
@@ -401,6 +401,7 @@
         let shiftStartTime = null;
         let shiftInterval = null;
         let tableTimeInterval = null;
+        let agotadosPollInterval = null;
 
         let bcvRate = 884.75; 
         let listaClientesDB = []; 
@@ -547,18 +548,20 @@
             try {
                 const { data, error } = await supabaseClient.from('platos_agotados').select('item_id');
                 if (!error && data) {
-                    agotados86List = data.map(d => d.item_id);
-                } else {
-                    agotados86List = [];
-                }
-                const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
-                const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
-                filterCategory(currentCat);
+                    const newList = data.map(d => d.item_id);
+                    // Solo actualizamos y re-renderizamos si hubo cambios reales para evitar parpadeos
+                    if (JSON.stringify(newList) !== JSON.stringify(agotados86List)) {
+                        agotados86List = newList;
+                        const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
+                        const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
+                        filterCategory(currentCat);
 
-                const modal86 = document.getElementById('modal-86');
-                if (modal86 && !modal86.classList.contains('hidden')) {
-                    const searchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
-                    render86List(searchVal);
+                        const modal86 = document.getElementById('modal-86');
+                        if (modal86 && !modal86.classList.contains('hidden')) {
+                            const searchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
+                            render86List(searchVal);
+                        }
+                    }
                 }
             } catch (err) { console.error("Error cargando agotados:", err); }
         }
@@ -601,6 +604,12 @@
                     loadAgotadosFromSupabase();
                 })
                 .subscribe();
+
+            // Respaldo por sondeo cada 2.5 segundos para garantizar actualización inmediata en todos los clientes abierta
+            if (agotadosPollInterval) clearInterval(agotadosPollInterval);
+            agotadosPollInterval = setInterval(() => {
+                loadAgotadosFromSupabase();
+            }, 2500);
         }
 
         async function fetchBcvRate() {
@@ -792,6 +801,7 @@
 
                 if (shiftInterval) clearInterval(shiftInterval);
                 if (tableTimeInterval) clearInterval(tableTimeInterval);
+                if (agotadosPollInterval) clearInterval(agotadosPollInterval);
                 await supabaseClient.auth.signOut();
                 location.reload();
             }
@@ -1566,31 +1576,32 @@
             }).join('');
         }
 
-        // --- GESTIÓN DE AGOTADOS CON SINCRONIZACIÓN ROBUSTA Y EN TIEMPO REAL ---
+        // --- GESTIÓN DE AGOTADOS CON ACTUALIZACIÓN LOCAL E INMEDIATA ---
         async function toggleAgotado(itemId) {
             const isAgotado = agotados86List.includes(itemId);
             
+            // Actualización optimista local inmediata
+            if (isAgotado) {
+                agotados86List = agotados86List.filter(id => id !== itemId);
+            } else {
+                if (!agotados86List.includes(itemId)) agotados86List.push(itemId);
+            }
+
+            const searchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
+            render86List(searchVal);
+            const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
+            const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
+            filterCategory(currentCat);
+
             try {
                 if (isAgotado) {
-                    const { error } = await supabaseClient
-                        .from('platos_agotados')
-                        .delete()
-                        .eq('item_id', itemId);
-                    
-                    if (error) console.error("Error al eliminar agotado:", error);
+                    await supabaseClient.from('platos_agotados').delete().eq('item_id', itemId);
                 } else {
-                    const { error } = await supabaseClient
-                        .from('platos_agotados')
-                        .upsert([{ item_id: itemId }], { onConflict: 'item_id' });
-                    
-                    if (error) console.error("Error al insertar agotado:", error);
+                    await supabaseClient.from('platos_agotados').upsert([{ item_id: itemId }], { onConflict: 'item_id' });
                 }
-
-                // Recargar desde Supabase para disparar la actualización en vivo en todos los clientes
                 await loadAgotadosFromSupabase();
-
             } catch (err) {
-                console.error("Error de red en toggleAgotado:", err);
+                console.error("Error en toggleAgotado:", err);
             }
         }
 
