@@ -180,7 +180,7 @@
                             </div>
 
                             <div class="mt-3">
-                                <input type="text" id="order-notes" placeholder="Nota general (ej: servir juntos)" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                                <input type="text" id="order-notes" placeholder="Nota general (ej: servir juntos, para llevar)" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                             </div>
                         </div>
 
@@ -240,7 +240,7 @@
                     </div>
                     <button onclick="toggle86Modal()" class="bg-red-600/30 hover:bg-red-600 border border-red-500 text-red-300 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center space-x-2">
                         <i class="fa-solid fa-ban"></i>
-                        <span>Gestionar Platos Agotados (86)</span>
+                        <span>Gestionar Platos Agotados</span>
                     </button>
                 </div>
                 <div id="kds-kitchen-orders-grid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto flex-1 p-1"></div>
@@ -355,11 +355,11 @@
         </div>
     </div>
 
-    <!-- MODAL DE PLATOS AGOTADOS (86 LIST) -->
+    <!-- MODAL DE PLATOS AGOTADOS -->
     <div id="modal-86" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center hidden z-50">
         <div class="bg-gray-800 rounded-xl p-6 w-full max-w-lg border border-gray-700 shadow-2xl flex flex-col max-h-[80vh]">
             <h3 class="text-base font-bold mb-3 flex justify-between items-center border-b border-gray-700 pb-2">
-                <span><i class="fa-solid fa-ban text-red-400 mr-2"></i>Gestión de Platos Agotados (86)</span>
+                <span><i class="fa-solid fa-ban text-red-400 mr-2"></i>Gestión de Platos Agotados</span>
                 <button onclick="toggle86Modal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
             </h3>
             <p class="text-xs text-gray-400 mb-3">Marca los platos agotados para deshabilitarlos inmediatamente en el menú de meseros:</p>
@@ -367,7 +367,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL COMPLETO CON SINCRONIZACIÓN EN VIVO Y TARJETAS ROJAS -->
+    <!-- SCRIPT PRINCIPAL COMPLETO CON DETALLES KDS Y NOTAS DESTACADAS -->
     <script>
         const CONFIG = {
             SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
@@ -526,10 +526,13 @@
                 const { data, error } = await supabaseClient.from('platos_agotados').select('item_id');
                 if (!error && data) {
                     agotados86List = data.map(d => d.item_id);
-                    const currentCat = document.querySelector('.bg-indigo-600.font-bold')?.id.replace('cat-btn-', '') || 'all';
-                    filterCategory(currentCat);
+                } else {
+                    agotados86List = [];
                 }
-            } catch (err) { console.error("Error cargando 86 list:", err); }
+                const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
+                const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
+                filterCategory(currentCat);
+            } catch (err) { console.error("Error cargando agotados:", err); }
         }
 
         function subscribeToRealtimeChanges() {
@@ -595,7 +598,8 @@
             const display = document.getElementById('bcv-rate-display');
             if (display) display.innerText = `Bs. ${bcvRate.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             
-            const currentCat = document.querySelector('.bg-indigo-600.font-bold')?.id.replace('cat-btn-', '') || 'all';
+            const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
+            const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
             filterCategory(currentCat);
             updateTotalsDisplay();
         }
@@ -1140,7 +1144,7 @@
                         <div>
                             <div class="flex justify-between items-start">
                                 <h4 class="font-bold text-xs ${isAgotado ? 'text-red-200' : 'text-white'}">${i.nombre}</h4>
-                                ${isAgotado ? '<span class="bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase animate-pulse">86 AGOTADO</span>' : ''}
+                                ${isAgotado ? '<span class="bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase animate-pulse">AGOTADO</span>' : ''}
                             </div>
                             <p class="text-[9px] ${isAgotado ? 'text-red-300/80' : 'text-gray-400'} mt-0.5 line-clamp-2">Ings: ${i.ingredientes.join(', ')}</p>
                         </div>
@@ -1160,7 +1164,7 @@
 
         function addToOrder(itemId) {
             if (agotados86List.includes(itemId)) {
-                alert("Este plato se encuentra agotado (86).");
+                alert("Este plato se encuentra agotado.");
                 return;
             }
             const item = menuCatalog.find(i => i.id === itemId);
@@ -1254,7 +1258,7 @@
             
             for (let item of currentOrder) {
                 if (agotados86List.includes(item.id)) {
-                    alert(`El plato "${item.nombre}" se encuentra AGOTADO (86). No se puede procesar el pedido.`);
+                    alert(`El plato "${item.nombre}" se encuentra AGOTADO. No se puede procesar el pedido.`);
                     return;
                 }
             }
@@ -1352,7 +1356,7 @@
             }
         }
 
-        // --- RENDERIZADO KDS ---
+        // --- RENDERIZADO KDS (COCINA Y BARRA) ---
         function renderKdsGrid(destino) {
             const containerId = destino === 'cocina' ? 'kds-kitchen-orders-grid' : 'kds-bar-orders-grid';
             const container = document.getElementById(containerId);
@@ -1370,6 +1374,8 @@
                 let cardBg = o.estado === 'por_empezar' ? 'border-red-500 bg-red-950/20' : 'border-amber-500 bg-amber-950/20';
                 let statusBadge = o.estado === 'por_empezar' ? '<span class="bg-red-900 text-red-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Por Empezar</span>' : '<span class="bg-amber-900 text-amber-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Cocinando / Preparando</span>';
 
+                let tieneNotaGeneral = o.nota && o.nota.trim() !== '' && o.nota.toLowerCase() !== 'sin notas';
+
                 return `
                     <div class="border-2 ${cardBg} rounded-xl p-4 flex flex-col justify-between shadow-lg">
                         <div>
@@ -1378,10 +1384,24 @@
                                 ${statusBadge}
                             </div>
                             <p class="text-[10px] text-gray-400 mb-2">Mesero: <span class="text-indigo-300 font-bold">${o.mesero}</span> • Hace ${mins} min</p>
-                            <div class="space-y-1.5 my-2">
-                                ${items.map(i => `<p class="text-xs font-bold text-white">• 1x ${i.nombre}</p>`).join('')}
+                            
+                            <!-- DETALLE DE PLATOS Y NOTAS INDIVIDUALES (SIN QUESO, SIN HIELO, ETC) -->
+                            <div class="space-y-2 my-2">
+                                ${items.map(i => `
+                                    <div>
+                                        <p class="text-xs font-bold text-white">• 1x ${i.nombre}</p>
+                                        ${i.notaIndividual ? `<p class="text-[11px] text-amber-300 font-bold pl-3 mt-0.5">⚠️ ${i.notaIndividual}</p>` : ''}
+                                    </div>
+                                `).join('')}
                             </div>
-                            ${o.nota ? `<p class="text-[10px] text-amber-300 italic bg-gray-900 p-2 rounded mt-2">Nota: ${o.nota}</p>` : ''}
+
+                            <!-- NOTA GENERAL DE TANDA RESALTADA EN VISUAL DESTACADO -->
+                            ${tieneNotaGeneral ? `
+                                <div class="mt-3 bg-amber-500/20 border-2 border-amber-400 p-2.5 rounded-lg text-center shadow animate-pulse">
+                                    <span class="text-[10px] uppercase font-black text-amber-300 block tracking-wider">📌 NOTA ESPECIAL / INSTRUCCIÓN</span>
+                                    <p class="text-sm font-black text-amber-200 uppercase mt-0.5">${o.nota}</p>
+                                </div>
+                            ` : ''}
                         </div>
 
                         <div class="pt-3 border-t border-gray-700 flex space-x-2 mt-4">
@@ -1400,7 +1420,7 @@
             await loadKdsOrdersFromSupabase();
         }
 
-        // --- GESTIÓN DE PLATOS AGOTADOS (86 LIST) EN VIVO ---
+        // --- GESTIÓN DE PLATOS AGOTADOS EN VIVO ---
         function toggle86Modal() {
             const modal = document.getElementById('modal-86');
             modal.classList.toggle('hidden');
@@ -1415,7 +1435,7 @@
                     <div class="flex justify-between items-center bg-gray-900 p-3 rounded-lg border border-gray-700">
                         <span class="text-xs font-bold text-white">${item.nombre} <span class="text-[10px] text-gray-400">(${item.categoria})</span></span>
                         <button onclick="toggleAgotado(${item.id})" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${isAgotado ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
-                            ${isAgotado ? 'AGOTADO (86)' : 'Disponible'}
+                            ${isAgotado ? 'AGOTADO' : 'Disponible'}
                         </button>
                     </div>
                 `;
@@ -1433,7 +1453,7 @@
                 await loadAgotadosFromSupabase();
                 render86List();
             } catch (err) {
-                console.error("Error actualizando estado 86:", err);
+                console.error("Error actualizando estado agotado:", err);
             }
         }
 
