@@ -364,19 +364,26 @@
         </div>
     </div>
 
-    <!-- MODAL DE PLATOS AGOTADOS -->
+    <!-- MODAL DE PLATOS AGOTADOS CON BUSCADOR INCORPORADO -->
     <div id="modal-86" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center hidden z-50">
         <div class="bg-gray-800 rounded-xl p-6 w-full max-w-lg border border-gray-700 shadow-2xl flex flex-col max-h-[80vh]">
             <h3 class="text-base font-bold mb-3 flex justify-between items-center border-b border-gray-700 pb-2">
                 <span id="modal-86-title"><i class="fa-solid fa-ban text-red-400 mr-2"></i>Gestión de Agotados</span>
                 <button onclick="toggle86Modal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
             </h3>
+            
+            <!-- BARRA DE BÚSQUEDA DENTRO DEL MODAL -->
+            <div class="relative mb-3">
+                <input type="text" id="modal-86-search-input" oninput="filter86List(this.value)" placeholder="Buscar ítem para bloquear/desbloquear..." class="w-full bg-gray-900 border border-gray-700 rounded-lg pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-red-500">
+                <i class="fa-solid fa-search absolute left-2.5 top-2.5 text-gray-500 text-xs"></i>
+            </div>
+
             <p class="text-xs text-gray-400 mb-3">Marca los ítems agotados para deshabilitarlos inmediatamente en el menú de meseros:</p>
             <div id="list-86-items" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL CON DESTINO DE POSTRES EN COCINA Y BUSCADOR INSTANTÁNEO -->
+    <!-- SCRIPT PRINCIPAL COMPLETO CON BÚSQUEDA EN MODAL AGOTADOS Y MENU -->
     <script>
         const CONFIG = {
             SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
@@ -395,7 +402,7 @@
         let listaClientesDB = []; 
         let currentFilteredMatches = [];
         let agotados86List = [];
-        let modalFilterDestino = 'cocina'; // 'cocina' o 'barra'
+        let modalFilterDestino = 'cocina'; 
 
         let checkinData = {
             tipo: 'nuevo',
@@ -1163,6 +1170,11 @@
 
         function renderMenuItems(items) {
             const container = document.getElementById('menu-items-grid');
+            if (items.length === 0) {
+                container.innerHTML = `<p class="col-span-2 text-center text-gray-500 italic py-8 text-xs">No se encontraron productos.</p>`;
+                return;
+            }
+
             container.innerHTML = items.map(i => {
                 const isAgotado = agotados86List.includes(i.id);
                 let precioBs = i.precio * bcvRate;
@@ -1449,20 +1461,37 @@
             await loadKdsOrdersFromSupabase();
         }
 
-        // --- GESTIÓN DE PLATOS AGOTADOS SEPARADA (COCINA VS BARRA) ---
+        // --- GESTIÓN DE PLATOS AGOTADOS CON BUSCADOR (COCINA VS BARRA) ---
         function toggle86Modal(destino = 'cocina') {
             modalFilterDestino = destino;
             const modal = document.getElementById('modal-86');
             modal.classList.toggle('hidden');
             if (!modal.classList.contains('hidden')) {
                 document.getElementById('modal-86-title').innerHTML = `<i class="fa-solid fa-ban text-red-400 mr-2"></i>Gestión de Agotados (${destino === 'cocina' ? 'Comidas y Postres' : 'Bebidas'})`;
+                document.getElementById('modal-86-search-input').value = '';
                 render86List();
             }
         }
 
-        function render86List() {
+        function filter86List(query) {
+            render86List(query.toLowerCase().trim());
+        }
+
+        function render86List(filterQuery = '') {
             const container = document.getElementById('list-86-items');
-            const itemsFiltrados = menuCatalog.filter(item => item.destino === modalFilterDestino);
+            let itemsFiltrados = menuCatalog.filter(item => item.destino === modalFilterDestino);
+
+            if (filterQuery) {
+                itemsFiltrados = itemsFiltrados.filter(item => 
+                    item.nombre.toLowerCase().includes(filterQuery) || 
+                    item.categoria.toLowerCase().includes(filterQuery)
+                );
+            }
+
+            if (itemsFiltrados.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-500 italic py-6 text-xs">No se encontraron ítems coincidentes.</p>`;
+                return;
+            }
 
             container.innerHTML = itemsFiltrados.map(item => {
                 const isAgotado = agotados86List.includes(item.id);
@@ -1486,7 +1515,8 @@
                     await supabaseClient.from('platos_agotados').upsert([{ item_id: itemId }]);
                 }
                 await loadAgotadosFromSupabase();
-                render86List();
+                const searchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
+                render86List(searchVal);
             } catch (err) {
                 console.error("Error actualizando estado agotado:", err);
             }
