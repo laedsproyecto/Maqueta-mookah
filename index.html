@@ -406,7 +406,7 @@
         let selectedMesaId = 1;
         let currentOrder = [];
 
-        // --- SINCRONIZACIÓN EN TIEMPO REAL CON SUPABASE ---
+        // --- SINCRONIZACIÓN ÚNICA CON MESAS_ESTADO EN SUPABASE ---
         async function loadMesasFromSupabase() {
             try {
                 const { data, error } = await supabaseClient.from('mesas_estado').select('*');
@@ -1114,7 +1114,7 @@
         function updateItemNote(index, note) { currentOrder[index].notaIndividual = note; }
         function removeFromOrder(index) { currentOrder.splice(index, 1); renderOrder(); }
 
-        // --- ACTUALIZACIÓN DIRECTA EN LA TABLA CLIENTES EN SUPABASE ---
+        // --- ENVIAR PEDIDO Y REGISTRAR DIRECTO EN HISTORIAL DE PREFERENCIAS CON COMENSALES ---
         async function submitOrder() {
             if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
             const mesa = mesas.find(m => m.id === selectedMesaId);
@@ -1135,13 +1135,14 @@
             const generalNote = document.getElementById('order-notes').value || 'Sin notas';
             const fechaHoraActual = new Date().toLocaleString();
             const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const cantidadComensales = mesa.cliente && mesa.cliente.comensales ? mesa.cliente.comensales : 1;
 
             try {
-                // 1. Si la mesa tiene un cliente asociado por teléfono, actualizamos su registro en Supabase
+                // Actualizar directamente la tabla CLIENTES
                 if (mesa.cliente && mesa.cliente.telefono && mesa.cliente.telefono !== "S/N") {
                     const telefonoCliente = mesa.cliente.telefono;
 
-                    // Consultamos el historial actual del cliente
+                    // Consultar historial de preferencias actual
                     const { data: clienteData } = await supabaseClient
                         .from('clientes')
                         .select('historial_preferencias')
@@ -1150,23 +1151,19 @@
 
                     const prevHistorial = (clienteData && clienteData.historial_preferencias) ? clienteData.historial_preferencias : '';
                     
-                    // Formateamos la entrada detallada del pedido
-                    const nuevoRegistroPedido = `[${fechaHoraActual}] Pedido en ${mesa.numero}: ${itemsText} ($${newOrderTotal.toFixed(2)}) - Atendido por Mesero: ${currentMeseroName} | Nota: ${generalNote}`;
+                    // Formato exacto incluyendo los comensales, fecha, hora, mesa, mesero, platos y monto
+                    const nuevoPedidoTexto = `[${fechaHoraActual}] Pedido en ${mesa.numero} (${cantidadComensales} comensales): ${itemsText} ($${newOrderTotal.toFixed(2)}) | Mesero: ${currentMeseroName} | Notas: ${generalNote}`;
                     
-                    const historialActualizado = prevHistorial ? `${prevHistorial} | ${nuevoRegistroPedido}` : nuevoRegistroPedido;
+                    const historialActualizado = prevHistorial ? `${prevHistorial} | ${nuevoPedidoTexto}` : nuevoPedidoTexto;
 
-                    // Actualizamos la columna historial_preferencias del cliente
-                    const { error: clientUpdateError } = await supabaseClient
+                    // Guardar en Supabase -> clientes
+                    await supabaseClient
                         .from('clientes')
                         .update({ historial_preferencias: historialActualizado })
                         .eq('telefono', telefonoCliente);
-
-                    if (clientUpdateError) {
-                        console.error("Error actualizando historial del cliente:", clientUpdateError);
-                    }
                 }
 
-                // 2. Guardamos la comanda en el estado en vivo de la mesa
+                // Sincronización en memoria de la mesa en vivo
                 if (!mesa.sessionOrders) mesa.sessionOrders = [];
                 mesa.sessionOrders.push({
                     hora: horaActual,
@@ -1178,13 +1175,13 @@
 
                 await syncMesaToSupabase(mesa);
 
-                alert(`✅ ¡Pedido de $${newOrderTotal.toFixed(2)} registrado en la mesa y guardado en el historial de ${mesa.cliente ? mesa.cliente.nombre : 'cliente'}!`);
+                alert(`✅ ¡Pedido de $${newOrderTotal.toFixed(2)} (${cantidadComensales} comensales) guardado en el historial de ${mesa.cliente ? mesa.cliente.nombre : 'cliente'}!`);
                 currentOrder = [];
                 document.getElementById('order-notes').value = '';
                 renderOrder();
                 renderTableHistory(mesa);
                 updateTotalsDisplay();
-                await cargarClientesRegulares(); // Recargar lista local de clientes
+                await cargarClientesRegulares();
 
             } catch (err) { 
                 console.error("Error en la ejecución:", err); 
