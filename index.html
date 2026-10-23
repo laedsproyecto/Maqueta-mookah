@@ -367,7 +367,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL COMPLETO CON SINCRONIZACIÓN EN VIVO DE 86 LIST -->
+    <!-- SCRIPT PRINCIPAL COMPLETO CON SINCRONIZACIÓN EN VIVO Y TARJETAS ROJAS -->
     <script>
         const CONFIG = {
             SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
@@ -1132,18 +1132,25 @@
                 const isAgotado = agotados86List.includes(i.id);
                 let precioBs = i.precio * bcvRate;
                 return `
-                    <div ${isAgotado ? '' : `onclick="addToOrder(${i.id})"`} class="bg-gray-900 p-2.5 rounded-lg border ${isAgotado ? 'border-red-800 opacity-40 cursor-not-allowed bg-red-950/10' : 'border-gray-700 hover:border-indigo-500 cursor-pointer'} transition flex flex-col justify-between">
+                    <div ${isAgotado ? '' : `onclick="addToOrder(${i.id})"`} class="p-3 rounded-lg border transition flex flex-col justify-between ${
+                        isAgotado 
+                            ? 'bg-red-950/40 border-red-600 opacity-90 cursor-not-allowed shadow-[0_0_10px_rgba(239,68,68,0.3)]' 
+                            : 'bg-gray-900 border-gray-700 hover:border-indigo-500 cursor-pointer'
+                    }">
                         <div>
-                            <h4 class="font-bold text-xs text-white">${i.nombre}</h4>
-                            <p class="text-[9px] text-gray-400 mt-0.5 line-clamp-2">Ings: ${i.ingredientes.join(', ')}</p>
+                            <div class="flex justify-between items-start">
+                                <h4 class="font-bold text-xs ${isAgotado ? 'text-red-200' : 'text-white'}">${i.nombre}</h4>
+                                ${isAgotado ? '<span class="bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase animate-pulse">86 AGOTADO</span>' : ''}
+                            </div>
+                            <p class="text-[9px] ${isAgotado ? 'text-red-300/80' : 'text-gray-400'} mt-0.5 line-clamp-2">Ings: ${i.ingredientes.join(', ')}</p>
                         </div>
                         <div class="flex justify-between items-end mt-2">
                             <div>
-                                <span class="font-bold text-indigo-400 text-xs block">$${i.precio.toFixed(2)}</span>
-                                <span class="text-[10px] text-emerald-400/90 font-mono block">Bs. ${precioBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                <span class="font-bold ${isAgotado ? 'text-red-400' : 'text-indigo-400'} text-xs block">$${i.precio.toFixed(2)}</span>
+                                <span class="text-[10px] ${isAgotado ? 'text-red-300/70' : 'text-emerald-400/90'} font-mono block">Bs. ${precioBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                             </div>
-                            <span class="text-[9px] ${isAgotado ? 'bg-red-900 text-red-200' : 'bg-indigo-950 text-indigo-300'} px-1.5 py-0.5 rounded border border-indigo-800/50 font-bold">
-                                ${isAgotado ? 'AGOTADO' : 'Agregar +'}
+                            <span class="text-[9px] px-2 py-0.5 rounded font-bold ${isAgotado ? 'bg-red-600 text-white shadow' : 'bg-indigo-950 text-indigo-300 border border-indigo-800/50'}">
+                                ${isAgotado ? 'NO DISPONIBLE' : 'Agregar +'}
                             </span>
                         </div>
                     </div>
@@ -1245,10 +1252,9 @@
         async function submitOrder() {
             if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
             
-            // Validación por seguridad si intentan colar un plato 86
             for (let item of currentOrder) {
                 if (agotados86List.includes(item.id)) {
-                    alert(`El plato "${item.nombre}" acaba de ser marcado como AGOTADO (86). No se puede procesar el pedido.`);
+                    alert(`El plato "${item.nombre}" se encuentra AGOTADO (86). No se puede procesar el pedido.`);
                     return;
                 }
             }
