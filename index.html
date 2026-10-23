@@ -94,7 +94,7 @@
 
             <!-- SECCIÓN POS COMPLETA (RECEPCIÓN Y MESEROS) -->
             <div id="main-view-pos" class="flex-1 flex flex-col overflow-hidden">
-                <!-- Selector de Rol -->
+                <!-- Selector de Rol Interno -->
                 <div class="flex space-x-2 bg-gray-800 p-1 rounded-lg border border-gray-700 w-fit mb-4">
                     <button id="btn-role-host" onclick="switchRole('host')" class="px-4 py-2 rounded-md font-medium text-sm transition bg-indigo-600 text-white">
                         <i class="fa-solid fa-user-tie mr-2"></i>Recepción (Host)
@@ -386,7 +386,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL COMPLETO CON CONTROL DE ROLES Y PERMISOS ESTRICTOS -->
+    <!-- SCRIPT PRINCIPAL COMPLETO CON TIEMPO REAL PARA AGOTADOS -->
     <script>
         const CONFIG = {
             SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
@@ -554,6 +554,13 @@
                 const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
                 const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
                 filterCategory(currentCat);
+
+                // Si el modal de agotados está abierto, actualizarlo también en tiempo real
+                const modal86 = document.getElementById('modal-86');
+                if (modal86 && !modal86.classList.contains('hidden')) {
+                    const searchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
+                    render86List(searchVal);
+                }
             } catch (err) { console.error("Error cargando agotados:", err); }
         }
 
@@ -589,6 +596,7 @@
                 })
                 .subscribe();
 
+            // Canal en tiempo real para platos agotados (actualiza al mesero y al cocinero/bartender al instante)
             supabaseClient
                 .channel('public:platos_agotados')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'platos_agotados' }, () => {
@@ -685,10 +693,9 @@
                 const { data, error } = await supabaseClient.from('meseros').select('nombre, apellido, rol').ilike('email', currentMeseroEmail);
                 if (!error && data && data.length > 0 && data[0].nombre) {
                     currentMeseroName = `${data[0].nombre} ${data[0].apellido || ''}`.trim();
-                    currentUserRole = (data[0].rol || 'mesero').toLowerCase().trim(); // 'mesero', 'cocina', 'barra', 'admin'
+                    currentUserRole = (data[0].rol || 'mesero').toLowerCase().trim(); 
                 } else {
                     currentMeseroName = currentMeseroEmail;
-                    // Detección automática por correo si no está en la tabla
                     if (currentMeseroEmail.includes('cocina')) currentUserRole = 'cocina';
                     else if (currentMeseroEmail.includes('barra')) currentUserRole = 'barra';
                     else if (currentMeseroEmail.includes('admin')) currentUserRole = 'admin';
@@ -793,7 +800,6 @@
             }
         }
 
-        // NAVEGACIÓN CON BLOQUEO ESTRICTO DE ROLES
         function switchMainView(view) {
             if (currentUserRole === 'mesero' && (view === 'kds-kitchen' || view === 'kds-bar')) {
                 alert("⛔ Acceso denegado: Los meseros no tienen permiso para acceder a las pantallas KDS de cocina o barra.");
@@ -1355,7 +1361,6 @@
         function updateItemNote(index, note) { currentOrder[index].notaIndividual = note; }
         function removeFromOrder(index) { currentOrder.splice(index, 1); renderOrder(); }
 
-        // --- ENVIAR PEDIDO, HISTORIAL Y KDS SEPARADOS ---
         async function submitOrder() {
             if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
             
@@ -1459,7 +1464,6 @@
             }
         }
 
-        // --- RENDERIZADO KDS (COCINA Y BARRA) ---
         function renderKdsGrid(destino) {
             const containerId = destino === 'cocina' ? 'kds-kitchen-orders-grid' : 'kds-bar-orders-grid';
             const container = document.getElementById(containerId);
@@ -1521,7 +1525,6 @@
             await loadKdsOrdersFromSupabase();
         }
 
-        // --- GESTIÓN DE PLATOS AGOTADOS CON BUSCADOR (COCINA VS BARRA) ---
         function toggle86Modal(destino = 'cocina') {
             modalFilterDestino = destino;
             const modal = document.getElementById('modal-86');
@@ -1574,9 +1577,7 @@
                 } else {
                     await supabaseClient.from('platos_agotados').upsert([{ item_id: itemId }]);
                 }
-                await loadAgotadosFromSupabase();
-                const searchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
-                render86List(searchVal);
+                // El canal de Realtime detectará el cambio y actualizará la interfaz de inmediato en tiempo real
             } catch (err) {
                 console.error("Error actualizando estado agotado:", err);
             }
