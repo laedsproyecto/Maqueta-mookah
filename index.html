@@ -386,7 +386,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL COMPLETO CON SINCRONIZACIÓN AUTOMÁTICA EN TIEMPO REAL -->
+    <!-- SCRIPT PRINCIPAL COMPLETO CON ACTUALIZACIÓN INTELIGENTE QUE CONSERVA EL ESTADO VISUAL -->
     <script>
         const CONFIG = {
             SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
@@ -549,17 +549,23 @@
                 const { data, error } = await supabaseClient.from('platos_agotados').select('item_id');
                 if (!error && data) {
                     const newList = data.map(d => d.item_id);
-                    // Solo actualizamos y re-renderizamos si hubo cambios reales para evitar parpadeos
                     if (JSON.stringify(newList) !== JSON.stringify(agotados86List)) {
                         agotados86List = newList;
-                        const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
-                        const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
-                        filterCategory(currentCat);
+                        
+                        // Refrescar conservando exactamente el filtro de categoría o búsqueda actual (sin resetear nada)
+                        const searchVal = document.getElementById('menu-search-input').value.toLowerCase().trim();
+                        if (searchVal) {
+                            filterMenuBySearch(searchVal);
+                        } else {
+                            const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
+                            const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
+                            filterCategory(currentCat);
+                        }
 
                         const modal86 = document.getElementById('modal-86');
                         if (modal86 && !modal86.classList.contains('hidden')) {
-                            const searchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
-                            render86List(searchVal);
+                            const modalSearchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
+                            render86List(modalSearchVal);
                         }
                     }
                 }
@@ -605,7 +611,6 @@
                 })
                 .subscribe();
 
-            // Respaldo por sondeo cada 2.5 segundos para garantizar actualización inmediata en todos los clientes abierta
             if (agotadosPollInterval) clearInterval(agotadosPollInterval);
             agotadosPollInterval = setInterval(() => {
                 loadAgotadosFromSupabase();
@@ -1576,11 +1581,9 @@
             }).join('');
         }
 
-        // --- GESTIÓN DE AGOTADOS CON ACTUALIZACIÓN LOCAL E INMEDIATA ---
         async function toggleAgotado(itemId) {
             const isAgotado = agotados86List.includes(itemId);
             
-            // Actualización optimista local inmediata
             if (isAgotado) {
                 agotados86List = agotados86List.filter(id => id !== itemId);
             } else {
