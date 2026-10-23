@@ -386,7 +386,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL COMPLETO CON TIEMPO REAL PARA AGOTADOS -->
+    <!-- SCRIPT PRINCIPAL COMPLETO CON ACTUALIZACIÓN INSTANTÁNEA OPTIMISTA -->
     <script>
         const CONFIG = {
             SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
@@ -396,7 +396,7 @@
         const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
         let currentMeseroName = "";
         let currentMeseroEmail = "";
-        let currentUserRole = "mesero"; // 'mesero', 'cocina', 'barra', 'admin'
+        let currentUserRole = "mesero"; 
         let currentTurnoId = null;
         let shiftStartTime = null;
         let shiftInterval = null;
@@ -555,7 +555,6 @@
                 const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
                 filterCategory(currentCat);
 
-                // Si el modal de agotados está abierto, actualizarlo también en tiempo real
                 const modal86 = document.getElementById('modal-86');
                 if (modal86 && !modal86.classList.contains('hidden')) {
                     const searchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
@@ -596,7 +595,6 @@
                 })
                 .subscribe();
 
-            // Canal en tiempo real para platos agotados (actualiza al mesero y al cocinero/bartender al instante)
             supabaseClient
                 .channel('public:platos_agotados')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'platos_agotados' }, () => {
@@ -686,7 +684,6 @@
             } catch (err) { console.error("Error cargando clientes:", err); }
         }
 
-        // --- SISTEMA DE ROLES Y PERMISOS ESTRICTOS ---
         async function setUserData(user) {
             currentMeseroEmail = user.email.toLowerCase().trim();
             try {
@@ -1561,7 +1558,7 @@
                 return `
                     <div class="flex justify-between items-center bg-gray-900 p-3 rounded-lg border border-gray-700">
                         <span class="text-xs font-bold text-white">${item.nombre} <span class="text-[10px] text-gray-400">(${item.categoria})</span></span>
-                        <button onclick="toggleAgotado(${item.id})" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${isAgotado ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
+                        <button onclick="toggleAgotado(${item.id})" class="px-4 py-1.5 rounded-lg text-xs font-bold transition shadow ${isAgotado ? 'bg-red-600 text-white animate-pulse' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
                             ${isAgotado ? 'AGOTADO' : 'Disponible'}
                         </button>
                     </div>
@@ -1569,17 +1566,34 @@
             }).join('');
         }
 
+        // --- ACTUALIZACIÓN OPTIMISTA INMEDIATA PARA AGOTADOS ---
         async function toggleAgotado(itemId) {
-            const isAgotado = agotados86List.includes(itemId);
+            const index = agotados86List.indexOf(itemId);
+            const isCurrentlyAgotado = index > -1;
+
+            // 1. Actualización local inmediata (Optimista UI) para que el botón responda al instante
+            if (isCurrentlyAgotado) {
+                agotados86List.splice(index, 1);
+            } else {
+                agotados86List.push(itemId);
+            }
+            
+            // Refrescar el modal y el menú del mesero de inmediato
+            const searchVal = document.getElementById('modal-86-search-input').value.toLowerCase().trim();
+            render86List(searchVal);
+            const activeBtn = document.querySelector('.bg-indigo-600.font-bold');
+            const currentCat = activeBtn ? activeBtn.id.replace('cat-btn-', '') : 'all';
+            filterCategory(currentCat);
+
+            // 2. Sincronización en segundo plano con la base de datos Supabase
             try {
-                if (isAgotado) {
+                if (isCurrentlyAgotado) {
                     await supabaseClient.from('platos_agotados').delete().eq('item_id', itemId);
                 } else {
                     await supabaseClient.from('platos_agotados').upsert([{ item_id: itemId }]);
                 }
-                // El canal de Realtime detectará el cambio y actualizará la interfaz de inmediato en tiempo real
             } catch (err) {
-                console.error("Error actualizando estado agotado:", err);
+                console.error("Error sincronizando estado agotado:", err);
             }
         }
 
