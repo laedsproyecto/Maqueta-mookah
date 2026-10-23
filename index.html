@@ -50,8 +50,8 @@
             </div>
             
             <div class="flex items-center space-x-4">
-                <!-- SELECTOR DE PANTALLA PRINCIPAL (POS / KDS COCINA / KDS BARRA) -->
-                <div class="flex space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-700">
+                <!-- SELECTOR DE PANTALLA PRINCIPAL (SE OCULTA SEGÚN EL ROL) -->
+                <div id="main-nav-buttons" class="flex space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-700">
                     <button id="nav-pos" onclick="switchMainView('pos')" class="px-3 py-1 rounded text-xs font-bold transition bg-indigo-600 text-white">
                         <i class="fa-solid fa-chair mr-1"></i>POS / Salón
                     </button>
@@ -77,8 +77,11 @@
                     <span id="shift-timer" class="font-mono font-bold text-amber-300">00:00:00</span>
                 </div>
 
-                <!-- NOMBRE DEL MESERO -->
-                <span id="user-name-display" class="text-xs bg-gray-900 px-3 py-1.5 rounded-full border border-gray-700 text-indigo-300 font-semibold"></span>
+                <!-- NOMBRE Y ROL -->
+                <div class="flex flex-col items-end">
+                    <span id="user-name-display" class="text-xs bg-gray-900 px-3 py-1 rounded-full border border-gray-700 text-indigo-300 font-semibold"></span>
+                    <span id="user-role-badge" class="text-[9px] text-gray-400 mt-0.5 uppercase tracking-wider font-bold"></span>
+                </div>
                 
                 <button onclick="handleLogout()" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-red-500/30">
                     <i class="fa-solid fa-right-from-bracket mr-1"></i> Finalizar Turno
@@ -383,7 +386,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL COMPLETO CON BÚSQUEDA EN MODAL AGOTADOS Y MENU -->
+    <!-- SCRIPT PRINCIPAL COMPLETO CON CONTROL DE ROLES Y PERMISOS ESTRICTOS -->
     <script>
         const CONFIG = {
             SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
@@ -393,6 +396,7 @@
         const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
         let currentMeseroName = "";
         let currentMeseroEmail = "";
+        let currentUserRole = "mesero"; // 'mesero', 'cocina', 'barra', 'admin'
         let currentTurnoId = null;
         let shiftStartTime = null;
         let shiftInterval = null;
@@ -674,24 +678,63 @@
             } catch (err) { console.error("Error cargando clientes:", err); }
         }
 
+        // --- SISTEMA DE ROLES Y PERMISOS ESTRICTOS ---
         async function setUserData(user) {
             currentMeseroEmail = user.email.toLowerCase().trim();
             try {
-                const { data, error } = await supabaseClient.from('meseros').select('nombre, apellido').ilike('email', currentMeseroEmail);
+                const { data, error } = await supabaseClient.from('meseros').select('nombre, apellido, rol').ilike('email', currentMeseroEmail);
                 if (!error && data && data.length > 0 && data[0].nombre) {
                     currentMeseroName = `${data[0].nombre} ${data[0].apellido || ''}`.trim();
-                } else currentMeseroName = currentMeseroEmail;
-            } catch (err) { currentMeseroName = currentMeseroEmail; }
+                    currentUserRole = (data[0].rol || 'mesero').toLowerCase().trim(); // 'mesero', 'cocina', 'barra', 'admin'
+                } else {
+                    currentMeseroName = currentMeseroEmail;
+                    // Detección automática por correo si no está en la tabla
+                    if (currentMeseroEmail.includes('cocina')) currentUserRole = 'cocina';
+                    else if (currentMeseroEmail.includes('barra')) currentUserRole = 'barra';
+                    else if (currentMeseroEmail.includes('admin')) currentUserRole = 'admin';
+                    else currentUserRole = 'mesero';
+                }
+            } catch (err) { 
+                currentMeseroName = currentMeseroEmail; 
+                currentUserRole = 'mesero';
+            }
 
-            document.getElementById('user-name-display').innerText = `Mesero: ${currentMeseroName}`;
+            document.getElementById('user-name-display').innerText = currentMeseroName;
+            document.getElementById('user-role-badge').innerText = `Rol: ${currentUserRole.toUpperCase()}`;
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('app-screen').classList.remove('hidden');
             
+            applyRolePermissions();
             await startOrResumeShift();
             renderMesasHost();
             renderMesasServer();
             filterCategory('all');
             selectMesaServer(1, false);
+        }
+
+        function applyRolePermissions() {
+            const navPos = document.getElementById('nav-pos');
+            const navKitchen = document.getElementById('nav-kds-kitchen');
+            const navBar = document.getElementById('nav-kds-bar');
+
+            if (currentUserRole === 'mesero') {
+                navKitchen.classList.add('hidden');
+                navBar.classList.add('hidden');
+                switchMainView('pos');
+            } else if (currentUserRole === 'cocina') {
+                navPos.classList.add('hidden');
+                navBar.classList.add('hidden');
+                switchMainView('kds-kitchen');
+            } else if (currentUserRole === 'barra') {
+                navPos.classList.add('hidden');
+                navKitchen.classList.add('hidden');
+                switchMainView('kds-bar');
+            } else if (currentUserRole === 'admin') {
+                navPos.classList.remove('hidden');
+                navKitchen.classList.remove('hidden');
+                navBar.classList.remove('hidden');
+                switchMainView('pos');
+            }
         }
 
         async function startOrResumeShift() {
@@ -750,15 +793,32 @@
             }
         }
 
-        // NAVEGACIÓN DE VISTAS DE PANTALLA PRINCIPAL
+        // NAVEGACIÓN CON BLOQUEO ESTRICTO DE ROLES
         function switchMainView(view) {
+            if (currentUserRole === 'mesero' && (view === 'kds-kitchen' || view === 'kds-bar')) {
+                alert("⛔ Acceso denegado: Los meseros no tienen permiso para acceder a las pantallas KDS de cocina o barra.");
+                return;
+            }
+            if (currentUserRole === 'cocina' && view !== 'kds-kitchen') {
+                alert("⛔ Acceso denegado: Tu usuario está asignado exclusivamente al KDS de Cocina.");
+                return;
+            }
+            if (currentUserRole === 'barra' && view !== 'kds-bar') {
+                alert("⛔ Acceso denegado: Tu usuario está asignado exclusivamente al KDS de Barra.");
+                return;
+            }
+
             document.getElementById('main-view-pos').classList.toggle('hidden', view !== 'pos');
             document.getElementById('main-view-kds-kitchen').classList.toggle('hidden', view !== 'kds-kitchen');
             document.getElementById('main-view-kds-bar').classList.toggle('hidden', view !== 'kds-bar');
 
-            document.getElementById('nav-pos').className = "px-3 py-1 rounded text-xs font-bold transition " + (view === 'pos' ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white");
-            document.getElementById('nav-kds-kitchen').className = "px-3 py-1 rounded text-xs font-bold transition " + (view === 'kds-kitchen' ? "bg-amber-600 text-white" : "text-gray-400 hover:text-white");
-            document.getElementById('nav-kds-bar').className = "px-3 py-1 rounded text-xs font-bold transition " + (view === 'kds-bar' ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white");
+            const btnPos = document.getElementById('nav-pos');
+            const btnKitchen = document.getElementById('nav-kds-kitchen');
+            const btnBar = document.getElementById('nav-kds-bar');
+
+            if (btnPos) btnPos.className = "px-3 py-1 rounded text-xs font-bold transition " + (view === 'pos' ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white");
+            if (btnKitchen) btnKitchen.className = "px-3 py-1 rounded text-xs font-bold transition " + (view === 'kds-kitchen' ? "bg-amber-600 text-white" : "text-gray-400 hover:text-white");
+            if (btnBar) btnBar.className = "px-3 py-1 rounded text-xs font-bold transition " + (view === 'kds-bar' ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white");
 
             if (view === 'kds-kitchen') renderKdsGrid('cocina');
             if (view === 'kds-bar') renderKdsGrid('barra');
