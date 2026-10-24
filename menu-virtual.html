@@ -13,7 +13,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <style>
-        #roulette-wheel { transition: transform 4s cubic-bezier(0.15, 0.9, 0.15, 1); }
+        #roulette-canvas {
+            transition: transform 4s cubic-bezier(0.15, 0.9, 0.15, 1);
+        }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -114,7 +116,7 @@
         </div>
     </div>
 
-    <!-- MODAL RULETA DE PREMIOS -->
+    <!-- MODAL RULETA DE PREMIOS MEJORADA VISUALMENTE -->
     <div id="roulette-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
         <div class="bg-gray-900 border border-indigo-500/50 rounded-2xl p-5 w-full max-w-sm text-center shadow-2xl relative">
             <button onclick="closeRouletteModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white"><i class="fa-solid fa-times text-base"></i></button>
@@ -124,20 +126,15 @@
                 <p class="text-[11px] text-gray-300">Regístrate para girar y acumular tus visitas en nuestra base de datos.</p>
             </div>
 
-            <!-- RUEDAS VISUAL -->
-            <div class="relative w-52 h-52 mx-auto my-3 flex items-center justify-center">
-                <div class="absolute -top-2 z-20 text-amber-400 text-2xl drop-shadow">▼</div>
-                <div id="roulette-wheel" class="w-full h-full rounded-full border-4 border-amber-400 bg-gray-800 shadow-xl overflow-hidden relative flex items-center justify-center">
-                    <div class="absolute inset-0 flex items-center justify-center font-black text-[10px] text-white">
-                        <span class="absolute top-4 text-emerald-400 font-bold">🍨 Postre Gratis</span>
-                        <span class="absolute right-2 text-indigo-300 font-bold">🍹 Bebida Gratis</span>
-                        <span class="absolute bottom-4 text-amber-300 font-bold">🍣 Roll Gratis</span>
-                        <span class="absolute left-2 text-red-400 font-bold">🎟️ 15% OFF</span>
-                    </div>
-                </div>
+            <!-- RUEDA CANVAS CON SECTORES TIPO PIZZA -->
+            <div class="relative w-60 h-60 mx-auto my-2 flex items-center justify-center">
+                <!-- Indicador de Flecha Superior -->
+                <div class="absolute -top-3 z-20 text-amber-400 text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">▼</div>
+                <!-- Canvas de la Ruleta -->
+                <canvas id="roulette-canvas" width="240" height="240" class="rounded-full shadow-2xl border-4 border-amber-400"></canvas>
             </div>
 
-            <!-- FORMULARIO DE REGISTRO OBLIGATORIO -->
+            <!-- FORMULARIO DE REGISTRO -->
             <form id="roulette-form" onsubmit="handleSpin(event)" class="space-y-2.5 text-left mt-2">
                 <div>
                     <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Nombre y Apellido</label>
@@ -152,15 +149,21 @@
                 </button>
             </form>
 
-            <!-- RESULTADO -->
+            <!-- RESULTADO Y AVISO AL MESERO -->
             <div id="roulette-result" class="hidden mt-3 space-y-3">
-                <div class="bg-gray-950 border border-emerald-500/50 p-4 rounded-xl">
-                    <span class="text-[10px] uppercase font-bold text-gray-400 block">¡Premio Único Obtenido!</span>
+                <div class="bg-gray-950 border border-emerald-500/50 p-4 rounded-xl shadow-inner">
+                    <span class="text-[10px] uppercase font-bold text-gray-400 block">¡Premio Obtenido!</span>
                     <span id="won-prize-text" class="text-xl font-black text-emerald-400 block my-1">---</span>
-                    <p class="text-[10px] text-gray-300">Vinculado a <strong id="won-user-name" class="text-white"></strong> (Mesa <span id="won-mesa"></span>). ¡Ya sumaste una visita más en tu tarjeta digital!</p>
+                    <p class="text-[11px] text-gray-200 mt-2">
+                        Registrado a nombre de <strong id="won-user-name" class="text-white"></strong> (Mesa <span id="won-mesa"></span>).
+                    </p>
+                    <div class="mt-3 bg-indigo-950/80 border border-indigo-700/60 p-2.5 rounded-lg text-[11px] text-indigo-200 font-semibold flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-bell text-amber-400 text-sm animate-bounce"></i>
+                        <span>Muéstrale esta pantalla a tu mesero para solicitar tu premio.</span>
+                    </div>
                 </div>
-                <button onclick="closeRouletteModal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs">
-                    ¡Ver Menú y Disfrutar!
+                <button onclick="closeRouletteModal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs shadow">
+                    ¡Entendido, ir al Menú!
                 </button>
             </div>
         </div>
@@ -188,6 +191,14 @@
         let agotados86List = [];
         let calcCart = []; 
         let currentMesaNum = null;
+        let currentRotation = 0;
+
+        const prizes = [
+            { id: 0, text: "🍨 Postre Gratis", color: "#1e1b4b", textColor: "#6366f1" },
+            { id: 1, text: "🍹 Bebida Gratis", color: "#064e3b", textColor: "#34d399" },
+            { id: 2, text: "🍣 Roll Gratis", color: "#78350f", textColor: "#fbbf24" },
+            { id: 3, text: "🎟️ 15% OFF", color: "#831843", textColor: "#f472b6" }
+        ];
 
         const menuCatalog = [
             { id: 101, nombre: "Edamames", categoria: "entradas", precio: 8.00, ingredientes: ["Edamames", "Sal"] },
@@ -251,6 +262,7 @@
         ];
 
         window.onload = async () => {
+            drawCanvasWheel();
             const urlParams = new URLSearchParams(window.location.search);
             currentMesaNum = urlParams.get('mesa');
             const isAdmin = urlParams.get('admin');
@@ -261,7 +273,6 @@
                 document.getElementById('table-number-text').innerText = `Mesa 0${currentMesaNum}`;
                 document.getElementById('table-badge').classList.remove('hidden');
                 
-                // Si el cliente no se ha registrado en esta sesión, abrir ruleta
                 if (!sessionStorage.getItem('mookah_client_phone')) {
                     setTimeout(() => openRouletteModal(), 600);
                 } else {
@@ -283,6 +294,61 @@
 
             filterPublicCategory('all');
         };
+
+        // --- DIBUJAR RULETA TIPO PIZZA EN CANVAS ---
+        function drawCanvasWheel() {
+            const canvas = document.getElementById('roulette-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const numSlices = prizes.length;
+            const sliceAngle = (2 * Math.PI) / numSlices;
+            const center = canvas.width / 2;
+            const radius = center - 5;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            prizes.forEach((prize, i) => {
+                const angle = i * sliceAngle;
+                
+                // Sector / Slice de Pizza
+                ctx.beginPath();
+                ctx.fillStyle = prize.color;
+                ctx.moveTo(center, center);
+                ctx.arc(center, center, radius, angle, angle + sliceAngle);
+                ctx.closePath();
+                ctx.fill();
+
+                // Borde divisor del sector
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#f59e0b';
+                ctx.stroke();
+
+                // Texto rotado apuntando al centro
+                ctx.save();
+                ctx.translate(center, center);
+                ctx.rotate(angle + sliceAngle / 2);
+                ctx.textAlign = "right";
+                ctx.fillStyle = prize.textColor;
+                ctx.font = "bold 12px sans-serif";
+                ctx.fillText(prize.text, radius - 15, 4);
+                ctx.restore();
+            });
+
+            // Círculo Central Dorado
+            ctx.beginPath();
+            ctx.arc(center, center, 22, 0, 2 * Math.PI);
+            ctx.fillStyle = '#f59e0b';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#1e1b4b';
+            ctx.stroke();
+
+            // Estrella / Ícono central
+            ctx.fillStyle = '#090d16';
+            ctx.font = "bold 12px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("★", center, center + 4);
+        }
 
         // --- CALCULADORA DE PEDIDOS ---
         function addToCalc(itemId) {
@@ -357,20 +423,23 @@
 
             const btnSpin = document.getElementById('btn-spin');
             btnSpin.disabled = true;
-            btnSpin.innerText = "Registrando visita...";
+            btnSpin.innerText = "Girando...";
 
-            const wheel = document.getElementById('roulette-wheel');
-            const premios = [
-                { titulo: "🍨 Postre Gratis", deg: 1440 },
-                { titulo: "🍹 Bebida Gratis", deg: 1530 },
-                { titulo: "🍣 Roll Gratis", deg: 1620 },
-                { titulo: "🎟️ 15% OFF en tu Cuenta", deg: 1710 }
-            ];
-            const elegido = premios[Math.floor(Math.random() * premios.length)];
-            wheel.style.transform = `rotate(${elegido.deg}deg)`;
+            const winnerIndex = Math.floor(Math.random() * prizes.length);
+            const chosenPrize = prizes[winnerIndex];
+
+            // Cálculo del ángulo exacto para detener el sector elegido bajo el puntero superior (-90deg)
+            const numSlices = prizes.length;
+            const sliceDeg = 360 / numSlices;
+            const targetDeg = (360 - (winnerIndex * sliceDeg) - (sliceDeg / 2) - 90);
+            
+            // Giro limpio acumilativo
+            currentRotation += (360 * 5) + targetDeg - (currentRotation % 360);
+            const canvas = document.getElementById('roulette-canvas');
+            canvas.style.transform = `rotate(${currentRotation}deg)`;
 
             try {
-                // 1. Guardar o actualizar cliente maestro y sumar +1 visita
+                // 1. Guardar cliente y sumar +1 visita
                 const { data: existingClient } = await supabaseClient.from('clientes').select('visitas_totales').eq('telefono', phone).maybeSingle();
                 const nuevasVisitas = existingClient ? (existingClient.visitas_totales + 1) : 1;
 
@@ -380,12 +449,12 @@
                     visitas_totales: nuevasVisitas
                 }], { onConflict: 'telefono' });
 
-                // 2. Registrar el premio obtenido vinculado al cliente y a la mesa
+                // 2. Registrar el premio obtenido
                 await supabaseClient.from('premios_ruleta').insert([{
                     telefono_cliente: phone,
                     nombre_cliente: name,
                     mesa_numero: currentMesaNum ? parseInt(currentMesaNum) : null,
-                    premio_ganado: elegido.titulo,
+                    premio_ganado: chosenPrize.text,
                     estado: 'pendiente'
                 }]);
 
@@ -408,7 +477,7 @@
 
             setTimeout(() => {
                 document.getElementById('roulette-form').classList.add('hidden');
-                document.getElementById('won-prize-text').innerText = elegido.titulo;
+                document.getElementById('won-prize-text').innerText = chosenPrize.text;
                 document.getElementById('won-user-name').innerText = name;
                 document.getElementById('won-mesa').innerText = currentMesaNum || 'N/A';
                 document.getElementById('roulette-result').classList.remove('hidden');
