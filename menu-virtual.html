@@ -212,10 +212,10 @@
         let currentRotation = 0;
 
         const prizes = [
-            { text: "🍨 Postre Gratis", degTarget: 45 },    // Centro del sector 0-90deg
-            { text: "🍹 Bebida Gratis", degTarget: 135 },  // Centro del sector 90-180deg
-            { text: "🍣 Roll Gratis", degTarget: 225 },     // Centro del sector 180-270deg
-            { text: "🎟️ 15% OFF", degTarget: 315 }         // Centro del sector 270-360deg
+            { text: "🍨 Postre Gratis", degTarget: 45 },    
+            { text: "🍹 Bebida Gratis", degTarget: 135 },  
+            { text: "🍣 Roll Gratis", degTarget: 225 },     
+            { text: "🎟️ 15% OFF", degTarget: 315 }         
         ];
 
         const menuCatalog = [
@@ -389,7 +389,6 @@
 
             const chosenPrize = prizes[Math.floor(Math.random() * prizes.length)];
 
-            // Rotación fluida basada en grados calculados hacia la flecha superior
             const targetDeg = 360 - chosenPrize.degTarget;
             currentRotation += (360 * 5) + targetDeg - (currentRotation % 360);
             
@@ -397,7 +396,6 @@
             wheel.style.transform = `rotate(${currentRotation}deg)`;
 
             try {
-                // 1. Guardar cliente y sumar +1 visita
                 const { data: existingClient } = await supabaseClient.from('clientes').select('visitas_totales').eq('telefono', phone).maybeSingle();
                 const nuevasVisitas = existingClient ? (existingClient.visitas_totales + 1) : 1;
 
@@ -407,7 +405,6 @@
                     visitas_totales: nuevasVisitas
                 }], { onConflict: 'telefono' });
 
-                // 2. Registrar el premio obtenido
                 await supabaseClient.from('premios_ruleta').insert([{
                     telefono_cliente: phone,
                     nombre_cliente: name,
@@ -415,16 +412,6 @@
                     premio_ganado: chosenPrize.text,
                     estado: 'pendiente'
                 }]);
-
-                // 3. Registrar la sesión activa de la mesa
-                if (currentMesaNum) {
-                    await supabaseClient.from('sesiones_mesa').insert([{
-                        mesa_numero: parseInt(currentMesaNum),
-                        telefono_cliente: phone,
-                        nombre_cliente: name,
-                        activa: true
-                    }]);
-                }
 
                 sessionStorage.setItem('mookah_client_phone', phone);
                 sessionStorage.setItem('mookah_client_name', name);
@@ -444,7 +431,6 @@
             }, 4000);
         }
 
-        // --- RENDER Y FILTROS ---
         async function fetchBcvRate() {
             try {
                 const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
