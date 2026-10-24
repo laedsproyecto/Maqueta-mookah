@@ -13,10 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <style>
-        #roulette-svg {
-            transition: transform 4s cubic-bezier(0.15, 0.9, 0.15, 1);
-            transform-origin: center center;
-        }
+        #roulette-wheel { transition: transform 4s cubic-bezier(0.15, 0.9, 0.15, 1); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -117,7 +114,7 @@
         </div>
     </div>
 
-    <!-- MODAL RULETA TIPO PIZZA ILUSTRADA CON SVG -->
+    <!-- MODAL RULETA DE PREMIOS -->
     <div id="roulette-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
         <div class="bg-gray-900 border border-indigo-500/50 rounded-2xl p-5 w-full max-w-sm text-center shadow-2xl relative">
             <button onclick="closeRouletteModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white"><i class="fa-solid fa-times text-base"></i></button>
@@ -127,36 +124,18 @@
                 <p class="text-[11px] text-gray-300">Regístrate para girar y acumular tus visitas en nuestra base de datos.</p>
             </div>
 
-            <!-- CONTENEDOR DE RULETA CON SECTORES DE COLORES TIPO PIZZA -->
-            <div class="relative w-64 h-64 mx-auto my-2 flex items-center justify-center">
-                <!-- Flecha indicadora superior -->
-                <div class="absolute -top-3 z-30 text-amber-400 text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">▼</div>
-
-                <!-- SVG Rueda de Ruleta Vectorial -->
-                <svg id="roulette-svg" viewBox="0 0 200 200" class="w-full h-full rounded-full border-4 border-amber-400 shadow-2xl">
-                    <!-- Sector 1: Postre Gratis (Púrpura) -->
-                    <path d="M100,100 L100,0 A100,100 0 0,1 200,100 Z" fill="#312e81" stroke="#f59e0b" stroke-width="2"/>
-                    <text x="145" y="45" fill="#a5b4fc" font-size="9" font-weight="bold" transform="rotate(45, 145, 45)">🍨 Postre</text>
-
-                    <!-- Sector 2: Bebida Gratis (Verde) -->
-                    <path d="M100,100 L200,100 A100,100 0 0,1 100,200 Z" fill="#064e3b" stroke="#f59e0b" stroke-width="2"/>
-                    <text x="145" y="155" fill="#6ee7b7" font-size="9" font-weight="bold" transform="rotate(135, 145, 155)">🍹 Bebida</text>
-
-                    <!-- Sector 3: Roll Gratis (Marrón / Dorado) -->
-                    <path d="M100,100 L100,200 A100,100 0 0,1 0,100 Z" fill="#78350f" stroke="#f59e0b" stroke-width="2"/>
-                    <text x="55" y="155" fill="#fde047" font-size="9" font-weight="bold" transform="rotate(225, 55, 155)">🍣 Roll</text>
-
-                    <!-- Sector 4: 15% OFF (Rosado) -->
-                    <path d="M100,100 L0,100 A100,100 0 0,1 100,0 Z" fill="#831843" stroke="#f59e0b" stroke-width="2"/>
-                    <text x="55" y="45" fill="#f472b6" font-size="9" font-weight="bold" transform="rotate(315, 55, 45)">🎟️ 15% OFF</text>
-
-                    <!-- Centro Dorado de la Ruleta -->
-                    <circle cx="100" cy="100" r="20" fill="#f59e0b" stroke="#1e1b4b" stroke-width="3"/>
-                    <circle cx="100" cy="100" r="8" fill="#1e1b4b"/>
-                </svg>
+            <div class="relative w-52 h-52 mx-auto my-3 flex items-center justify-center">
+                <div class="absolute -top-2 z-20 text-amber-400 text-2xl drop-shadow">▼</div>
+                <div id="roulette-wheel" class="w-full h-full rounded-full border-4 border-amber-400 bg-gray-800 shadow-xl overflow-hidden relative flex items-center justify-center">
+                    <div class="absolute inset-0 flex items-center justify-center font-black text-[10px] text-white">
+                        <span class="absolute top-4 text-emerald-400 font-bold">🍨 Postre Gratis</span>
+                        <span class="absolute right-2 text-indigo-300 font-bold">🍹 Bebida Gratis</span>
+                        <span class="absolute bottom-4 text-amber-300 font-bold">🍣 Roll Gratis</span>
+                        <span class="absolute left-2 text-red-400 font-bold">🎟️ 15% OFF</span>
+                    </div>
+                </div>
             </div>
 
-            <!-- FORMULARIO DE REGISTRO -->
             <form id="roulette-form" onsubmit="handleSpin(event)" class="space-y-2.5 text-left mt-2">
                 <div>
                     <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Nombre y Apellido</label>
@@ -171,21 +150,14 @@
                 </button>
             </form>
 
-            <!-- RESULTADO Y AVISO AL MESERO -->
             <div id="roulette-result" class="hidden mt-3 space-y-3">
-                <div class="bg-gray-950 border border-emerald-500/50 p-4 rounded-xl shadow-inner">
-                    <span class="text-[10px] uppercase font-bold text-gray-400 block">¡Premio Obtenido!</span>
+                <div class="bg-gray-950 border border-emerald-500/50 p-4 rounded-xl">
+                    <span class="text-[10px] uppercase font-bold text-gray-400 block">¡Premio Único Obtenido!</span>
                     <span id="won-prize-text" class="text-xl font-black text-emerald-400 block my-1">---</span>
-                    <p class="text-[11px] text-gray-200 mt-2">
-                        Registrado a nombre de <strong id="won-user-name" class="text-white"></strong> (Mesa <span id="won-mesa"></span>).
-                    </p>
-                    <div class="mt-3 bg-indigo-950/80 border border-indigo-700/60 p-2.5 rounded-lg text-[11px] text-indigo-200 font-semibold flex items-center justify-center space-x-2">
-                        <i class="fa-solid fa-bell text-amber-400 text-sm animate-bounce"></i>
-                        <span>Muéstrale esta pantalla a tu mesero para solicitar tu premio.</span>
-                    </div>
+                    <p class="text-[10px] text-gray-300">Vinculado a <strong id="won-user-name" class="text-white"></strong> (Mesa <span id="won-mesa"></span>). ¡Ya sumaste una visita más en tu tarjeta digital!</p>
                 </div>
-                <button onclick="closeRouletteModal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs shadow">
-                    ¡Entendido, ir al Menú!
+                <button onclick="closeRouletteModal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs">
+                    ¡Ver Menú y Disfrutar!
                 </button>
             </div>
         </div>
@@ -213,14 +185,6 @@
         let agotados86List = [];
         let calcCart = []; 
         let currentMesaNum = null;
-        let currentRotation = 0;
-
-        const prizes = [
-            { text: "🍨 Postre Gratis", angleTarget: 315 },
-            { text: "🍹 Bebida Gratis", angleTarget: 225 },
-            { text: "🍣 Roll Gratis", angleTarget: 135 },
-            { text: "🎟️ 15% OFF", angleTarget: 45 }
-        ];
 
         const menuCatalog = [
             { id: 101, nombre: "Edamames", categoria: "entradas", precio: 8.00, ingredientes: ["Edamames", "Sal"] },
@@ -277,4 +241,276 @@
             { id: 605, nombre: "Mojito Tradicional", categoria: "bebidas", precio: 7.00, ingredientes: ["Ron Blanco", "Hierbabuena", "Limón", "Soda", "Azúcar"] },
             { id: 606, nombre: "Margarita Mookah", categoria: "bebidas", precio: 8.00, ingredientes: ["Tequila", "Triple Sec", "Jugo de Limón", "Sal en borde"] },
 
-            { id:
+            { id: 501, nombre: "Crumble de Manzana", categoria: "postres", precio: 12.00, ingredientes: ["Manzanas en almíbar y canela", "Tierra de galleta", "Crema caramelo", "Helado de vainilla"] },
+            { id: 502, nombre: "Cheesecake", categoria: "postres", precio: 9.00, ingredientes: ["Queso crema", "Fresas", "Mermelada de mora y fresa"] },
+            { id: 503, nombre: "Crepe de Nutella", categoria: "postres", precio: 11.00, ingredientes: ["Masa de crepe", "Nutella"] },
+            { id: 504, nombre: "Volcán de Chocolate", categoria: "postres", precio: 12.00, ingredientes: ["Brownie relleno de chocolate", "Helado", "Dulce de leche"] }
+        ];
+
+        window.onload = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            currentMesaNum = urlParams.get('mesa');
+            const isAdmin = urlParams.get('admin');
+
+            if (isAdmin) { renderQrAdminPanel(); return; }
+
+            if (currentMesaNum) {
+                document.getElementById('table-number-text').innerText = `Mesa 0${currentMesaNum}`;
+                document.getElementById('table-badge').classList.remove('hidden');
+                
+                if (!sessionStorage.getItem('mookah_client_phone')) {
+                    setTimeout(() => openRouletteModal(), 600);
+                } else {
+                    const savedName = sessionStorage.getItem('mookah_client_name');
+                    document.getElementById('client-logged-badge').innerText = `👤 ${savedName}`;
+                    document.getElementById('client-logged-badge').classList.remove('hidden');
+                }
+            }
+
+            await fetchBcvRate();
+            await loadAgotadosFromSupabase();
+
+            supabaseClient
+                .channel('public:platos_agotados')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'platos_agotados' }, () => {
+                    loadAgotadosFromSupabase(true);
+                })
+                .subscribe();
+
+            filterPublicCategory('all');
+        };
+
+        // --- CALCULADORA DE PEDIDOS ---
+        function addToCalc(itemId) {
+            const item = menuCatalog.find(i => i.id === itemId);
+            const found = calcCart.find(c => c.id === itemId);
+            if (found) found.qty++;
+            else calcCart.push({ ...item, qty: 1 });
+            updateCalcUI();
+        }
+
+        function updateCalcQty(itemId, delta) {
+            const index = calcCart.findIndex(c => c.id === itemId);
+            if (index > -1) {
+                calcCart[index].qty += delta;
+                if (calcCart[index].qty <= 0) calcCart.splice(index, 1);
+            }
+            updateCalcUI();
+            renderCalcDetailList();
+        }
+
+        function clearCalculator() { calcCart = []; updateCalcUI(); toggleCalcDetailModal(); }
+
+        function updateCalcUI() {
+            let totalUsd = 0, totalItems = 0;
+            calcCart.forEach(c => { totalUsd += c.precio * c.qty; totalItems += c.qty; });
+            let totalVes = totalUsd * bcvRate;
+
+            document.getElementById('calc-total-usd').innerText = `$${totalUsd.toFixed(2)}`;
+            document.getElementById('calc-total-ves').innerText = `Bs. ${totalVes.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('calc-count').innerText = totalItems;
+            document.getElementById('modal-calc-total-usd').innerText = `$${totalUsd.toFixed(2)}`;
+            document.getElementById('modal-calc-total-ves').innerText = `Bs. ${totalVes.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+
+        function toggleCalcDetailModal() {
+            const modal = document.getElementById('calc-detail-modal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) renderCalcDetailList();
+        }
+
+        function renderCalcDetailList() {
+            const container = document.getElementById('calc-items-list');
+            if (calcCart.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-500 italic py-6 text-xs">Tu calculadora está vacía.</p>`;
+                return;
+            }
+            container.innerHTML = calcCart.map(c => `
+                <div class="flex justify-between items-center bg-gray-950 p-2.5 rounded-lg border border-gray-800 text-xs">
+                    <div>
+                        <span class="font-bold text-white block">${c.nombre}</span>
+                        <span class="text-[10px] text-emerald-400 font-bold">$${(c.precio * c.qty).toFixed(2)}</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="updateCalcQty(${c.id}, -1)" class="w-6 h-6 bg-gray-800 text-gray-300 rounded font-bold">-</button>
+                        <span class="font-bold text-white text-xs">${c.qty}</span>
+                        <button onclick="updateCalcQty(${c.id}, 1)" class="w-6 h-6 bg-indigo-600 text-white rounded font-bold">+</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- RULETA Y VINCULACIÓN EN SUPABASE ---
+        function openRouletteModal() { document.getElementById('roulette-modal').classList.remove('hidden'); }
+        function closeRouletteModal() { document.getElementById('roulette-modal').classList.add('hidden'); }
+
+        async function handleSpin(e) {
+            e.preventDefault();
+            const name = document.getElementById('user-name').value.trim();
+            const phone = document.getElementById('user-phone').value.trim();
+
+            if (!name || !phone) { alert("Por favor ingresa nombre y teléfono."); return; }
+
+            const btnSpin = document.getElementById('btn-spin');
+            btnSpin.disabled = true;
+            btnSpin.innerText = "Girando...";
+
+            const wheel = document.getElementById('roulette-wheel');
+            const premios = [
+                { titulo: "🍨 Postre Gratis", deg: 1440 },
+                { titulo: "🍹 Bebida Gratis", deg: 1530 },
+                { titulo: "🍣 Roll Gratis", deg: 1620 },
+                { titulo: "🎟️ 15% OFF en tu Cuenta", deg: 1710 }
+            ];
+            const elegido = premios[Math.floor(Math.random() * premios.length)];
+            wheel.style.transform = `rotate(${elegido.deg}deg)`;
+
+            try {
+                const { data: existingClient } = await supabaseClient.from('clientes').select('visitas_totales').eq('telefono', phone).maybeSingle();
+                const nuevasVisitas = existingClient ? (existingClient.visitas_totales + 1) : 1;
+
+                await supabaseClient.from('clientes').upsert([{
+                    telefono: phone,
+                    nombre: name,
+                    visitas_totales: nuevasVisitas
+                }], { onConflict: 'telefono' });
+
+                await supabaseClient.from('premios_ruleta').insert([{
+                    telefono_cliente: phone,
+                    nombre_cliente: name,
+                    mesa_numero: currentMesaNum ? parseInt(currentMesaNum) : null,
+                    premio_ganado: elegido.titulo,
+                    estado: 'pendiente'
+                }]);
+
+                if (currentMesaNum) {
+                    await supabaseClient.from('sesiones_mesa').insert([{
+                        mesa_numero: parseInt(currentMesaNum),
+                        telefono_cliente: phone,
+                        nombre_cliente: name,
+                        activa: true
+                    }]);
+                }
+
+                sessionStorage.setItem('mookah_client_phone', phone);
+                sessionStorage.setItem('mookah_client_name', name);
+
+            } catch (err) {
+                console.error("Error al sincronizar con Supabase:", err);
+            }
+
+            setTimeout(() => {
+                document.getElementById('roulette-form').classList.add('hidden');
+                document.getElementById('won-prize-text').innerText = elegido.titulo;
+                document.getElementById('won-user-name').innerText = name;
+                document.getElementById('won-mesa').innerText = currentMesaNum || 'N/A';
+                document.getElementById('roulette-result').classList.remove('hidden');
+                document.getElementById('client-logged-badge').innerText = `👤 ${name}`;
+                document.getElementById('client-logged-badge').classList.remove('hidden');
+            }, 4000);
+        }
+
+        // --- RENDER Y FILTROS ---
+        async function fetchBcvRate() {
+            try {
+                const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.promedio) bcvRate = parseFloat(data.promedio);
+                }
+            } catch (err) {}
+            document.getElementById('public-bcv-rate').innerText = `Bs. ${bcvRate.toLocaleString('es-VE', {minimumFractionDigits: 2})}`;
+        }
+
+        async function loadAgotadosFromSupabase() {
+            try {
+                const { data, error } = await supabaseClient.from('platos_agotados').select('item_id');
+                if (!error && data) {
+                    agotados86List = data.map(d => d.item_id);
+                    refreshCurrentPublicView();
+                }
+            } catch (err) {}
+        }
+
+        function refreshCurrentPublicView() {
+            const searchVal = document.getElementById('public-search').value.toLowerCase().trim();
+            if (searchVal) filterPublicMenu(searchVal);
+            else {
+                const activeBtn = document.querySelector('button.bg-indigo-600');
+                const cat = activeBtn ? activeBtn.id.replace('pcat-', '') : 'all';
+                filterPublicCategory(cat);
+            }
+        }
+
+        function filterPublicCategory(category) {
+            const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'bebidas', 'postres'];
+            categories.forEach(cat => {
+                const btn = document.getElementById(`pcat-${cat}`);
+                if (btn) btn.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap " + (cat === category ? "bg-indigo-600 text-white" : "bg-gray-900 text-gray-400 border border-gray-800");
+            });
+            document.getElementById('public-search').value = '';
+            renderPublicItems(category === 'all' ? menuCatalog : menuCatalog.filter(i => i.categoria === category));
+        }
+
+        function filterPublicMenu(query) {
+            const q = query.toLowerCase().trim();
+            if (!q) { filterPublicCategory('all'); return; }
+            renderPublicItems(menuCatalog.filter(i => i.nombre.toLowerCase().includes(q) || i.ingredientes.some(ing => ing.toLowerCase().includes(q))));
+        }
+
+        function renderPublicItems(items) {
+            const container = document.getElementById('public-menu-grid');
+            if (items.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-500 italic py-12 text-xs">No se encontraron platos.</p>`;
+                return;
+            }
+
+            container.innerHTML = items.map(i => {
+                const isAgotado = agotados86List.includes(i.id);
+                const precioBs = i.precio * bcvRate;
+
+                return `
+                    <div class="bg-gray-900 border ${isAgotado ? 'border-red-900/50 bg-red-950/10 opacity-75' : 'border-gray-800'} rounded-xl p-3.5 flex justify-between items-center shadow-sm">
+                        <div class="flex-1 pr-3">
+                            <div class="flex items-center space-x-2">
+                                <h3 class="font-bold text-xs ${isAgotado ? 'text-red-300 line-through' : 'text-white'}">${i.nombre}</h3>
+                                ${isAgotado ? '<span class="bg-red-600 text-white text-[8px] px-1.5 py-0.5 rounded font-extrabold uppercase">Agotado</span>' : ''}
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-1 line-clamp-2">${i.ingredientes.join(', ')}</p>
+                        </div>
+                        <div class="text-right flex flex-col items-end">
+                            <span class="font-bold text-sm ${isAgotado ? 'text-gray-500' : 'text-indigo-400'} block">$${i.precio.toFixed(2)}</span>
+                            <span class="text-[10px] text-gray-400 font-mono block">Bs. ${precioBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            ${!isAgotado ? `
+                                <button onclick="addToCalc(${i.id})" class="mt-1.5 bg-indigo-950 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-700/50 text-[10px] px-2 py-0.5 rounded-lg font-bold transition">
+                                    + Calcular
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderQrAdminPanel() {
+            const panel = document.getElementById('qr-admin-panel');
+            const grid = document.getElementById('qr-grid');
+            panel.classList.remove('hidden');
+            const baseUrl = window.location.origin + window.location.pathname;
+            const mesas = [1, 2, 3, 4, 5, 6];
+
+            grid.innerHTML = mesas.map(m => `
+                <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center space-y-3">
+                    <span class="font-bold text-sm text-white block">Mesa 0${m}</span>
+                    <div id="qr-container-${m}" class="flex justify-center bg-white p-3 rounded-lg w-fit mx-auto"></div>
+                    <p class="text-[10px] text-gray-400 font-mono break-all">${baseUrl}?mesa=${m}</p>
+                </div>
+            `).join('');
+
+            mesas.forEach(m => {
+                new QRCode(document.getElementById(`qr-container-${m}`), { text: `${baseUrl}?mesa=${m}`, width: 130, height: 130 });
+            });
+        }
+    </script>
+</body>
+</html>
