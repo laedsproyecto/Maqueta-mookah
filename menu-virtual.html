@@ -123,14 +123,14 @@
         </div>
     </div>
 
-    <!-- MODAL RULETA DE PREMIOS (DISEÑO PIZZA MEJORADO) -->
+    <!-- MODAL RULETA DE PREMIOS (CON VALIDACIÓN DE SEGURIDAD DE VISITA) -->
     <div id="roulette-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
         <div class="bg-gray-900 border border-indigo-500/50 rounded-2xl p-5 w-full max-w-sm text-center shadow-2xl relative">
             <button onclick="closeRouletteModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white"><i class="fa-solid fa-times text-base"></i></button>
             
             <div class="mb-3">
                 <h3 class="text-base font-extrabold text-white"><i class="fa-solid fa-gift text-amber-400 mr-1.5"></i>Ruleta de Fidelidad Mookah</h3>
-                <p class="text-[11px] text-gray-300">Regístrate para girar y acumular tus visitas en nuestra base de datos.</p>
+                <p class="text-[11px] text-gray-300">Ingresa tu teléfono registrado. Se habilitará únicamente si el anfitrión autorizó tu visita premiada hoy.</p>
             </div>
 
             <!-- RULETA TIPO PIZZA CON PORCIONES VISUALES -->
@@ -152,18 +152,14 @@
                 </div>
             </div>
 
-            <!-- FORMULARIO DE REGISTRO -->
+            <!-- FORMULARIO DE VALIDACIÓN Y GIRO -->
             <form id="roulette-form" onsubmit="handleSpin(event)" class="space-y-2.5 text-left mt-2">
                 <div>
-                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Nombre y Apellido</label>
-                    <input type="text" id="user-name" required placeholder="Ej: Juan Silva" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Teléfono Móvil</label>
+                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Tu Teléfono Móvil Registrado</label>
                     <input type="tel" id="user-phone" required placeholder="Ej: 04121234567" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                 </div>
                 <button type="submit" id="btn-spin" class="w-full bg-amber-500 hover:bg-amber-400 text-gray-950 font-black py-2.5 rounded-xl text-xs uppercase tracking-wider shadow transition">
-                    🎰 Girar y Registrar Visita
+                    🎰 Validar y Girar Ruleta
                 </button>
             </form>
 
@@ -290,9 +286,7 @@
                 document.getElementById('table-number-text').innerText = `Mesa 0${currentMesaNum}`;
                 document.getElementById('table-badge').classList.remove('hidden');
                 
-                if (!sessionStorage.getItem('mookah_client_phone')) {
-                    setTimeout(() => openRouletteModal(), 600);
-                } else {
+                if (sessionStorage.getItem('mookah_client_name')) {
                     const savedName = sessionStorage.getItem('mookah_client_name');
                     document.getElementById('client-logged-badge').innerText = `👤 ${savedName}`;
                     document.getElementById('client-logged-badge').classList.remove('hidden');
@@ -372,63 +366,75 @@
             `).join('');
         }
 
-        // --- RULETA Y VINCULACIÓN EN SUPABASE ---
+        // --- RULETA Y VALIDACIÓN DE SEGURIDAD EN SUPABASE ---
         function openRouletteModal() { document.getElementById('roulette-modal').classList.remove('hidden'); }
         function closeRouletteModal() { document.getElementById('roulette-modal').classList.add('hidden'); }
 
         async function handleSpin(e) {
             e.preventDefault();
-            const name = document.getElementById('user-name').value.trim();
             const phone = document.getElementById('user-phone').value.trim();
 
-            if (!name || !phone) { alert("Por favor ingresa nombre y teléfono."); return; }
-
-            const btnSpin = document.getElementById('btn-spin');
-            btnSpin.disabled = true;
-            btnSpin.innerText = "Girando...";
-
-            const chosenPrize = prizes[Math.floor(Math.random() * prizes.length)];
-
-            const targetDeg = 360 - chosenPrize.degTarget;
-            currentRotation += (360 * 5) + targetDeg - (currentRotation % 360);
-            
-            const wheel = document.getElementById('pizza-wheel');
-            wheel.style.transform = `rotate(${currentRotation}deg)`;
+            if (!phone || !currentMesaNum) { 
+                alert("Por favor ingresa tu teléfono y asegúrate de escanear el código QR de tu mesa."); 
+                return; 
+            }
 
             try {
-                const { data: existingClient } = await supabaseClient.from('clientes').select('visitas_totales').eq('telefono', phone).maybeSingle();
-                const nuevasVisitas = existingClient ? (existingClient.visitas_totales + 1) : 1;
+                // Validación contra Supabase: Verifica que la mesa esté ocupada y que el anfitrión haya autorizado la ruleta en esta visita
+                const { data: mesaData, error } = await supabaseClient
+                    .from('mesas_estado')
+                    .select('*')
+                    .eq('id', currentMesaNum)
+                    .maybeSingle();
 
-                await supabaseClient.from('clientes').upsert([{
-                    telefono: phone,
-                    nombre: name,
-                    visitas_totales: nuevasVisitas
-                }], { onConflict: 'telefono' });
+                if (error || !mesaData || mesaData.estado !== 'ocupada' || !mesaData.cliente_json) {
+                    alert("⛔ Error: Esta mesa no se encuentra activa u ocupada en el sistema.");
+                    return;
+                }
+
+                const clienteMesa = JSON.parse(mesaData.cliente_json);
+
+                if (clienteMesa.telefono !== phone || !clienteMesa.puedeGirarRuleta) {
+                    alert("⛔ Lo sentimos, este teléfono no tiene habilitada la ruleta en esta visita (recuerda que se desbloquea cada 5 visitas con autorización en recepción).");
+                    return;
+                }
+
+                const btnSpin = document.getElementById('btn-spin');
+                btnSpin.disabled = true;
+                btnSpin.innerText = "Girando...";
+
+                const chosenPrize = prizes[Math.floor(Math.random() * prizes.length)];
+                const targetDeg = 360 - chosenPrize.degTarget;
+                currentRotation += (360 * 5) + targetDeg - (currentRotation % 360);
+                
+                const wheel = document.getElementById('pizza-wheel');
+                wheel.style.transform = `rotate(${currentRotation}deg)`;
 
                 await supabaseClient.from('premios_ruleta').insert([{
                     telefono_cliente: phone,
-                    nombre_cliente: name,
-                    mesa_numero: currentMesaNum ? parseInt(currentMesaNum) : null,
+                    nombre_cliente: clienteMesa.nombre,
+                    mesa_numero: parseInt(currentMesaNum),
                     premio_ganado: chosenPrize.text,
                     estado: 'pendiente'
                 }]);
 
                 sessionStorage.setItem('mookah_client_phone', phone);
-                sessionStorage.setItem('mookah_client_name', name);
+                sessionStorage.setItem('mookah_client_name', clienteMesa.nombre);
+
+                setTimeout(() => {
+                    document.getElementById('roulette-form').classList.add('hidden');
+                    document.getElementById('won-prize-text').innerText = chosenPrize.text;
+                    document.getElementById('won-user-name').innerText = clienteMesa.nombre;
+                    document.getElementById('won-mesa').innerText = currentMesaNum;
+                    document.getElementById('roulette-result').classList.remove('hidden');
+                    document.getElementById('client-logged-badge').innerText = `👤 ${clienteMesa.nombre}`;
+                    document.getElementById('client-logged-badge').classList.remove('hidden');
+                }, 4000);
 
             } catch (err) {
-                console.error("Error al sincronizar con Supabase:", err);
+                console.error("Error al validar ruleta en Supabase:", err);
+                alert("Ocurrió un error al validar tu premio. Inténtalo de nuevo.");
             }
-
-            setTimeout(() => {
-                document.getElementById('roulette-form').classList.add('hidden');
-                document.getElementById('won-prize-text').innerText = chosenPrize.text;
-                document.getElementById('won-user-name').innerText = name;
-                document.getElementById('won-mesa').innerText = currentMesaNum || 'N/A';
-                document.getElementById('roulette-result').classList.remove('hidden');
-                document.getElementById('client-logged-badge').innerText = `👤 ${name}`;
-                document.getElementById('client-logged-badge').classList.remove('hidden');
-            }, 4000);
         }
 
         async function fetchBcvRate() {
