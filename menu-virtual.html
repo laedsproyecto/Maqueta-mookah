@@ -13,8 +13,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <style>
-        #roulette-canvas {
+        #roulette-svg {
             transition: transform 4s cubic-bezier(0.15, 0.9, 0.15, 1);
+            transform-origin: center center;
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -116,7 +117,7 @@
         </div>
     </div>
 
-    <!-- MODAL RULETA DE PREMIOS MEJORADA VISUALMENTE -->
+    <!-- MODAL RULETA TIPO PIZZA ILUSTRADA CON SVG -->
     <div id="roulette-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
         <div class="bg-gray-900 border border-indigo-500/50 rounded-2xl p-5 w-full max-w-sm text-center shadow-2xl relative">
             <button onclick="closeRouletteModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white"><i class="fa-solid fa-times text-base"></i></button>
@@ -126,12 +127,33 @@
                 <p class="text-[11px] text-gray-300">Regístrate para girar y acumular tus visitas en nuestra base de datos.</p>
             </div>
 
-            <!-- RUEDA CANVAS CON SECTORES TIPO PIZZA -->
-            <div class="relative w-60 h-60 mx-auto my-2 flex items-center justify-center">
-                <!-- Indicador de Flecha Superior -->
-                <div class="absolute -top-3 z-20 text-amber-400 text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">▼</div>
-                <!-- Canvas de la Ruleta -->
-                <canvas id="roulette-canvas" width="240" height="240" class="rounded-full shadow-2xl border-4 border-amber-400"></canvas>
+            <!-- CONTENEDOR DE RULETA CON SECTORES DE COLORES TIPO PIZZA -->
+            <div class="relative w-64 h-64 mx-auto my-2 flex items-center justify-center">
+                <!-- Flecha indicadora superior -->
+                <div class="absolute -top-3 z-30 text-amber-400 text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">▼</div>
+
+                <!-- SVG Rueda de Ruleta Vectorial -->
+                <svg id="roulette-svg" viewBox="0 0 200 200" class="w-full h-full rounded-full border-4 border-amber-400 shadow-2xl">
+                    <!-- Sector 1: Postre Gratis (Púrpura) -->
+                    <path d="M100,100 L100,0 A100,100 0 0,1 200,100 Z" fill="#312e81" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="145" y="45" fill="#a5b4fc" font-size="9" font-weight="bold" transform="rotate(45, 145, 45)">🍨 Postre</text>
+
+                    <!-- Sector 2: Bebida Gratis (Verde) -->
+                    <path d="M100,100 L200,100 A100,100 0 0,1 100,200 Z" fill="#064e3b" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="145" y="155" fill="#6ee7b7" font-size="9" font-weight="bold" transform="rotate(135, 145, 155)">🍹 Bebida</text>
+
+                    <!-- Sector 3: Roll Gratis (Marrón / Dorado) -->
+                    <path d="M100,100 L100,200 A100,100 0 0,1 0,100 Z" fill="#78350f" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="55" y="155" fill="#fde047" font-size="9" font-weight="bold" transform="rotate(225, 55, 155)">🍣 Roll</text>
+
+                    <!-- Sector 4: 15% OFF (Rosado) -->
+                    <path d="M100,100 L0,100 A100,100 0 0,1 100,0 Z" fill="#831843" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="55" y="45" fill="#f472b6" font-size="9" font-weight="bold" transform="rotate(315, 55, 45)">🎟️ 15% OFF</text>
+
+                    <!-- Centro Dorado de la Ruleta -->
+                    <circle cx="100" cy="100" r="20" fill="#f59e0b" stroke="#1e1b4b" stroke-width="3"/>
+                    <circle cx="100" cy="100" r="8" fill="#1e1b4b"/>
+                </svg>
             </div>
 
             <!-- FORMULARIO DE REGISTRO -->
@@ -194,10 +216,10 @@
         let currentRotation = 0;
 
         const prizes = [
-            { id: 0, text: "🍨 Postre Gratis", color: "#1e1b4b", textColor: "#6366f1" },
-            { id: 1, text: "🍹 Bebida Gratis", color: "#064e3b", textColor: "#34d399" },
-            { id: 2, text: "🍣 Roll Gratis", color: "#78350f", textColor: "#fbbf24" },
-            { id: 3, text: "🎟️ 15% OFF", color: "#831843", textColor: "#f472b6" }
+            { text: "🍨 Postre Gratis", angleTarget: 315 },
+            { text: "🍹 Bebida Gratis", angleTarget: 225 },
+            { text: "🍣 Roll Gratis", angleTarget: 135 },
+            { text: "🎟️ 15% OFF", angleTarget: 45 }
         ];
 
         const menuCatalog = [
@@ -255,338 +277,4 @@
             { id: 605, nombre: "Mojito Tradicional", categoria: "bebidas", precio: 7.00, ingredientes: ["Ron Blanco", "Hierbabuena", "Limón", "Soda", "Azúcar"] },
             { id: 606, nombre: "Margarita Mookah", categoria: "bebidas", precio: 8.00, ingredientes: ["Tequila", "Triple Sec", "Jugo de Limón", "Sal en borde"] },
 
-            { id: 501, nombre: "Crumble de Manzana", categoria: "postres", precio: 12.00, ingredientes: ["Manzanas en almíbar y canela", "Tierra de galleta", "Crema caramelo", "Helado de vainilla"] },
-            { id: 502, nombre: "Cheesecake", categoria: "postres", precio: 9.00, ingredientes: ["Queso crema", "Fresas", "Mermelada de mora y fresa"] },
-            { id: 503, nombre: "Crepe de Nutella", categoria: "postres", precio: 11.00, ingredientes: ["Masa de crepe", "Nutella"] },
-            { id: 504, nombre: "Volcán de Chocolate", categoria: "postres", precio: 12.00, ingredientes: ["Brownie relleno de chocolate", "Helado", "Dulce de leche"] }
-        ];
-
-        window.onload = async () => {
-            drawCanvasWheel();
-            const urlParams = new URLSearchParams(window.location.search);
-            currentMesaNum = urlParams.get('mesa');
-            const isAdmin = urlParams.get('admin');
-
-            if (isAdmin) { renderQrAdminPanel(); return; }
-
-            if (currentMesaNum) {
-                document.getElementById('table-number-text').innerText = `Mesa 0${currentMesaNum}`;
-                document.getElementById('table-badge').classList.remove('hidden');
-                
-                if (!sessionStorage.getItem('mookah_client_phone')) {
-                    setTimeout(() => openRouletteModal(), 600);
-                } else {
-                    const savedName = sessionStorage.getItem('mookah_client_name');
-                    document.getElementById('client-logged-badge').innerText = `👤 ${savedName}`;
-                    document.getElementById('client-logged-badge').classList.remove('hidden');
-                }
-            }
-
-            await fetchBcvRate();
-            await loadAgotadosFromSupabase();
-
-            supabaseClient
-                .channel('public:platos_agotados')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'platos_agotados' }, () => {
-                    loadAgotadosFromSupabase(true);
-                })
-                .subscribe();
-
-            filterPublicCategory('all');
-        };
-
-        // --- DIBUJAR RULETA TIPO PIZZA EN CANVAS ---
-        function drawCanvasWheel() {
-            const canvas = document.getElementById('roulette-canvas');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            const numSlices = prizes.length;
-            const sliceAngle = (2 * Math.PI) / numSlices;
-            const center = canvas.width / 2;
-            const radius = center - 5;
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            prizes.forEach((prize, i) => {
-                const angle = i * sliceAngle;
-                
-                // Sector / Slice de Pizza
-                ctx.beginPath();
-                ctx.fillStyle = prize.color;
-                ctx.moveTo(center, center);
-                ctx.arc(center, center, radius, angle, angle + sliceAngle);
-                ctx.closePath();
-                ctx.fill();
-
-                // Borde divisor del sector
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = '#f59e0b';
-                ctx.stroke();
-
-                // Texto rotado apuntando al centro
-                ctx.save();
-                ctx.translate(center, center);
-                ctx.rotate(angle + sliceAngle / 2);
-                ctx.textAlign = "right";
-                ctx.fillStyle = prize.textColor;
-                ctx.font = "bold 12px sans-serif";
-                ctx.fillText(prize.text, radius - 15, 4);
-                ctx.restore();
-            });
-
-            // Círculo Central Dorado
-            ctx.beginPath();
-            ctx.arc(center, center, 22, 0, 2 * Math.PI);
-            ctx.fillStyle = '#f59e0b';
-            ctx.fill();
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#1e1b4b';
-            ctx.stroke();
-
-            // Estrella / Ícono central
-            ctx.fillStyle = '#090d16';
-            ctx.font = "bold 12px sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillText("★", center, center + 4);
-        }
-
-        // --- CALCULADORA DE PEDIDOS ---
-        function addToCalc(itemId) {
-            const item = menuCatalog.find(i => i.id === itemId);
-            const found = calcCart.find(c => c.id === itemId);
-            if (found) found.qty++;
-            else calcCart.push({ ...item, qty: 1 });
-            updateCalcUI();
-        }
-
-        function updateCalcQty(itemId, delta) {
-            const index = calcCart.findIndex(c => c.id === itemId);
-            if (index > -1) {
-                calcCart[index].qty += delta;
-                if (calcCart[index].qty <= 0) calcCart.splice(index, 1);
-            }
-            updateCalcUI();
-            renderCalcDetailList();
-        }
-
-        function clearCalculator() { calcCart = []; updateCalcUI(); toggleCalcDetailModal(); }
-
-        function updateCalcUI() {
-            let totalUsd = 0, totalItems = 0;
-            calcCart.forEach(c => { totalUsd += c.precio * c.qty; totalItems += c.qty; });
-            let totalVes = totalUsd * bcvRate;
-
-            document.getElementById('calc-total-usd').innerText = `$${totalUsd.toFixed(2)}`;
-            document.getElementById('calc-total-ves').innerText = `Bs. ${totalVes.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            document.getElementById('calc-count').innerText = totalItems;
-            document.getElementById('modal-calc-total-usd').innerText = `$${totalUsd.toFixed(2)}`;
-            document.getElementById('modal-calc-total-ves').innerText = `Bs. ${totalVes.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        }
-
-        function toggleCalcDetailModal() {
-            const modal = document.getElementById('calc-detail-modal');
-            modal.classList.toggle('hidden');
-            if (!modal.classList.contains('hidden')) renderCalcDetailList();
-        }
-
-        function renderCalcDetailList() {
-            const container = document.getElementById('calc-items-list');
-            if (calcCart.length === 0) {
-                container.innerHTML = `<p class="text-center text-gray-500 italic py-6 text-xs">Tu calculadora está vacía.</p>`;
-                return;
-            }
-            container.innerHTML = calcCart.map(c => `
-                <div class="flex justify-between items-center bg-gray-950 p-2.5 rounded-lg border border-gray-800 text-xs">
-                    <div>
-                        <span class="font-bold text-white block">${c.nombre}</span>
-                        <span class="text-[10px] text-emerald-400 font-bold">$${(c.precio * c.qty).toFixed(2)}</span>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <button onclick="updateCalcQty(${c.id}, -1)" class="w-6 h-6 bg-gray-800 text-gray-300 rounded font-bold">-</button>
-                        <span class="font-bold text-white text-xs">${c.qty}</span>
-                        <button onclick="updateCalcQty(${c.id}, 1)" class="w-6 h-6 bg-indigo-600 text-white rounded font-bold">+</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // --- RULETA Y VINCULACIÓN EN SUPABASE ---
-        function openRouletteModal() { document.getElementById('roulette-modal').classList.remove('hidden'); }
-        function closeRouletteModal() { document.getElementById('roulette-modal').classList.add('hidden'); }
-
-        async function handleSpin(e) {
-            e.preventDefault();
-            const name = document.getElementById('user-name').value.trim();
-            const phone = document.getElementById('user-phone').value.trim();
-
-            if (!name || !phone) { alert("Por favor ingresa nombre y teléfono."); return; }
-
-            const btnSpin = document.getElementById('btn-spin');
-            btnSpin.disabled = true;
-            btnSpin.innerText = "Girando...";
-
-            const winnerIndex = Math.floor(Math.random() * prizes.length);
-            const chosenPrize = prizes[winnerIndex];
-
-            // Cálculo del ángulo exacto para detener el sector elegido bajo el puntero superior (-90deg)
-            const numSlices = prizes.length;
-            const sliceDeg = 360 / numSlices;
-            const targetDeg = (360 - (winnerIndex * sliceDeg) - (sliceDeg / 2) - 90);
-            
-            // Giro limpio acumilativo
-            currentRotation += (360 * 5) + targetDeg - (currentRotation % 360);
-            const canvas = document.getElementById('roulette-canvas');
-            canvas.style.transform = `rotate(${currentRotation}deg)`;
-
-            try {
-                // 1. Guardar cliente y sumar +1 visita
-                const { data: existingClient } = await supabaseClient.from('clientes').select('visitas_totales').eq('telefono', phone).maybeSingle();
-                const nuevasVisitas = existingClient ? (existingClient.visitas_totales + 1) : 1;
-
-                await supabaseClient.from('clientes').upsert([{
-                    telefono: phone,
-                    nombre: name,
-                    visitas_totales: nuevasVisitas
-                }], { onConflict: 'telefono' });
-
-                // 2. Registrar el premio obtenido
-                await supabaseClient.from('premios_ruleta').insert([{
-                    telefono_cliente: phone,
-                    nombre_cliente: name,
-                    mesa_numero: currentMesaNum ? parseInt(currentMesaNum) : null,
-                    premio_ganado: chosenPrize.text,
-                    estado: 'pendiente'
-                }]);
-
-                // 3. Registrar la sesión activa de la mesa
-                if (currentMesaNum) {
-                    await supabaseClient.from('sesiones_mesa').insert([{
-                        mesa_numero: parseInt(currentMesaNum),
-                        telefono_cliente: phone,
-                        nombre_cliente: name,
-                        activa: true
-                    }]);
-                }
-
-                sessionStorage.setItem('mookah_client_phone', phone);
-                sessionStorage.setItem('mookah_client_name', name);
-
-            } catch (err) {
-                console.error("Error al sincronizar con Supabase:", err);
-            }
-
-            setTimeout(() => {
-                document.getElementById('roulette-form').classList.add('hidden');
-                document.getElementById('won-prize-text').innerText = chosenPrize.text;
-                document.getElementById('won-user-name').innerText = name;
-                document.getElementById('won-mesa').innerText = currentMesaNum || 'N/A';
-                document.getElementById('roulette-result').classList.remove('hidden');
-                document.getElementById('client-logged-badge').innerText = `👤 ${name}`;
-                document.getElementById('client-logged-badge').classList.remove('hidden');
-            }, 4000);
-        }
-
-        // --- RENDER Y FILTROS ---
-        async function fetchBcvRate() {
-            try {
-                const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && data.promedio) bcvRate = parseFloat(data.promedio);
-                }
-            } catch (err) {}
-            document.getElementById('public-bcv-rate').innerText = `Bs. ${bcvRate.toLocaleString('es-VE', {minimumFractionDigits: 2})}`;
-        }
-
-        async function loadAgotadosFromSupabase() {
-            try {
-                const { data, error } = await supabaseClient.from('platos_agotados').select('item_id');
-                if (!error && data) {
-                    agotados86List = data.map(d => d.item_id);
-                    refreshCurrentPublicView();
-                }
-            } catch (err) {}
-        }
-
-        function refreshCurrentPublicView() {
-            const searchVal = document.getElementById('public-search').value.toLowerCase().trim();
-            if (searchVal) filterPublicMenu(searchVal);
-            else {
-                const activeBtn = document.querySelector('button.bg-indigo-600');
-                const cat = activeBtn ? activeBtn.id.replace('pcat-', '') : 'all';
-                filterPublicCategory(cat);
-            }
-        }
-
-        function filterPublicCategory(category) {
-            const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'bebidas', 'postres'];
-            categories.forEach(cat => {
-                const btn = document.getElementById(`pcat-${cat}`);
-                if (btn) btn.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap " + (cat === category ? "bg-indigo-600 text-white" : "bg-gray-900 text-gray-400 border border-gray-800");
-            });
-            document.getElementById('public-search').value = '';
-            renderPublicItems(category === 'all' ? menuCatalog : menuCatalog.filter(i => i.categoria === category));
-        }
-
-        function filterPublicMenu(query) {
-            const q = query.toLowerCase().trim();
-            if (!q) { filterPublicCategory('all'); return; }
-            renderPublicItems(menuCatalog.filter(i => i.nombre.toLowerCase().includes(q) || i.ingredientes.some(ing => ing.toLowerCase().includes(q))));
-        }
-
-        function renderPublicItems(items) {
-            const container = document.getElementById('public-menu-grid');
-            if (items.length === 0) {
-                container.innerHTML = `<p class="text-center text-gray-500 italic py-12 text-xs">No se encontraron platos.</p>`;
-                return;
-            }
-
-            container.innerHTML = items.map(i => {
-                const isAgotado = agotados86List.includes(i.id);
-                const precioBs = i.precio * bcvRate;
-
-                return `
-                    <div class="bg-gray-900 border ${isAgotado ? 'border-red-900/50 bg-red-950/10 opacity-75' : 'border-gray-800'} rounded-xl p-3.5 flex justify-between items-center shadow-sm">
-                        <div class="flex-1 pr-3">
-                            <div class="flex items-center space-x-2">
-                                <h3 class="font-bold text-xs ${isAgotado ? 'text-red-300 line-through' : 'text-white'}">${i.nombre}</h3>
-                                ${isAgotado ? '<span class="bg-red-600 text-white text-[8px] px-1.5 py-0.5 rounded font-extrabold uppercase">Agotado</span>' : ''}
-                            </div>
-                            <p class="text-[10px] text-gray-400 mt-1 line-clamp-2">${i.ingredientes.join(', ')}</p>
-                        </div>
-                        <div class="text-right flex flex-col items-end">
-                            <span class="font-bold text-sm ${isAgotado ? 'text-gray-500' : 'text-indigo-400'} block">$${i.precio.toFixed(2)}</span>
-                            <span class="text-[10px] text-gray-400 font-mono block">Bs. ${precioBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                            ${!isAgotado ? `
-                                <button onclick="addToCalc(${i.id})" class="mt-1.5 bg-indigo-950 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-700/50 text-[10px] px-2 py-0.5 rounded-lg font-bold transition">
-                                    + Calcular
-                                </button>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function renderQrAdminPanel() {
-            const panel = document.getElementById('qr-admin-panel');
-            const grid = document.getElementById('qr-grid');
-            panel.classList.remove('hidden');
-            const baseUrl = window.location.origin + window.location.pathname;
-            const mesas = [1, 2, 3, 4, 5, 6];
-
-            grid.innerHTML = mesas.map(m => `
-                <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center space-y-3">
-                    <span class="font-bold text-sm text-white block">Mesa 0${m}</span>
-                    <div id="qr-container-${m}" class="flex justify-center bg-white p-3 rounded-lg w-fit mx-auto"></div>
-                    <p class="text-[10px] text-gray-400 font-mono break-all">${baseUrl}?mesa=${m}</p>
-                </div>
-            `).join('');
-
-            mesas.forEach(m => {
-                new QRCode(document.getElementById(`qr-container-${m}`), { text: `${baseUrl}?mesa=${m}`, width: 130, height: 130 });
-            });
-        }
-    </script>
-</body>
-</html>
+            { id:
