@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menú Digital - Mookah</title>
+    <title>Menú Virtual & Experiencia - Mookah</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- SDK Oficial de Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Librería para generar códigos QR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body class="bg-gray-950 text-gray-100 font-sans min-h-screen flex flex-col">
 
@@ -18,27 +20,37 @@
             <i class="fa-solid fa-utensils text-indigo-400 text-lg"></i>
             <h1 class="font-bold text-base tracking-wide text-white">Mookah</h1>
         </div>
-        <div class="flex items-center space-x-2 bg-gray-950 px-2.5 py-1 rounded-lg border border-emerald-500/30 text-[11px]">
-            <i class="fa-solid fa-money-bill-transfer text-emerald-400"></i>
-            <span class="text-gray-400">BCV:</span>
-            <span id="public-bcv-rate" class="font-mono font-bold text-emerald-300">Cargando...</span>
+        <div class="flex items-center space-x-2">
+            <button onclick="triggerScratchGame()" class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs px-2.5 py-1 rounded-lg font-bold flex items-center space-x-1 animate-pulse">
+                <i class="fa-solid fa-gift"></i>
+                <span>Premios</span>
+            </button>
+            <div class="flex items-center space-x-1 bg-gray-950 px-2 py-1 rounded-lg border border-emerald-500/30 text-[11px]">
+                <i class="fa-solid fa-money-bill-transfer text-emerald-400"></i>
+                <span id="public-bcv-rate" class="font-mono font-bold text-emerald-300">Cargando...</span>
+            </div>
         </div>
     </header>
 
-    <!-- BARRA DE BÚSQUEDA Y TÍTULO DE MESA (Si se pasa por URL ej: ?mesa=1) -->
+    <!-- BANNER DE BIENVENIDA O MESA -->
     <div class="px-4 pt-4 pb-2">
-        <div id="table-badge" class="mb-3 bg-indigo-950/60 border border-indigo-800 text-indigo-300 text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center justify-between hidden">
-            <span><i class="fa-solid fa-chair mr-1.5"></i> Estás viendo el menú para la <strong id="table-number-text">Mesa</strong></span>
-            <span class="text-[10px] text-indigo-400">Asistencia en mesa</span>
+        <div id="table-badge" class="mb-3 bg-indigo-950/80 border border-indigo-700 text-indigo-200 text-xs px-3.5 py-2 rounded-xl font-semibold flex items-center justify-between shadow">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-chair text-indigo-400 text-sm"></i>
+                <span>Estás en la <strong id="table-number-text" class="text-white font-bold">Mesa</strong></span>
+            </div>
+            <button onclick="triggerScratchGame()" class="bg-indigo-600 text-white text-[10px] px-2.5 py-1 rounded-lg font-bold">
+                🎰 Probar Suerte
+            </button>
         </div>
 
         <div class="relative">
-            <input type="text" id="public-search" oninput="filterPublicMenu(this.value)" placeholder="Busca un rol, entrada, bebida..." class="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+            <input type="text" id="public-search" oninput="filterPublicMenu(this.value)" placeholder="Busca un roll, entrada, bebida..." class="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
             <i class="fa-solid fa-search absolute left-3 top-3 text-gray-500 text-xs"></i>
         </div>
     </div>
 
-    <!-- BOTONES DE CATEGORÍA DESLIZABLES -->
+    <!-- CATEGORÍAS DESLIZABLES -->
     <div class="flex space-x-2 overflow-x-auto px-4 py-2 border-b border-gray-900 no-scrollbar">
         <button onclick="filterPublicCategory('all')" id="pcat-all" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap bg-indigo-600 text-white">Todos</button>
         <button onclick="filterPublicCategory('entradas')" id="pcat-entradas" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap bg-gray-900 text-gray-400 border border-gray-800">Entradas</button>
@@ -49,20 +61,56 @@
         <button onclick="filterPublicCategory('postres')" id="pcat-postres" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap bg-gray-900 text-gray-400 border border-gray-800">Postres</button>
     </div>
 
-    <!-- CONTENEDOR DE ÍTEMS DEL MENÚ -->
+    <!-- CONTENEDOR DE PRODUCTOS -->
     <main class="flex-1 p-4 overflow-y-auto">
-        <div id="public-menu-grid" class="grid grid-cols-1 gap-3 max-w-lg mx-auto">
-            <!-- Los ítems se inyectan dinámicamente -->
-        </div>
+        <div id="public-menu-grid" class="grid grid-cols-1 gap-3 max-w-lg mx-auto"></div>
     </main>
 
-    <!-- FOOTER INFORMATIVO -->
+    <!-- MODAL DE GAMIFICACIÓN "RASPA Y GANA" -->
+    <div id="game-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-gray-900 border border-indigo-500/50 rounded-2xl p-6 w-full max-w-sm text-center shadow-2xl relative">
+            <button onclick="closeGameModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white"><i class="fa-solid fa-times text-base"></i></button>
+            <div class="mb-4">
+                <i class="fa-solid fa-gift text-4xl text-amber-400 animate-bounce"></i>
+                <h3 class="text-lg font-extrabold text-white mt-2">¡Bienvenido a Mookah!</h3>
+                <p class="text-xs text-gray-300">Toca para descubrir tu premio sorpresa de hoy.</p>
+            </div>
+
+            <div id="scratch-area" class="bg-gray-800 border-2 border-dashed border-amber-400/60 rounded-xl p-6 mb-4 cursor-pointer hover:bg-gray-750 transition flex flex-col items-center justify-center min-h-[110px]">
+                <span id="scratch-prompt" class="text-xs font-bold text-amber-300 uppercase"><i class="fa-solid fa-hand-pointer mr-1"></i> ¡Toca aquí para revelar tu premio!</span>
+                <div id="scratch-result" class="hidden">
+                    <span class="text-2xl font-black text-emerald-400 block" id="reward-title">🎁 10% OFF</span>
+                    <span class="text-[10px] text-gray-300 mt-1 block">Muéstrale este resultado a tu mesero al hacer el pedido</span>
+                </div>
+            </div>
+
+            <button onclick="claimReward()" id="btn-claim" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs shadow hidden">
+                ¡Guardar mi Premio!
+            </button>
+        </div>
+    </div>
+
+    <!-- PANEL DE ADMINISTRACIÓN DE CÓDIGOS QR (SE ACTIVA CON ?admin=true) -->
+    <div id="qr-admin-panel" class="fixed inset-0 bg-gray-950 z-50 overflow-y-auto p-6 hidden">
+        <div class="max-w-4xl mx-auto space-y-6">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-white"><i class="fa-solid fa-qrcode text-indigo-400 mr-2"></i>Generador de Códigos QR para Mesas</h2>
+                    <p class="text-xs text-gray-400">Imprime estos códigos para colocar en las mesas.</p>
+                </div>
+                <button onclick="window.print()" class="bg-indigo-600 text-white text-xs px-4 py-2 rounded-lg font-bold">
+                    <i class="fa-solid fa-print mr-1"></i> Imprimir Todos
+                </button>
+            </div>
+            <div id="qr-grid" class="grid grid-cols-2 md:grid-cols-3 gap-6"></div>
+        </div>
+    </div>
+
     <footer class="bg-gray-900 border-t border-gray-800 text-center py-3 px-4 text-[11px] text-gray-500">
-        <p>¿Listo para ordenar? Acércate a tu mesero o solicítale asistencia en mesa.</p>
+        <p>¿Listo para ordenar? Comunícale tu pedido directamente a tu mesero.</p>
         <p class="text-indigo-400 font-semibold mt-0.5">RestoControl POS & KDS • Mookah</p>
     </footer>
 
-    <!-- SCRIPT DE CONEXIÓN Y RENDERIZADO -->
     <script>
         const CONFIG = {
             SUPABASE_URL: "https://jicqtlwcohteewobicol.supabase.co",
@@ -73,7 +121,6 @@
         let bcvRate = 884.75;
         let agotados86List = [];
 
-        // Catálogo idéntico sincronizado con el POS
         const menuCatalog = [
             { id: 101, nombre: "Edamames", categoria: "entradas", precio: 8.00, ingredientes: ["Edamames", "Sal"] },
             { id: 102, nombre: "Edamames Salteados", categoria: "entradas", precio: 9.00, ingredientes: ["Edamames", "Salsa especial", "Sal"] },
@@ -136,18 +183,27 @@
         ];
 
         window.onload = async () => {
-            // Detectar si se abrió escaneando una mesa específica ej: menu.html?mesa=3
             const urlParams = new URLSearchParams(window.location.search);
             const mesaNum = urlParams.get('mesa');
+            const isAdmin = urlParams.get('admin');
+
+            if (isAdmin) {
+                renderQrAdminPanel();
+                return;
+            }
+
             if (mesaNum) {
-                document.getElementById('table-number-text').innerText = `Mesa ${mesaNum}`;
+                document.getElementById('table-number-text').innerText = `Mesa 0${mesaNum}`;
                 document.getElementById('table-badge').classList.remove('hidden');
+                
+                if (!sessionStorage.getItem('mookah_game_played')) {
+                    setTimeout(() => triggerScratchGame(), 800);
+                }
             }
 
             await fetchBcvRate();
             await loadAgotadosFromSupabase();
-            
-            // Tiempo real para sincronizar si un plato se agota mientras el cliente lo mira
+
             supabaseClient
                 .channel('public:platos_agotados')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'platos_agotados' }, () => {
@@ -157,6 +213,58 @@
 
             filterPublicCategory('all');
         };
+
+        function triggerScratchGame() {
+            document.getElementById('scratch-prompt').classList.remove('hidden');
+            document.getElementById('scratch-result').classList.add('hidden');
+            document.getElementById('btn-claim').classList.add('hidden');
+            
+            const scratchArea = document.getElementById('scratch-area');
+            scratchArea.onclick = () => {
+                const premios = ["🍹 Bebida Gratis", "🍨 Postre Gratis", "🎟️ 10% Descuento", "🍣 Roll de Regalo"];
+                const ganado = premios[Math.floor(Math.random() * premios.length)];
+                
+                document.getElementById('scratch-prompt').classList.add('hidden');
+                document.getElementById('reward-title').innerText = ganado;
+                document.getElementById('scratch-result').classList.remove('hidden');
+                document.getElementById('btn-claim').classList.remove('hidden');
+                sessionStorage.setItem('mookah_game_played', 'true');
+                scratchArea.onclick = null;
+            };
+
+            document.getElementById('game-modal').classList.remove('hidden');
+        }
+
+        function closeGameModal() { document.getElementById('game-modal').classList.add('hidden'); }
+        function claimReward() {
+            alert("¡Premio registrado! Muéstrale tu pantalla a tu mesero al momento de ordenar.");
+            closeGameModal();
+        }
+
+        function renderQrAdminPanel() {
+            const panel = document.getElementById('qr-admin-panel');
+            const grid = document.getElementById('qr-grid');
+            panel.classList.remove('hidden');
+            
+            const baseUrl = window.location.origin + window.location.pathname;
+            const mesas = [1, 2, 3, 4, 5, 6];
+
+            grid.innerHTML = mesas.map(m => `
+                <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center space-y-3">
+                    <span class="font-bold text-sm text-white block">Mesa 0${m}</span>
+                    <div id="qr-container-${m}" class="flex justify-center bg-white p-3 rounded-lg w-fit mx-auto"></div>
+                    <p class="text-[10px] text-gray-400 font-mono break-all">${baseUrl}?mesa=${m}</p>
+                </div>
+            `).join('');
+
+            mesas.forEach(m => {
+                new QRCode(document.getElementById(`qr-container-${m}`), {
+                    text: `${baseUrl}?mesa=${m}`,
+                    width: 130,
+                    height: 130
+                });
+            });
+        }
 
         async function fetchBcvRate() {
             try {
@@ -181,9 +289,8 @@
 
         function refreshCurrentPublicView() {
             const searchVal = document.getElementById('public-search').value.toLowerCase().trim();
-            if (searchVal) {
-                filterPublicMenu(searchVal);
-            } else {
+            if (searchVal) filterPublicMenu(searchVal);
+            else {
                 const activeBtn = document.querySelector('button.bg-indigo-600');
                 const cat = activeBtn ? activeBtn.id.replace('pcat-', '') : 'all';
                 filterPublicCategory(cat);
@@ -194,31 +301,16 @@
             const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'bebidas', 'postres'];
             categories.forEach(cat => {
                 const btn = document.getElementById(`pcat-${cat}`);
-                if (btn) {
-                    if (cat === category) {
-                        btn.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap bg-indigo-600 text-white";
-                    } else {
-                        btn.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap bg-gray-900 text-gray-400 border border-gray-800";
-                    }
-                }
+                if (btn) btn.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap " + (cat === category ? "bg-indigo-600 text-white" : "bg-gray-900 text-gray-400 border border-gray-800");
             });
-
             document.getElementById('public-search').value = '';
             renderPublicItems(category === 'all' ? menuCatalog : menuCatalog.filter(i => i.categoria === category));
         }
 
         function filterPublicMenu(query) {
             const q = query.toLowerCase().trim();
-            if (!q) {
-                filterPublicCategory('all');
-                return;
-            }
-            const matched = menuCatalog.filter(i => 
-                i.nombre.toLowerCase().includes(q) || 
-                i.ingredientes.some(ing => ing.toLowerCase().includes(q)) ||
-                i.categoria.toLowerCase().includes(q)
-            );
-            renderPublicItems(matched);
+            if (!q) { filterPublicCategory('all'); return; }
+            renderPublicItems(menuCatalog.filter(i => i.nombre.toLowerCase().includes(q) || i.ingredientes.some(ing => ing.toLowerCase().includes(q))));
         }
 
         function renderPublicItems(items) {
@@ -231,7 +323,6 @@
             container.innerHTML = items.map(i => {
                 const isAgotado = agotados86List.includes(i.id);
                 const precioBs = i.precio * bcvRate;
-
                 return `
                     <div class="bg-gray-900 border ${isAgotado ? 'border-red-900/50 bg-red-950/10 opacity-75' : 'border-gray-800'} rounded-xl p-3.5 flex justify-between items-center shadow-sm">
                         <div class="flex-1 pr-3">
