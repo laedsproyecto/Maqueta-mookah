@@ -13,7 +13,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <style>
-        #roulette-wheel { transition: transform 4s cubic-bezier(0.15, 0.9, 0.15, 1); }
+        /* Gradiente cónico para simular los porciones tipo pizza de la ruleta */
+        .pizza-wheel {
+            background: conic-gradient(
+                #312e81 0deg 90deg,    /* Postre Gratis (Índigo) */
+                #064e3b 90deg 180deg,   /* Bebida Gratis (Verde) */
+                #78350f 180deg 270deg,  /* Roll Gratis (Marrón) */
+                #831843 270deg 360deg   /* 15% OFF (Rosa) */
+            );
+            transition: transform 4s cubic-bezier(0.15, 0.9, 0.15, 1);
+        }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -114,7 +123,7 @@
         </div>
     </div>
 
-    <!-- MODAL RULETA DE PREMIOS -->
+    <!-- MODAL RULETA DE PREMIOS (DISEÑO PIZZA MEJORADO) -->
     <div id="roulette-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
         <div class="bg-gray-900 border border-indigo-500/50 rounded-2xl p-5 w-full max-w-sm text-center shadow-2xl relative">
             <button onclick="closeRouletteModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white"><i class="fa-solid fa-times text-base"></i></button>
@@ -124,18 +133,26 @@
                 <p class="text-[11px] text-gray-300">Regístrate para girar y acumular tus visitas en nuestra base de datos.</p>
             </div>
 
-            <div class="relative w-52 h-52 mx-auto my-3 flex items-center justify-center">
-                <div class="absolute -top-2 z-20 text-amber-400 text-2xl drop-shadow">▼</div>
-                <div id="roulette-wheel" class="w-full h-full rounded-full border-4 border-amber-400 bg-gray-800 shadow-xl overflow-hidden relative flex items-center justify-center">
-                    <div class="absolute inset-0 flex items-center justify-center font-black text-[10px] text-white">
-                        <span class="absolute top-4 text-emerald-400 font-bold">🍨 Postre Gratis</span>
-                        <span class="absolute right-2 text-indigo-300 font-bold">🍹 Bebida Gratis</span>
-                        <span class="absolute bottom-4 text-amber-300 font-bold">🍣 Roll Gratis</span>
-                        <span class="absolute left-2 text-red-400 font-bold">🎟️ 15% OFF</span>
+            <!-- RULETA TIPO PIZZA CON PORCIONES VISUALES -->
+            <div class="relative w-56 h-56 mx-auto my-3 flex items-center justify-center">
+                <!-- Flecha superior indicadora -->
+                <div class="absolute -top-3 z-30 text-amber-400 text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">▼</div>
+                
+                <!-- Círculo Giratorio Estilo Pizza -->
+                <div id="pizza-wheel" class="pizza-wheel w-full h-full rounded-full border-4 border-amber-400 shadow-2xl relative overflow-hidden flex items-center justify-center">
+                    <!-- Textos fijos en cada porción de la pizza -->
+                    <span class="absolute top-4 text-indigo-200 font-bold text-[10px] drop-shadow">🍨 Postre</span>
+                    <span class="absolute right-3 text-emerald-200 font-bold text-[10px] drop-shadow">🍹 Bebida</span>
+                    <span class="absolute bottom-4 text-amber-200 font-bold text-[10px] drop-shadow">🍣 Roll</span>
+                    <span class="absolute left-3 text-pink-200 font-bold text-[10px] drop-shadow">🎟️ 15% OFF</span>
+                    <!-- Centro de la ruleta -->
+                    <div class="w-8 h-8 rounded-full bg-amber-400 border-2 border-gray-900 z-20 flex items-center justify-center shadow">
+                        <i class="fa-solid fa-star text-[10px] text-gray-950"></i>
                     </div>
                 </div>
             </div>
 
+            <!-- FORMULARIO DE REGISTRO -->
             <form id="roulette-form" onsubmit="handleSpin(event)" class="space-y-2.5 text-left mt-2">
                 <div>
                     <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Nombre y Apellido</label>
@@ -150,14 +167,21 @@
                 </button>
             </form>
 
+            <!-- RESULTADO Y AVISO AL MESERO -->
             <div id="roulette-result" class="hidden mt-3 space-y-3">
-                <div class="bg-gray-950 border border-emerald-500/50 p-4 rounded-xl">
-                    <span class="text-[10px] uppercase font-bold text-gray-400 block">¡Premio Único Obtenido!</span>
+                <div class="bg-gray-950 border border-emerald-500/50 p-4 rounded-xl shadow-inner">
+                    <span class="text-[10px] uppercase font-bold text-gray-400 block">¡Premio Obtenido!</span>
                     <span id="won-prize-text" class="text-xl font-black text-emerald-400 block my-1">---</span>
-                    <p class="text-[10px] text-gray-300">Vinculado a <strong id="won-user-name" class="text-white"></strong> (Mesa <span id="won-mesa"></span>). ¡Ya sumaste una visita más en tu tarjeta digital!</p>
+                    <p class="text-[11px] text-gray-200 mt-1">
+                        Registrado a nombre de <strong id="won-user-name" class="text-white"></strong> (Mesa <span id="won-mesa"></span>).
+                    </p>
+                    <div class="mt-3 bg-indigo-950/95 border border-indigo-500 p-2.5 rounded-lg text-[11px] text-indigo-200 font-semibold flex items-center justify-center space-x-2 animate-pulse">
+                        <i class="fa-solid fa-bell text-amber-400 text-sm"></i>
+                        <span>Muéstrale esta pantalla a tu mesero para reclamar tu premio.</span>
+                    </div>
                 </div>
-                <button onclick="closeRouletteModal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs">
-                    ¡Ver Menú y Disfrutar!
+                <button onclick="closeRouletteModal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs shadow">
+                    ¡Entendido, ir al Menú!
                 </button>
             </div>
         </div>
@@ -185,6 +209,14 @@
         let agotados86List = [];
         let calcCart = []; 
         let currentMesaNum = null;
+        let currentRotation = 0;
+
+        const prizes = [
+            { text: "🍨 Postre Gratis", degTarget: 45 },    // Centro del sector 0-90deg
+            { text: "🍹 Bebida Gratis", degTarget: 135 },  // Centro del sector 90-180deg
+            { text: "🍣 Roll Gratis", degTarget: 225 },     // Centro del sector 180-270deg
+            { text: "🎟️ 15% OFF", degTarget: 315 }         // Centro del sector 270-360deg
+        ];
 
         const menuCatalog = [
             { id: 101, nombre: "Edamames", categoria: "entradas", precio: 8.00, ingredientes: ["Edamames", "Sal"] },
@@ -355,17 +387,17 @@
             btnSpin.disabled = true;
             btnSpin.innerText = "Girando...";
 
-            const wheel = document.getElementById('roulette-wheel');
-            const premios = [
-                { titulo: "🍨 Postre Gratis", deg: 1440 },
-                { titulo: "🍹 Bebida Gratis", deg: 1530 },
-                { titulo: "🍣 Roll Gratis", deg: 1620 },
-                { titulo: "🎟️ 15% OFF en tu Cuenta", deg: 1710 }
-            ];
-            const elegido = premios[Math.floor(Math.random() * premios.length)];
-            wheel.style.transform = `rotate(${elegido.deg}deg)`;
+            const chosenPrize = prizes[Math.floor(Math.random() * prizes.length)];
+
+            // Rotación fluida basada en grados calculados hacia la flecha superior
+            const targetDeg = 360 - chosenPrize.degTarget;
+            currentRotation += (360 * 5) + targetDeg - (currentRotation % 360);
+            
+            const wheel = document.getElementById('pizza-wheel');
+            wheel.style.transform = `rotate(${currentRotation}deg)`;
 
             try {
+                // 1. Guardar cliente y sumar +1 visita
                 const { data: existingClient } = await supabaseClient.from('clientes').select('visitas_totales').eq('telefono', phone).maybeSingle();
                 const nuevasVisitas = existingClient ? (existingClient.visitas_totales + 1) : 1;
 
@@ -375,14 +407,16 @@
                     visitas_totales: nuevasVisitas
                 }], { onConflict: 'telefono' });
 
+                // 2. Registrar el premio obtenido
                 await supabaseClient.from('premios_ruleta').insert([{
                     telefono_cliente: phone,
                     nombre_cliente: name,
                     mesa_numero: currentMesaNum ? parseInt(currentMesaNum) : null,
-                    premio_ganado: elegido.titulo,
+                    premio_ganado: chosenPrize.text,
                     estado: 'pendiente'
                 }]);
 
+                // 3. Registrar la sesión activa de la mesa
                 if (currentMesaNum) {
                     await supabaseClient.from('sesiones_mesa').insert([{
                         mesa_numero: parseInt(currentMesaNum),
@@ -401,7 +435,7 @@
 
             setTimeout(() => {
                 document.getElementById('roulette-form').classList.add('hidden');
-                document.getElementById('won-prize-text').innerText = elegido.titulo;
+                document.getElementById('won-prize-text').innerText = chosenPrize.text;
                 document.getElementById('won-user-name').innerText = name;
                 document.getElementById('won-mesa').innerText = currentMesaNum || 'N/A';
                 document.getElementById('roulette-result').classList.remove('hidden');
