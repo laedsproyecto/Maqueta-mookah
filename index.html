@@ -912,7 +912,7 @@
                             <span class="text-[10px] px-2 py-0.5 rounded bg-gray-900/60 uppercase font-semibold">${m.zona} • Cap: ${m.cap} pers.</span>
                         </div>
                         <div>
-                            ${m.cliente ? `<p class="text-xs font-semibold text-white truncate"><i class="fa-solid fa-user mr-1"></i>${m.cliente.nombre} ${m.cliente.apellido}</p>` : '<p class="text-[10px] text-emerald-400 font-medium">Libre</p>'}
+                            ${m.cliente ? `<p class="text-xs font-semibold text-white truncate"><i class="fa-solid fa-user mr-1"></i>${m.cliente.nombre} ${m.cliente.apellido} (${m.cliente.comensales} comensales)</p>` : '<p class="text-[10px] text-emerald-400 font-medium">Libre</p>'}
                         </div>
                         <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
                             <span class="${m.estado === 'disponible' ? 'text-emerald-400' : m.estado === 'ocupada' ? 'text-red-400' : 'text-amber-400'}">${m.estado}${timeText}</span>
@@ -1291,17 +1291,8 @@
             const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const itemCortesiaText = `🎁 CORTESÍA RULETA ($0.00): 1x ${itemSeleccionado.nombre} (${premioObj.premio_ganado})`;
             
-            if (!mesa.sessionOrders) mesa.sessionOrders = [];
-            mesa.sessionOrders.push({
-                hora: horaActual,
-                mesero: currentMeseroName,
-                items: itemCortesiaText,
-                nota: 'Premio Ruleta Verificado y Seleccionado',
-                totalTanda: 0,
-                entregado: false
-            });
-
-            await supabaseClient.from('kds_comandas').insert([{
+            // Insertar comanda en KDS para este premio
+            const { data: resKds } = await supabaseClient.from('kds_comandas').insert([{
                 mesa_numero: mesa.numero,
                 mesero: currentMeseroName,
                 destino: itemSeleccionado.destino,
@@ -1309,7 +1300,20 @@
                 nota: `Cortesía Ruleta Canjeada (${premioObj.premio_ganado})`,
                 estado: 'por_empezar',
                 creado_ms: Date.now()
-            }]);
+            }]).select();
+
+            const kdsIdGenerado = (resKds && resKds.length > 0) ? resKds[0].id : null;
+
+            if (!mesa.sessionOrders) mesa.sessionOrders = [];
+            mesa.sessionOrders.push({
+                hora: horaActual,
+                mesero: currentMeseroName,
+                items: itemCortesiaText,
+                nota: 'Premio Ruleta Verificado y Seleccionado',
+                totalTanda: 0,
+                entregado: false,
+                kdsIds: kdsIdGenerado ? [kdsIdGenerado] : []
+            });
 
             await syncMesaToSupabase(mesa);
             premioEnEsperaDeSeleccion = null;
@@ -1599,9 +1603,10 @@
 
                 const kitchenItems = currentOrder.filter(i => i.destino === 'cocina');
                 const barItems = currentOrder.filter(i => i.destino === 'barra');
+                let createdKdsIds = [];
 
                 if (kitchenItems.length > 0) {
-                    await supabaseClient.from('kds_comandas').insert([{
+                    const { data: resK } = await supabaseClient.from('kds_comandas').insert([{
                         mesa_numero: mesa.numero,
                         mesero: currentMeseroName,
                         destino: 'cocina',
@@ -1609,11 +1614,12 @@
                         nota: generalNote,
                         estado: 'por_empezar',
                         creado_ms: Date.now()
-                    }]);
+                    }]).select();
+                    if (resK && resK.length > 0) createdKdsIds.push(resK[0].id);
                 }
 
                 if (barItems.length > 0) {
-                    await supabaseClient.from('kds_comandas').insert([{
+                    const { data: resB } = await supabaseClient.from('kds_comandas').insert([{
                         mesa_numero: mesa.numero,
                         mesero: currentMeseroName,
                         destino: 'barra',
@@ -1621,7 +1627,8 @@
                         nota: generalNote,
                         estado: 'por_empezar',
                         creado_ms: Date.now()
-                    }]);
+                    }]).select();
+                    if (resB && resB.length > 0) createdKdsIds.push(resB[0].id);
                 }
 
                 if (!mesa.sessionOrders) mesa.sessionOrders = [];
@@ -1631,7 +1638,8 @@
                     items: itemsText,
                     nota: generalNote,
                     totalTanda: newOrderTotal,
-                    entregado: false
+                    entregado: false,
+                    kdsIds: createdKdsIds
                 });
 
                 await syncMesaToSupabase(mesa);
@@ -1711,18 +1719,19 @@
             await supabaseClient.from('kds_comandas').update({ estado: newStatus }).eq('id', orderId);
             
             if (newStatus === 'despachado') {
-                const comanda = kdsOrders.find(o => o.id === orderId);
-                if (comanda) {
-                    const numMesaStr = comanda.mesa_numero; // Ej: "Mesa 02"
-                    const mesaLocal = mesas.find(m => m.numero.toLowerCase() === numMesaStr.toLowerCase());
-                    if (mesaLocal && mesaLocal.sessionOrders) {
-                        // Marca la comanda correspondiente como entregada en el historial de la mesa
+                // Vincular exactamente con la tanda correspondiente usando el ID de la comanda de KDS
+                for (let mesaLocal of mesas) {
+                    if (mesaLocal.sessionOrders && mesaLocal.sessionOrders.length > 0) {
+                        let updated = false;
                         mesaLocal.sessionOrders.forEach(so => {
-                            if (so.items.toLowerCase().includes(comanda.mesero.toLowerCase()) || so.nota === comanda.nota || comanda.items_json.includes(so.items.substring(0, 10))) {
+                            if (so.kdsIds && so.kdsIds.includes(orderId)) {
                                 so.entregado = true;
+                                updated = true;
                             }
                         });
-                        await syncMesaToSupabase(mesaLocal);
+                        if (updated) {
+                            await syncMesaToSupabase(mesaLocal);
+                        }
                     }
                 }
             }
