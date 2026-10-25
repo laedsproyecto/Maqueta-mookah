@@ -169,6 +169,21 @@
                                 <p class="text-gray-500 text-xs italic text-center py-4">Selecciona ítems del menú.</p>
                             </div>
 
+                            <!-- BOTÓN BONITO PARA ABRIR MENÚ VIRTUAL / RULETA DESDE LA MESA DE JUANITO -->
+                            <div id="mesa-acciones-especiales" class="mb-4 hidden">
+                                <div class="bg-gradient-to-r from-amber-900/40 to-amber-600/20 border-2 border-amber-500/60 p-3 rounded-xl shadow-lg text-center space-y-2">
+                                    <div class="flex items-center justify-center space-x-1.5 text-amber-300 text-xs font-bold">
+                                        <i class="fa-solid fa-star animate-spin"></i>
+                                        <span id="mesa-premio-titulo">¡Cliente con Visita Especial!</span>
+                                    </div>
+                                    <p id="mesa-premio-sub" class="text-[10px] text-gray-300">Este cliente tiene derecho a girar la ruleta de premios en esta visita.</p>
+                                    <button onclick="abrirMenuVirtualMesa()" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-gray-950 font-black py-2 px-3 rounded-lg text-xs shadow-md transition flex items-center justify-center space-x-2">
+                                        <i class="fa-solid fa-dharmachakra"></i>
+                                        <span>Abrir Menú Virtual con Ruleta 🎰</span>
+                                    </button>
+                                </div>
+                            </div>
+
                             <!-- HISTORIAL DE LA SESIÓN DEL CLIENTE -->
                             <div class="border-t border-gray-700 pt-3">
                                 <div class="flex justify-between items-center mb-1">
@@ -182,7 +197,7 @@
                                         <span id="session-accumulated-ves" class="text-[10px] text-gray-400 block font-mono">Bs. 0,00</span>
                                     </div>
                                 </div>
-                                <div id="table-history-list" class="space-y-2 text-xs text-gray-400 max-h-[160px] overflow-y-auto bg-gray-900 p-2 rounded-lg border border-gray-700">
+                                <div id="table-history-list" class="space-y-2 text-xs text-gray-400 max-h-[140px] overflow-y-auto bg-gray-900 p-2 rounded-lg border border-gray-700">
                                     <p class="italic text-gray-500">Mesa libre (sin cliente asignado).</p>
                                 </div>
                             </div>
@@ -1173,13 +1188,22 @@
             
             const tag = document.getElementById('cliente-info-tag');
             const timeTag = document.getElementById('table-time-tag');
+            const accionesEspeciales = document.getElementById('mesa-acciones-especiales');
 
             if (mesa.cliente) {
                 let extraTag = mesa.cliente.esCombinada ? " [Mesa Combinada]" : "";
                 tag.innerText = `Cliente: ${mesa.cliente.nombre} ${mesa.cliente.apellido} (${mesa.cliente.comensales} pers.)${extraTag}`;
                 tag.classList.remove('hidden');
+
+                // Validar si el cliente tiene la ruleta habilitada para mostrar el botón bonito
+                if (mesa.cliente.puedeGirarRuleta) {
+                    accionesEspeciales.classList.remove('hidden');
+                } else {
+                    accionesEspeciales.classList.add('hidden');
+                }
             } else {
                 tag.classList.add('hidden');
+                accionesEspeciales.classList.add('hidden');
             }
 
             if ((mesa.estado === 'ocupada' || mesa.estado === 'por-limpiar') && mesa.sessionStartTimeMs) {
@@ -1203,6 +1227,21 @@
             if (triggerRender) renderMesasServer();
             renderTableHistory(mesa);
             updateTotalsDisplay();
+        }
+
+        // Función para abrir el menú virtual de esta mesa con la ruleta lista para girar
+        function abrirMenuVirtualMesa() {
+            const mesa = mesas.find(m => m.id === selectedMesaId);
+            if (!mesa || !mesa.cliente) {
+                alert("No hay ningún cliente asignado a esta mesa.");
+                return;
+            }
+            // Abre el menú virtual pasando el número de mesa y guardando el teléfono en sessionStorage para autenticación instantánea
+            sessionStorage.setItem('mookah_client_phone', mesa.cliente.telefono);
+            sessionStorage.setItem('mookah_client_name', mesa.cliente.nombre);
+            
+            // Abre la vista del menú virtual en una nueva pestaña (simulando el dispositivo del cliente)
+            window.open(`menu-virtual.html?mesa=${mesa.id}`, '_blank');
         }
 
         function renderTableHistory(mesa) {
