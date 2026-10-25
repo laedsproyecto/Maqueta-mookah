@@ -176,10 +176,10 @@
                                         <i class="fa-solid fa-gift animate-bounce"></i>
                                         <span id="premio-ganado-label">¡Premio de Ruleta Pendiente!</span>
                                     </div>
-                                    <p id="premio-ganado-sub" class="text-[10px] text-gray-200">El cliente ha ganado un premio en su ruleta virtual. Puedes aplicarlo como cortesía ($0.00):</p>
-                                    <button onclick="aplicarPremioCortesia()" id="btn-aplicar-cortesia" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-gray-950 font-black py-2 px-3 rounded-lg text-xs shadow-md transition flex items-center justify-center space-x-2">
+                                    <p id="premio-ganado-sub" class="text-[10px] text-gray-200">El cliente ha ganado un premio en su ruleta virtual. Selecciona el ítem correspondiente en el menú para aplicarlo como cortesía ($0.00):</p>
+                                    <button onclick="seleccionarPremioCortesia()" id="btn-aplicar-cortesia" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-gray-950 font-black py-2 px-3 rounded-lg text-xs shadow-md transition flex items-center justify-center space-x-2">
                                         <i class="fa-solid fa-check-double"></i>
-                                        <span>Aplicar Premio como Cortesía ($0.00) 🎁</span>
+                                        <span>Seleccionar Ítem y Aplicar Cortesía ($0.00) 🎁</span>
                                     </button>
                                 </div>
                             </div>
@@ -429,6 +429,7 @@
         let agotados86List = [];
         let modalFilterDestino = 'cocina'; 
         let premiosPendientesMesa = [];
+        let premioEnEsperaDeSeleccion = null; // Controla el premio que el mesero está por canjear
 
         let checkinData = {
             tipo: 'nuevo',
@@ -1257,41 +1258,66 @@
             }
         }
 
-        async function aplicarPremioCortesia() {
+        // --- FILTRADO ESTRICTO SEGÚN PREMIO DE RULETA ---
+        function seleccionarPremioCortesia() {
             if (premiosPendientesMesa.length === 0) return;
             const premioObj = premiosPendientesMesa[0];
+            premioEnEsperaDeSeleccion = premioObj;
+
+            const tipoPremio = premioObj.premio_ganado.toLowerCase();
+            
+            if (tipoPremio.includes('bebida')) {
+                filterCategory('bebidas');
+                alert(`🎁 Premio de Bebida Detectado: Selecciona únicamente una bebida de la lista para aplicarla como cortesía.`);
+            } else if (tipoPremio.includes('postre')) {
+                filterCategory('postres');
+                alert(`🎁 Premio de Postre Detectado: Selecciona únicamente un postre de la lista para aplicarlo como cortesía.`);
+            } else if (tipoPremio.includes('roll')) {
+                filterCategory('rolls');
+                alert(`🎁 Premio de Roll Detectado: Selecciona únicamente un Sushi Roll de la lista para aplicarlo como cortesía.`);
+            } else {
+                filterCategory('all');
+                alert(`🎁 Premio Especial Detectado: Selecciona el ítem correspondiente.`);
+            }
+        }
+
+        async function aplicarPremioCortesiaParaItem(itemSeleccionado) {
+            if (!premioEnEsperaDeSeleccion) return;
+            const premioObj = premioEnEsperaDeSeleccion;
 
             await supabaseClient.from('premios_ruleta').update({ estado: 'canjeado' }).eq('id', premioObj.id);
 
             const mesa = mesas.find(m => m.id === selectedMesaId);
             const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const itemCortesiaText = `🎁 CORTESÍA RULETA ($0.00): ${premioObj.premio_ganado}`;
+            const itemCortesiaText = `🎁 CORTESÍA RULETA ($0.00): 1x ${itemSeleccionado.nombre} (${premioObj.premio_ganado})`;
             
             if (!mesa.sessionOrders) mesa.sessionOrders = [];
             mesa.sessionOrders.push({
                 hora: horaActual,
                 mesero: currentMeseroName,
                 items: itemCortesiaText,
-                nota: 'Premio Ruleta Verificado',
-                totalTanda: 0
+                nota: 'Premio Ruleta Verificado y Seleccionado',
+                totalTanda: 0,
+                entregado: false
             });
 
-            let destinoKds = premioObj.premio_ganado.toLowerCase().includes('bebida') ? 'barra' : 'cocina';
             await supabaseClient.from('kds_comandas').insert([{
                 mesa_numero: mesa.numero,
                 mesero: currentMeseroName,
-                destino: destinoKds,
-                items_json: JSON.stringify([{ nombre: premioObj.premio_ganado, notaIndividual: 'Cortesía Verificada' }]),
-                nota: 'Premio Ruleta Canjeado',
+                destino: itemSeleccionado.destino,
+                items_json: JSON.stringify([{ nombre: itemSeleccionado.nombre, notaIndividual: `Cortesía Ruleta: ${premioObj.premio_ganado}` }]),
+                nota: `Cortesía Ruleta Canjeada (${premioObj.premio_ganado})`,
                 estado: 'por_empezar',
                 creado_ms: Date.now()
             }]);
 
             await syncMesaToSupabase(mesa);
-            alert(`✅ ¡Cortesía aplicada con éxito! Enviada a ${destinoKds.toUpperCase()} con costo $0.00.`);
+            premioEnEsperaDeSeleccion = null;
+            alert(`✅ ¡Cortesía de ${itemSeleccionado.nombre} aplicada con éxito! Enviada a ${itemSeleccionado.destino.toUpperCase()} con costo $0.00.`);
             await verificarPremiosPendientesMesa();
             renderTableHistory(mesa);
             loadKdsOrdersFromSupabase();
+            filterCategory('all');
         }
 
         function renderTableHistory(mesa) {
@@ -1317,6 +1343,7 @@
                 let costoTanda = calculateTandaCost(p.items, p.totalTanda);
                 sessionAccumulated += costoTanda;
                 let costoTandaBs = costoTanda * bcvRate;
+                let estadoEntregaBadge = p.entregado ? '<span class="text-[9px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded font-bold">✓ Entregado a Mesa</span>' : '<span class="text-[9px] bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded font-bold">⏳ En Proceso / Cocina</span>';
 
                 return `
                     <div class="border-b border-gray-800 pb-2 mb-2">
@@ -1330,7 +1357,7 @@
                         <p class="text-white font-medium text-xs leading-relaxed">👉 ${p.items}</p>
                         <div class="flex justify-between items-center mt-1 text-[10px] text-gray-400">
                             <span>Nota: ${p.nota || 'Ninguna'}</span>
-                            <span class="text-[9px] bg-indigo-950 text-indigo-200 px-1.5 py-0.5 rounded border border-indigo-800/50">👤 Mesero: ${p.mesero || currentMeseroName}</span>
+                            ${estadoEntregaBadge}
                         </div>
                     </div>
                 `;
@@ -1416,6 +1443,26 @@
                 return;
             }
             const item = menuCatalog.find(i => i.id === itemId);
+
+            // Verificación estricta si el mesero está aplicando un premio de ruleta
+            if (premioEnEsperaDeSeleccion) {
+                const tipoPremio = premioEnEsperaDeSeleccion.premio_ganado.toLowerCase();
+                if (tipoPremio.includes('bebida') && item.destino !== 'barra') {
+                    alert("⛔ Este premio es una BEBIDA GRATIS. Solo puedes seleccionar un ítem de la categoría de Bebidas.");
+                    return;
+                }
+                if (tipoPremio.includes('postre') && item.categoria !== 'postres') {
+                    alert("⛔ Este premio es un POSTRE GRATIS. Solo puedes seleccionar un ítem de la categoría de Postres.");
+                    return;
+                }
+                if (tipoPremio.includes('roll') && item.categoria !== 'rolls') {
+                    alert("⛔ Este premio es un ROLL GRATIS. Solo puedes seleccionar un Sushi Roll.");
+                    return;
+                }
+                aplicarPremioCortesiaParaItem(item);
+                return;
+            }
+
             const ingredientesObj = item.ingredientes.map(ing => ({ nombre: ing, activo: true }));
             currentOrder.push({ ...item, qty: 1, ingredientesObj: ingredientesObj, notaIndividual: '' });
             renderOrder();
@@ -1583,7 +1630,8 @@
                     mesero: currentMeseroName,
                     items: itemsText,
                     nota: generalNote,
-                    totalTanda: newOrderTotal
+                    totalTanda: newOrderTotal,
+                    entregado: false
                 });
 
                 await syncMesaToSupabase(mesa);
@@ -1661,6 +1709,24 @@
 
         async function updateKdsStatus(orderId, newStatus) {
             await supabaseClient.from('kds_comandas').update({ estado: newStatus }).eq('id', orderId);
+            
+            if (newStatus === 'despachado') {
+                const comanda = kdsOrders.find(o => o.id === orderId);
+                if (comanda) {
+                    const numMesaStr = comanda.mesa_numero; // Ej: "Mesa 02"
+                    const mesaLocal = mesas.find(m => m.numero.toLowerCase() === numMesaStr.toLowerCase());
+                    if (mesaLocal && mesaLocal.sessionOrders) {
+                        // Marca la comanda correspondiente como entregada en el historial de la mesa
+                        mesaLocal.sessionOrders.forEach(so => {
+                            if (so.items.toLowerCase().includes(comanda.mesero.toLowerCase()) || so.nota === comanda.nota || comanda.items_json.includes(so.items.substring(0, 10))) {
+                                so.entregado = true;
+                            }
+                        });
+                        await syncMesaToSupabase(mesaLocal);
+                    }
+                }
+            }
+
             await loadKdsOrdersFromSupabase();
         }
 
