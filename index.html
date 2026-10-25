@@ -203,7 +203,7 @@
                             </div>
 
                             <div class="mt-3">
-                                <input type="text" id="order-notes" placeholder="Nota general (ej: servir juntos, para llevar)" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                                <input type="text" id="order-notes" placeholder="Nota general (ej: servir juntos)" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                             </div>
                         </div>
 
@@ -1291,12 +1291,11 @@
             const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const itemCortesiaText = `🎁 CORTESÍA RULETA ($0.00): 1x ${itemSeleccionado.nombre} (${premioObj.premio_ganado})`;
             
-            // Insertar comanda en KDS para este premio
             const { data: resKds } = await supabaseClient.from('kds_comandas').insert([{
                 mesa_numero: mesa.numero,
                 mesero: currentMeseroName,
                 destino: itemSeleccionado.destino,
-                items_json: JSON.stringify([{ nombre: itemSeleccionado.nombre, qty: 1, notaIndividual: `Cortesía Ruleta: ${premioObj.premio_ganado}` }]),
+                items_json: JSON.stringify([{ nombre: itemSeleccionado.nombre, qty: 1, paraLlevar: false, ingredientesObj: [] }]),
                 nota: `Cortesía Ruleta Canjeada (${premioObj.premio_ganado})`,
                 estado: 'por_empezar',
                 creado_ms: Date.now()
@@ -1317,7 +1316,7 @@
 
             await syncMesaToSupabase(mesa);
             premioEnEsperaDeSeleccion = null;
-            alert(`✅ ¡Cortesía de ${itemSeleccionado.nombre} aplicada con éxito! Enviada a ${itemSeleccionado.destino.toUpperCase()} con costo $0.00.`);
+            alert(`✅ ¡Cortesía de ${itemSeleccionado.nombre} aplicada con éxito!`);
             await verificarPremiosPendientesMesa();
             renderTableHistory(mesa);
             loadKdsOrdersFromSupabase();
@@ -1441,14 +1440,15 @@
             }).join('');
         }
 
-        // AGRUPACIÓN INTELIGENTE DE PRODUCTOS EN LA COMANDA ACTUAL Y TANDA
+        // AGRUPACIÓN INTELIGENTE BASADA EN INGREDIENTES ACTIVOS Y ESTADO PARA LLEVAR
         function groupOrderItems(itemsList) {
             const groupedMap = new Map();
 
             itemsList.forEach(item => {
-                const notaClean = item.notaIndividual ? item.notaIndividual.trim() : '';
-                // Clave única basada en ID del plato Y sus modificaciones específicas
-                const key = `${item.id}||${notaClean}`;
+                // Generar firma única basada en ingredientes inactivos y estado para llevar
+                const inactivosStr = item.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
+                const paraLlevarFlag = item.paraLlevar ? '1' : '0';
+                const key = `${item.id}||${inactivosStr}||${paraLlevarFlag}`;
 
                 if (groupedMap.has(key)) {
                     const existing = groupedMap.get(key);
@@ -1457,7 +1457,8 @@
                     groupedMap.set(key, {
                         ...item,
                         qty: item.qty || 1,
-                        notaIndividual: notaClean
+                        ingredientesObj: JSON.parse(JSON.stringify(item.ingredientesObj)),
+                        paraLlevar: !!item.paraLlevar
                     });
                 }
             });
@@ -1472,7 +1473,6 @@
             }
             const item = menuCatalog.find(i => i.id === itemId);
 
-            // Verificación estricta si el mesero está aplicando un premio de ruleta
             if (premioEnEsperaDeSeleccion) {
                 const tipoPremio = premioEnEsperaDeSeleccion.premio_ganado.toLowerCase();
                 if (tipoPremio.includes('bebida') && item.destino !== 'barra') {
@@ -1492,7 +1492,7 @@
             }
 
             const ingredientesObj = item.ingredientes.map(ing => ({ nombre: ing, activo: true }));
-            currentOrder.push({ ...item, qty: 1, ingredientesObj: ingredientesObj, notaIndividual: '' });
+            currentOrder.push({ ...item, qty: 1, ingredientesObj: ingredientesObj, paraLlevar: false });
             renderOrder();
         }
 
@@ -1504,31 +1504,44 @@
                 return;
             }
 
-            // Agrupamos visualmente los ítems iguales en la comanda actual
             const groupedList = groupOrderItems(currentOrder);
 
             container.innerHTML = groupedList.map((i, index) => {
                 let subtotalUsd = i.precio * i.qty;
                 let subtotalBs = subtotalUsd * bcvRate;
+                let inactivosStr = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
+                let llevarClass = i.paraLlevar ? 'bg-amber-950/80 border-amber-500 text-amber-200' : 'bg-gray-900 border-gray-700 text-white';
+
                 return `
-                    <div class="bg-gray-900 p-2.5 rounded border border-gray-700 text-xs space-y-2">
+                    <div class="${llevarClass} p-3 rounded-xl border text-xs space-y-2.5 shadow-sm transition">
                         <div class="flex justify-between items-center">
-                            <span class="font-bold text-white">${i.qty}x ${i.nombre}</span>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-white text-sm">${i.qty}x ${i.nombre}</span>
+                                <button onclick="toggleParaLlevarGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar})" class="px-2 py-0.5 rounded text-[10px] font-black transition ${i.paraLlevar ? 'bg-amber-500 text-gray-950 shadow' : 'bg-gray-800 text-gray-400 hover:text-white'}">
+                                    <i class="fa-solid fa-box-open mr-1"></i>${i.paraLlevar ? '📦 PARA LLEVAR' : 'Para Llevar'}
+                                </button>
+                            </div>
                             <div class="flex items-center space-x-2">
                                 <div class="text-right">
                                     <span class="font-bold text-indigo-400 block">$${subtotalUsd.toFixed(2)}</span>
                                     <span class="text-[9px] text-gray-400 font-mono block">Bs. ${subtotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                                 </div>
                                 <div class="flex items-center space-x-1">
-                                    <button onclick="changeItemQty(${i.id}, '${i.notaIndividual}', -1)" class="bg-gray-800 hover:bg-gray-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold" title="Restar uno">-</button>
-                                    <button onclick="changeItemQty(${i.id}, '${i.notaIndividual}', 1)" class="bg-gray-800 hover:bg-gray-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold" title="Sumar uno">+</button>
-                                    <button onclick="removeGroupFromOrder(${i.id}, '${i.notaIndividual}')" class="text-red-400 hover:text-red-300 ml-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                                    <button onclick="changeItemQtyGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, -1)" class="bg-gray-800 hover:bg-gray-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">-</button>
+                                    <button onclick="changeItemQtyGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, 1)" class="bg-gray-800 hover:bg-gray-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">+</button>
+                                    <button onclick="removeGroupFromOrder(${i.id}, '${inactivosStr}', ${i.paraLlevar})" class="text-red-400 hover:text-red-300 ml-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
                                 </div>
                             </div>
                         </div>
-                        <div class="text-[10px] text-gray-300 bg-gray-950 p-1.5 rounded border border-gray-800">
-                            <p class="font-semibold text-indigo-300 mb-1">Modificaciones:</p>
-                            <input type="text" value="${i.notaIndividual}" onchange="updateGroupItemNote(${i.id}, '${i.notaIndividual}', this.value)" placeholder="Nota específica (ej: sin sal)..." class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-[10px] text-white">
+                        <div class="text-[10px] bg-gray-950 p-2 rounded border border-gray-800">
+                            <p class="font-semibold text-indigo-300 mb-1">Ingredientes (clic para quitar/restaurar):</p>
+                            <div class="flex flex-wrap gap-1">
+                                ${i.ingredientesObj.map((ing, ingIdx) => `
+                                    <span onclick="toggleIngredientGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, ${ingIdx})" class="px-2 py-0.5 rounded cursor-pointer border font-semibold transition ${ing.activo ? 'bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700' : 'bg-red-950 text-red-400 border-red-800 line-through'}">
+                                        ${ing.activo ? '✓ ' + ing.nombre : '✕ Sin ' + ing.nombre}
+                                    </span>
+                                `).join('')}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1537,19 +1550,48 @@
             updateTotalsDisplay();
         }
 
-        function changeItemQty(itemId, nota, delta) {
+        function toggleParaLlevarGroup(itemId, inactivosStr, currentEstado) {
+            currentOrder.forEach(i => {
+                const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
+                if (i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === currentEstado) {
+                    i.paraLlevar = !currentEstado;
+                }
+            });
+            renderOrder();
+        }
+
+        function toggleIngredientGroup(itemId, inactivosStr, paraLlevar, ingIdx) {
+            // Buscamos un item individual que pertenezca a este grupo para modificarle solo un ingrediente (separándolo inteligentemente)
+            const targetItem = currentOrder.find(i => {
+                const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
+                return i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar;
+            });
+
+            if (targetItem) {
+                targetItem.ingredientesObj[ingIdx].activo = !targetItem.ingredientesObj[ingIdx].activo;
+            }
+            renderOrder();
+        }
+
+        function changeItemQtyGroup(itemId, inactivosStr, paraLlevar, delta) {
             if (delta > 0) {
-                const refItem = currentOrder.find(i => i.id === itemId && (i.notaIndividual || '') === nota);
+                const refItem = currentOrder.find(i => {
+                    const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
+                    return i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar;
+                });
                 if (refItem) {
                     currentOrder.push({
                         ...refItem,
                         qty: 1,
                         ingredientesObj: JSON.parse(JSON.stringify(refItem.ingredientesObj)),
-                        notaIndividual: refItem.notaIndividual
+                        paraLlevar: refItem.paraLlevar
                     });
                 }
             } else {
-                const idx = currentOrder.findIndex(i => i.id === itemId && (i.notaIndividual || '') === nota);
+                const idx = currentOrder.findIndex(i => {
+                    const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
+                    return i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar;
+                });
                 if (idx > -1) {
                     currentOrder.splice(idx, 1);
                 }
@@ -1557,16 +1599,10 @@
             renderOrder();
         }
 
-        function removeGroupFromOrder(itemId, nota) {
-            currentOrder = currentOrder.filter(i => !(i.id === itemId && (i.notaIndividual || '') === nota));
-            renderOrder();
-        }
-
-        function updateGroupItemNote(itemId, oldNota, newNota) {
-            currentOrder.forEach(i => {
-                if (i.id === itemId && (i.notaIndividual || '') === oldNota) {
-                    i.notaIndividual = newNota;
-                }
+        function removeGroupFromOrder(itemId, inactivosStr, paraLlevar) {
+            currentOrder = currentOrder.filter(i => {
+                const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
+                return !(i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar);
             });
             renderOrder();
         }
@@ -1618,12 +1654,15 @@
             let newOrderTotal = 0;
             currentOrder.forEach(i => newOrderTotal += i.precio * (i.qty || 1));
 
-            // Agrupar elementos idénticos antes de enviar a cocina
             const groupedOrder = groupOrderItems(currentOrder);
 
             const itemsText = groupedOrder.map(i => {
                 let desc = `${i.qty}x ${i.nombre}`;
-                if (i.notaIndividual) desc += ` (${i.notaIndividual})`;
+                let inactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre);
+                let detalles = [];
+                if (inactivos.length > 0) detalles.push(`Sin ${inactivos.join(', sin ')}`);
+                if (i.paraLlevar) detalles.push(`📦 PARA LLEVAR`);
+                if (detalles.length > 0) desc += ` (${detalles.join(' - ')})`;
                 return desc;
             }).join(' | ');
             
@@ -1738,18 +1777,25 @@
                             </div>
                             <p class="text-[10px] text-gray-400 mb-2">Mesero: <span class="text-indigo-300 font-bold">${o.mesero}</span> • Hace ${mins} min</p>
                             
-                            <div class="space-y-2 my-2">
-                                ${items.map(i => `
-                                    <div>
-                                        <p class="text-xs font-bold text-white">• ${i.qty || 1}x ${i.nombre}</p>
-                                        ${i.notaIndividual ? `<p class="text-[11px] text-amber-300 font-bold pl-3 mt-0.5">⚠️ ${i.notaIndividual}</p>` : ''}
-                                    </div>
-                                `).join('')}
+                            <div class="space-y-2.5 my-2">
+                                ${items.map(i => {
+                                    let inactivos = i.ingredientesObj ? i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre) : [];
+                                    let itemLlevar = i.paraLlevar;
+                                    return `
+                                        <div class="p-2 rounded border ${itemLlevar ? 'bg-amber-500/20 border-amber-400' : 'bg-gray-900 border-gray-800'}">
+                                            <div class="flex justify-between items-center">
+                                                <p class="text-xs font-bold text-white">• ${i.qty || 1}x ${i.nombre}</p>
+                                                ${itemLlevar ? '<span class="bg-amber-500 text-gray-950 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">📦 EMPACAR / LLEVAR</span>' : ''}
+                                            </div>
+                                            ${inactivos.length > 0 ? `<p class="text-[11px] text-red-400 font-bold mt-1">⚠️ Sin: ${inactivos.join(', ')}</p>` : ''}
+                                        </div>
+                                    `;
+                                }).join('')}
                             </div>
 
                             ${tieneNotaGeneral ? `
                                 <div class="mt-3 bg-amber-500/20 border-2 border-amber-400 p-2.5 rounded-lg text-center shadow animate-pulse">
-                                    <span class="text-[10px] uppercase font-black text-amber-300 block tracking-wider">📌 NOTA ESPECIAL / INSTRUCCIÓN</span>
+                                    <span class="text-[10px] uppercase font-black text-amber-300 block tracking-wider">📌 NOTA GENERAL</span>
                                     <p class="text-sm font-black text-amber-200 uppercase mt-0.5">${o.nota}</p>
                                 </div>
                             ` : ''}
