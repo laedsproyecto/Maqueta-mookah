@@ -169,18 +169,14 @@
                                 <p class="text-gray-500 text-xs italic text-center py-4">Selecciona ítems del menú.</p>
                             </div>
 
-                            <!-- BOTÓN BONITO PARA ABRIR MENÚ VIRTUAL / RULETA DESDE LA MESA DE JUANITO -->
+                            <!-- AVISO VISUAL AL MESERO DE QUE EL CLIENTE TIENE LA RULETA HABILITADA EN SU MÓVIL -->
                             <div id="mesa-acciones-especiales" class="mb-4 hidden">
-                                <div class="bg-gradient-to-r from-amber-900/40 to-amber-600/20 border-2 border-amber-500/60 p-3 rounded-xl shadow-lg text-center space-y-2">
+                                <div class="bg-gradient-to-r from-amber-900/40 to-amber-600/20 border-2 border-amber-500/60 p-3 rounded-xl shadow-lg text-center space-y-1">
                                     <div class="flex items-center justify-center space-x-1.5 text-amber-300 text-xs font-bold">
                                         <i class="fa-solid fa-star animate-spin"></i>
-                                        <span id="mesa-premio-titulo">¡Cliente con Visita Especial!</span>
+                                        <span id="mesa-premio-titulo">¡Ruleta Habilitada para el Cliente!</span>
                                     </div>
-                                    <p id="mesa-premio-sub" class="text-[10px] text-gray-300">Este cliente tiene derecho a girar la ruleta de premios en esta visita.</p>
-                                    <button onclick="abrirMenuVirtualMesa()" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-gray-950 font-black py-2 px-3 rounded-lg text-xs shadow-md transition flex items-center justify-center space-x-2">
-                                        <i class="fa-solid fa-dharmachakra"></i>
-                                        <span>Abrir Menú Virtual con Ruleta 🎰</span>
-                                    </button>
+                                    <p id="mesa-premio-sub" class="text-[10px] text-gray-300">Este cliente cumple su visita premiada. Puede girar la ruleta directamente desde el menú virtual en su teléfono.</p>
                                 </div>
                             </div>
 
@@ -1195,7 +1191,7 @@
                 tag.innerText = `Cliente: ${mesa.cliente.nombre} ${mesa.cliente.apellido} (${mesa.cliente.comensales} pers.)${extraTag}`;
                 tag.classList.remove('hidden');
 
-                // Validar si el cliente tiene la ruleta habilitada para mostrar el botón bonito
+                // Mostrar aviso al mesero de que el cliente tiene la ruleta habilitada en su móvil
                 if (mesa.cliente.puedeGirarRuleta) {
                     accionesEspeciales.classList.remove('hidden');
                 } else {
@@ -1227,21 +1223,6 @@
             if (triggerRender) renderMesasServer();
             renderTableHistory(mesa);
             updateTotalsDisplay();
-        }
-
-        // Función para abrir el menú virtual de esta mesa con la ruleta lista para girar
-        function abrirMenuVirtualMesa() {
-            const mesa = mesas.find(m => m.id === selectedMesaId);
-            if (!mesa || !mesa.cliente) {
-                alert("No hay ningún cliente asignado a esta mesa.");
-                return;
-            }
-            // Abre el menú virtual pasando el número de mesa y guardando el teléfono en sessionStorage para autenticación instantánea
-            sessionStorage.setItem('mookah_client_phone', mesa.cliente.telefono);
-            sessionStorage.setItem('mookah_client_name', mesa.cliente.nombre);
-            
-            // Abre la vista del menú virtual en una nueva pestaña (simulando el dispositivo del cliente)
-            window.open(`menu-virtual.html?mesa=${mesa.id}`, '_blank');
         }
 
         function renderTableHistory(mesa) {
