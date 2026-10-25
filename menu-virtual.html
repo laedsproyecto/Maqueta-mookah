@@ -286,10 +286,18 @@
                 document.getElementById('table-number-text').innerText = `Mesa 0${currentMesaNum}`;
                 document.getElementById('table-badge').classList.remove('hidden');
                 
+                // Autocompletar nombre si existe en sessionStorage
                 if (sessionStorage.getItem('mookah_client_name')) {
                     const savedName = sessionStorage.getItem('mookah_client_name');
                     document.getElementById('client-logged-badge').innerText = `👤 ${savedName}`;
                     document.getElementById('client-logged-badge').classList.remove('hidden');
+                }
+
+                // Autocompletar teléfono si viene desde el panel del mesero
+                if (sessionStorage.getItem('mookah_client_phone')) {
+                    const savedPhone = sessionStorage.getItem('mookah_client_phone');
+                    const phoneInput = document.getElementById('user-phone');
+                    if (phoneInput) phoneInput.value = savedPhone;
                 }
             }
 
