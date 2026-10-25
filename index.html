@@ -169,14 +169,18 @@
                                 <p class="text-gray-500 text-xs italic text-center py-4">Selecciona ítems del menú.</p>
                             </div>
 
-                            <!-- AVISO VISUAL AL MESERO DE QUE EL CLIENTE TIENE LA RULETA HABILITADA EN SU MÓVIL -->
-                            <div id="mesa-acciones-especiales" class="mb-4 hidden">
-                                <div class="bg-gradient-to-r from-amber-900/40 to-amber-600/20 border-2 border-amber-500/60 p-3 rounded-xl shadow-lg text-center space-y-1">
-                                    <div class="flex items-center justify-center space-x-1.5 text-amber-300 text-xs font-bold">
-                                        <i class="fa-solid fa-star animate-spin"></i>
-                                        <span id="mesa-premio-titulo">¡Ruleta Habilitada para el Cliente!</span>
+                            <!-- AVISO Y VALIDACIÓN DE PREMIO DE RULETA GANADO -->
+                            <div id="mesa-premio-canje-box" class="mb-4 hidden">
+                                <div class="bg-gradient-to-r from-amber-950 to-amber-900/60 border-2 border-amber-500 p-3 rounded-xl shadow-lg space-y-2">
+                                    <div class="flex items-center space-x-1.5 text-amber-300 text-xs font-bold">
+                                        <i class="fa-solid fa-gift animate-bounce"></i>
+                                        <span id="premio-ganado-label">¡Premio de Ruleta Pendiente!</span>
                                     </div>
-                                    <p id="mesa-premio-sub" class="text-[10px] text-gray-300">Este cliente cumple su visita premiada. Puede girar la ruleta directamente desde el menú virtual en su teléfono.</p>
+                                    <p id="premio-ganado-sub" class="text-[10px] text-gray-200">El cliente ha ganado un premio en su ruleta virtual. Puedes aplicarlo como cortesía ($0.00):</p>
+                                    <button onclick="aplicarPremioCortesia()" id="btn-aplicar-cortesia" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-gray-950 font-black py-2 px-3 rounded-lg text-xs shadow-md transition flex items-center justify-center space-x-2">
+                                        <i class="fa-solid fa-check-double"></i>
+                                        <span>Aplicar Premio como Cortesía ($0.00) 🎁</span>
+                                    </button>
                                 </div>
                             </div>
 
@@ -424,6 +428,7 @@
         let currentFilteredMatches = [];
         let agotados86List = [];
         let modalFilterDestino = 'cocina'; 
+        let premiosPendientesMesa = [];
 
         let checkinData = {
             tipo: 'nuevo',
@@ -630,6 +635,13 @@
                     loadAgotadosFromSupabase(true);
                 })
                 .subscribe();
+
+            supabaseClient
+                .channel('public:premios_ruleta')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'premios_ruleta' }, () => {
+                    verificarPremiosPendientesMesa();
+                })
+                .subscribe();
         }
 
         async function fetchBcvRate() {
@@ -659,7 +671,7 @@
         }
 
         function calculateTandaCost(itemsString, totalTandaGuardado) {
-            if (typeof totalTandaGuardado === 'number' && totalTandaGuardado > 0) return totalTandaGuardado;
+            if (typeof totalTandaGuardado === 'number' && totalTandaGuardado >= 0) return totalTandaGuardado;
             if (!itemsString) return 0;
             let totalCalculado = 0;
             const partes = itemsString.split(' | ');
@@ -977,7 +989,6 @@
                 document.getElementById('reg-lastname').value = cliente.apellido || '';
                 document.getElementById('reg-phone').value = cliente.telefono || '';
 
-                // VALIDACIÓN DE LA QUINTA VISITA (O MÚLTIPLOS DE 5)
                 const visitasActuales = (cliente.visitas_totales || 0) + 1;
                 const esMultiploDe5 = visitasActuales % 5 === 0;
 
@@ -1127,7 +1138,7 @@
                         apellido: checkinData.apellido, 
                         comensales: checkinData.comensales,
                         esCombinada: checkinData.selectedMesaIds.length > 1,
-                        puedeGirarRuleta: checkinData.puedeGirarRuleta // <-- Bandera de seguridad para la ruleta
+                        puedeGirarRuleta: checkinData.puedeGirarRuleta 
                     };
                     numsMesasAsignadas.push(mesa.numero);
 
@@ -1184,22 +1195,13 @@
             
             const tag = document.getElementById('cliente-info-tag');
             const timeTag = document.getElementById('table-time-tag');
-            const accionesEspeciales = document.getElementById('mesa-acciones-especiales');
 
             if (mesa.cliente) {
                 let extraTag = mesa.cliente.esCombinada ? " [Mesa Combinada]" : "";
                 tag.innerText = `Cliente: ${mesa.cliente.nombre} ${mesa.cliente.apellido} (${mesa.cliente.comensales} pers.)${extraTag}`;
                 tag.classList.remove('hidden');
-
-                // Mostrar aviso al mesero de que el cliente tiene la ruleta habilitada en su móvil
-                if (mesa.cliente.puedeGirarRuleta) {
-                    accionesEspeciales.classList.remove('hidden');
-                } else {
-                    accionesEspeciales.classList.add('hidden');
-                }
             } else {
                 tag.classList.add('hidden');
-                accionesEspeciales.classList.add('hidden');
             }
 
             if ((mesa.estado === 'ocupada' || mesa.estado === 'por-limpiar') && mesa.sessionStartTimeMs) {
@@ -1222,7 +1224,74 @@
 
             if (triggerRender) renderMesasServer();
             renderTableHistory(mesa);
+            await verificarPremiosPendientesMesa();
             updateTotalsDisplay();
+        }
+
+        async function verificarPremiosPendientesMesa() {
+            const mesa = mesas.find(m => m.id === selectedMesaId);
+            const box = document.getElementById('mesa-premio-canje-box');
+            if (!mesa || !mesa.cliente) { 
+                if(box) box.classList.add('hidden'); 
+                return; 
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('premios_ruleta')
+                    .select('*')
+                    .eq('mesa_numero', mesa.id)
+                    .ilike('nombre_cliente', `${mesa.cliente.nombre}%`)
+                    .eq('estado', 'pendiente');
+
+                if (!error && data && data.length > 0) {
+                    premiosPendientesMesa = data;
+                    document.getElementById('premio-ganado-label').innerText = `¡Premio Ganado: ${data[0].premio_ganado}!`;
+                    box.classList.remove('hidden');
+                } else {
+                    premiosPendientesMesa = [];
+                    box.classList.add('hidden');
+                }
+            } catch (e) { 
+                if(box) box.classList.add('hidden'); 
+            }
+        }
+
+        async function aplicarPremioCortesia() {
+            if (premiosPendientesMesa.length === 0) return;
+            const premioObj = premiosPendientesMesa[0];
+
+            await supabaseClient.from('premios_ruleta').update({ estado: 'canjeado' }).eq('id', premioObj.id);
+
+            const mesa = mesas.find(m => m.id === selectedMesaId);
+            const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const itemCortesiaText = `🎁 CORTESÍA RULETA ($0.00): ${premioObj.premio_ganado}`;
+            
+            if (!mesa.sessionOrders) mesa.sessionOrders = [];
+            mesa.sessionOrders.push({
+                hora: horaActual,
+                mesero: currentMeseroName,
+                items: itemCortesiaText,
+                nota: 'Premio Ruleta Verificado',
+                totalTanda: 0
+            });
+
+            let destinoKds = premioObj.premio_ganado.toLowerCase().includes('bebida') ? 'barra' : 'cocina';
+            await supabaseClient.from('kds_comandas').insert([{
+                mesa_numero: mesa.numero,
+                mesero: currentMeseroName,
+                destino: destinoKds,
+                items_json: JSON.stringify([{ nombre: premioObj.premio_ganado, notaIndividual: 'Cortesía Verificada' }]),
+                nota: 'Premio Ruleta Canjeado',
+                estado: 'por_empezar',
+                creado_ms: Date.now()
+            }]);
+
+            await syncMesaToSupabase(mesa);
+            alert(`✅ ¡Cortesía aplicada con éxito! Enviada a ${destinoKds.toUpperCase()} con costo $0.00.`);
+            await verificarPremiosPendientesMesa();
+            renderTableHistory(mesa);
+            loadKdsOrdersFromSupabase();
         }
 
         function renderTableHistory(mesa) {
