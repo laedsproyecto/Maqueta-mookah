@@ -386,7 +386,6 @@
             }
 
             try {
-                // Consulta contra Supabase: Verifica que la mesa esté ocupada y que el anfitrión haya autorizado la ruleta en esta visita
                 const { data: mesaData, error } = await supabaseClient
                     .from('mesas_estado')
                     .select('*')
