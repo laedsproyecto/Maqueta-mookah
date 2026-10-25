@@ -429,7 +429,7 @@
         let agotados86List = [];
         let modalFilterDestino = 'cocina'; 
         let premiosPendientesMesa = [];
-        let premioEnEsperaDeSeleccion = null; // Controla el premio que el mesero está por canjear
+        let premioEnEsperaDeSeleccion = null;
 
         let checkinData = {
             tipo: 'nuevo',
@@ -625,8 +625,12 @@
 
             supabaseClient
                 .channel('public:kds_comandas')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_comandas' }, () => {
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_comandas' }, payload => {
                     loadKdsOrdersFromSupabase();
+                    // Sincronizar el estado del KDS en tiempo real hacia las tandas de la mesa del mesero
+                    if (payload.new) {
+                        syncKdsStatusToMesas(payload.new.id, payload.new.estado);
+                    }
                 })
                 .subscribe();
 
@@ -643,6 +647,27 @@
                     verificarPremiosPendientesMesa();
                 })
                 .subscribe();
+        }
+
+        async function syncKdsStatusToMesas(kdsId, newKdsEstado) {
+            let changed = false;
+            for (let mesaLocal of mesas) {
+                if (mesaLocal.sessionOrders && mesaLocal.sessionOrders.length > 0) {
+                    mesaLocal.sessionOrders.forEach(so => {
+                        if (so.kdsIds && so.kdsIds.includes(kdsId)) {
+                            so.kdsEstado = newKdsEstado;
+                            if (newKdsEstado === 'despachado') so.entregado = true;
+                            changed = true;
+                        }
+                    });
+                    if (changed) {
+                        await syncMesaToSupabase(mesaLocal);
+                        if (selectedMesaId === mesaLocal.id) {
+                            renderTableHistory(mesaLocal);
+                        }
+                    }
+                }
+            }
         }
 
         async function fetchBcvRate() {
@@ -1258,7 +1283,6 @@
             }
         }
 
-        // --- FILTRADO ESTRICTO SEGÚN PREMIO DE RULETA ---
         function seleccionarPremioCortesia() {
             if (premiosPendientesMesa.length === 0) return;
             const premioObj = premiosPendientesMesa[0];
@@ -1311,6 +1335,7 @@
                 nota: 'Premio Ruleta Verificado y Seleccionado',
                 totalTanda: 0,
                 entregado: false,
+                kdsEstado: 'por_empezar',
                 kdsIds: kdsIdGenerado ? [kdsIdGenerado] : []
             });
 
@@ -1346,7 +1371,16 @@
                 let costoTanda = calculateTandaCost(p.items, p.totalTanda);
                 sessionAccumulated += costoTanda;
                 let costoTandaBs = costoTanda * bcvRate;
-                let estadoEntregaBadge = p.entregado ? '<span class="text-[9px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded font-bold">✓ Entregado a Mesa</span>' : '<span class="text-[9px] bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded font-bold">⏳ En Proceso / Cocina</span>';
+
+                // Definir estado y color según kdsEstado sincronizado
+                let estadoBadge = '';
+                if (p.entregado || p.kdsEstado === 'despachado') {
+                    estadoBadge = '<span class="text-[9px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded font-bold">✓ Entregado a Mesa</span>';
+                } else if (p.kdsEstado === 'preparando') {
+                    estadoBadge = '<span class="text-[9px] bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded font-bold">🔥 En Preparación</span>';
+                } else {
+                    estadoBadge = '<span class="text-[9px] bg-sky-950 text-sky-300 border border-sky-800 px-2 py-0.5 rounded font-bold">⏳ Enviado a Cocina</span>';
+                }
 
                 return `
                     <div class="border-b border-gray-800 pb-2 mb-2">
@@ -1360,7 +1394,7 @@
                         <p class="text-white font-medium text-xs leading-relaxed">👉 ${p.items}</p>
                         <div class="flex justify-between items-center mt-1 text-[10px] text-gray-400">
                             <span>Nota: ${p.nota || 'Ninguna'}</span>
-                            ${estadoEntregaBadge}
+                            ${estadoBadge}
                         </div>
                     </div>
                 `;
@@ -1440,12 +1474,10 @@
             }).join('');
         }
 
-        // AGRUPACIÓN INTELIGENTE BASADA EN INGREDIENTES ACTIVOS Y ESTADO PARA LLEVAR
         function groupOrderItems(itemsList) {
             const groupedMap = new Map();
 
             itemsList.forEach(item => {
-                // Generar firma única basada en ingredientes inactivos y estado para llevar
                 const inactivosStr = item.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
                 const paraLlevarFlag = item.paraLlevar ? '1' : '0';
                 const key = `${item.id}||${inactivosStr}||${paraLlevarFlag}`;
@@ -1561,7 +1593,6 @@
         }
 
         function toggleIngredientGroup(itemId, inactivosStr, paraLlevar, ingIdx) {
-            // Buscamos un item individual que pertenezca a este grupo para modificarle solo un ingrediente (separándolo inteligentemente)
             const targetItem = currentOrder.find(i => {
                 const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
                 return i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar;
@@ -1729,6 +1760,7 @@
                     nota: generalNote,
                     totalTanda: newOrderTotal,
                     entregado: false,
+                    kdsEstado: 'por_empezar', // Inicialmente recién enviado
                     kdsIds: createdKdsIds
                 });
 
@@ -1815,18 +1847,21 @@
         async function updateKdsStatus(orderId, newStatus) {
             await supabaseClient.from('kds_comandas').update({ estado: newStatus }).eq('id', orderId);
             
-            if (newStatus === 'despachado') {
-                for (let mesaLocal of mesas) {
-                    if (mesaLocal.sessionOrders && mesaLocal.sessionOrders.length > 0) {
-                        let updated = false;
-                        mesaLocal.sessionOrders.forEach(so => {
-                            if (so.kdsIds && so.kdsIds.includes(orderId)) {
-                                so.entregado = true;
-                                updated = true;
-                            }
-                        });
-                        if (updated) {
-                            await syncMesaToSupabase(mesaLocal);
+            // Actualizar localmente y sincronizar en mesas
+            for (let mesaLocal of mesas) {
+                if (mesaLocal.sessionOrders && mesaLocal.sessionOrders.length > 0) {
+                    let updated = false;
+                    mesaLocal.sessionOrders.forEach(so => {
+                        if (so.kdsIds && so.kdsIds.includes(orderId)) {
+                            so.kdsEstado = newStatus;
+                            if (newStatus === 'despachado') so.entregado = true;
+                            updated = true;
+                        }
+                    });
+                    if (updated) {
+                        await syncMesaToSupabase(mesaLocal);
+                        if (selectedMesaId === mesaLocal.id) {
+                            renderTableHistory(mesaLocal);
                         }
                     }
                 }
