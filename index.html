@@ -1296,7 +1296,7 @@
                 mesa_numero: mesa.numero,
                 mesero: currentMeseroName,
                 destino: itemSeleccionado.destino,
-                items_json: JSON.stringify([{ nombre: itemSeleccionado.nombre, notaIndividual: `Cortesía Ruleta: ${premioObj.premio_ganado}` }]),
+                items_json: JSON.stringify([{ nombre: itemSeleccionado.nombre, qty: 1, notaIndividual: `Cortesía Ruleta: ${premioObj.premio_ganado}` }]),
                 nota: `Cortesía Ruleta Canjeada (${premioObj.premio_ganado})`,
                 estado: 'por_empezar',
                 creado_ms: Date.now()
@@ -1441,6 +1441,30 @@
             }).join('');
         }
 
+        // AGRUPACIÓN INTELIGENTE DE PRODUCTOS EN LA COMANDA ACTUAL Y TANDA
+        function groupOrderItems(itemsList) {
+            const groupedMap = new Map();
+
+            itemsList.forEach(item => {
+                const notaClean = item.notaIndividual ? item.notaIndividual.trim() : '';
+                // Clave única basada en ID del plato Y sus modificaciones específicas
+                const key = `${item.id}||${notaClean}`;
+
+                if (groupedMap.has(key)) {
+                    const existing = groupedMap.get(key);
+                    existing.qty += (item.qty || 1);
+                } else {
+                    groupedMap.set(key, {
+                        ...item,
+                        qty: item.qty || 1,
+                        notaIndividual: notaClean
+                    });
+                }
+            });
+
+            return Array.from(groupedMap.values());
+        }
+
         function addToOrder(itemId) {
             if (agotados86List.includes(itemId)) {
                 alert("Este plato se encuentra agotado.");
@@ -1480,37 +1504,71 @@
                 return;
             }
 
-            container.innerHTML = currentOrder.map((i, index) => {
+            // Agrupamos visualmente los ítems iguales en la comanda actual
+            const groupedList = groupOrderItems(currentOrder);
+
+            container.innerHTML = groupedList.map((i, index) => {
                 let subtotalUsd = i.precio * i.qty;
                 let subtotalBs = subtotalUsd * bcvRate;
                 return `
                     <div class="bg-gray-900 p-2.5 rounded border border-gray-700 text-xs space-y-2">
                         <div class="flex justify-between items-center">
-                            <span class="font-bold text-white">${i.nombre}</span>
+                            <span class="font-bold text-white">${i.qty}x ${i.nombre}</span>
                             <div class="flex items-center space-x-2">
                                 <div class="text-right">
                                     <span class="font-bold text-indigo-400 block">$${subtotalUsd.toFixed(2)}</span>
                                     <span class="text-[9px] text-gray-400 font-mono block">Bs. ${subtotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                                 </div>
-                                <button onclick="removeFromOrder(${index})" class="text-red-400 hover:text-red-300 ml-1"><i class="fa-solid fa-trash"></i></button>
+                                <div class="flex items-center space-x-1">
+                                    <button onclick="changeItemQty(${i.id}, '${i.notaIndividual}', -1)" class="bg-gray-800 hover:bg-gray-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold" title="Restar uno">-</button>
+                                    <button onclick="changeItemQty(${i.id}, '${i.notaIndividual}', 1)" class="bg-gray-800 hover:bg-gray-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold" title="Sumar uno">+</button>
+                                    <button onclick="removeGroupFromOrder(${i.id}, '${i.notaIndividual}')" class="text-red-400 hover:text-red-300 ml-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                                </div>
                             </div>
                         </div>
                         <div class="text-[10px] text-gray-300 bg-gray-950 p-1.5 rounded border border-gray-800">
-                            <p class="font-semibold text-indigo-300 mb-1">Ingredientes (clic para quitar/restaurar):</p>
-                            <div class="flex flex-wrap gap-1">
-                                ${i.ingredientesObj.map((ing, ingIdx) => `
-                                    <span onclick="toggleIngredient(${index}, ${ingIdx})" class="px-1.5 py-0.5 rounded cursor-pointer border transition ${ing.activo ? 'bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700' : 'bg-red-950/80 text-red-400 border-red-800 line-through'}">
-                                        ${ing.activo ? '✓ ' + ing.nombre : '✕ ' + ing.nombre}
-                                    </span>
-                                `).join('')}
-                            </div>
+                            <p class="font-semibold text-indigo-300 mb-1">Modificaciones:</p>
+                            <input type="text" value="${i.notaIndividual}" onchange="updateGroupItemNote(${i.id}, '${i.notaIndividual}', this.value)" placeholder="Nota específica (ej: sin sal)..." class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-[10px] text-white">
                         </div>
-                        <input type="text" value="${i.notaIndividual}" onchange="updateItemNote(${index}, this.value)" placeholder="Nota específica para este plato..." class="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1 text-[10px] text-white">
                     </div>
                 `;
             }).join('');
 
             updateTotalsDisplay();
+        }
+
+        function changeItemQty(itemId, nota, delta) {
+            if (delta > 0) {
+                const refItem = currentOrder.find(i => i.id === itemId && (i.notaIndividual || '') === nota);
+                if (refItem) {
+                    currentOrder.push({
+                        ...refItem,
+                        qty: 1,
+                        ingredientesObj: JSON.parse(JSON.stringify(refItem.ingredientesObj)),
+                        notaIndividual: refItem.notaIndividual
+                    });
+                }
+            } else {
+                const idx = currentOrder.findIndex(i => i.id === itemId && (i.notaIndividual || '') === nota);
+                if (idx > -1) {
+                    currentOrder.splice(idx, 1);
+                }
+            }
+            renderOrder();
+        }
+
+        function removeGroupFromOrder(itemId, nota) {
+            currentOrder = currentOrder.filter(i => !(i.id === itemId && (i.notaIndividual || '') === nota));
+            renderOrder();
+        }
+
+        function updateGroupItemNote(itemId, oldNota, newNota) {
+            currentOrder.forEach(i => {
+                if (i.id === itemId && (i.notaIndividual || '') === oldNota) {
+                    i.notaIndividual = newNota;
+                }
+            });
+            renderOrder();
         }
 
         function updateTotalsDisplay() {
@@ -1523,7 +1581,7 @@
             }
 
             let newOrderTotal = 0;
-            currentOrder.forEach(i => newOrderTotal += i.precio * i.qty);
+            currentOrder.forEach(i => newOrderTotal += i.precio * (i.qty || 1));
 
             let grandTotal = consumedTotal + newOrderTotal;
             let consumedTotalBs = consumedTotal * bcvRate;
@@ -1538,40 +1596,6 @@
 
             document.getElementById('grand-total-account').innerText = `$${grandTotal.toFixed(2)}`;
             document.getElementById('grand-total-ves').innerText = `Bs. ${grandTotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        }
-
-        function toggleIngredient(orderIndex, ingIdx) {
-            const item = currentOrder[orderIndex];
-            item.ingredientesObj[ingIdx].activo = !item.ingredientesObj[ingIdx].activo;
-            const inactivos = item.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre);
-            item.notaIndividual = inactivos.length > 0 ? `Sin ${inactivos.join(', sin ')}` : '';
-            renderOrder();
-        }
-
-        function updateItemNote(index, note) { currentOrder[index].notaIndividual = note; }
-        function removeFromOrder(index) { currentOrder.splice(index, 1); renderOrder(); }
-
-        // AGRUPACIÓN INTELIGENTE DE PRODUCTOS EN LA TANDA
-        function groupOrderItems(itemsList) {
-            const groupedMap = new Map();
-
-            itemsList.forEach(item => {
-                const notaClean = item.notaIndividual ? item.notaIndividual.trim() : '';
-                const key = `${item.id}||${item.nombre}||${notaClean}`;
-
-                if (groupedMap.has(key)) {
-                    const existing = groupedMap.get(key);
-                    existing.qty += item.qty || 1;
-                } else {
-                    groupedMap.set(key, {
-                        ...item,
-                        qty: item.qty || 1,
-                        notaIndividual: notaClean
-                    });
-                }
-            });
-
-            return Array.from(groupedMap.values());
         }
 
         async function submitOrder() {
@@ -1594,7 +1618,7 @@
             let newOrderTotal = 0;
             currentOrder.forEach(i => newOrderTotal += i.precio * (i.qty || 1));
 
-            // Agrupar elementos idénticos con las mismas notas/modificaciones
+            // Agrupar elementos idénticos antes de enviar a cocina
             const groupedOrder = groupOrderItems(currentOrder);
 
             const itemsText = groupedOrder.map(i => {
@@ -1746,7 +1770,6 @@
             await supabaseClient.from('kds_comandas').update({ estado: newStatus }).eq('id', orderId);
             
             if (newStatus === 'despachado') {
-                // Vincular exactamente con la tanda correspondiente usando el ID de la comanda de KDS
                 for (let mesaLocal of mesas) {
                     if (mesaLocal.sessionOrders && mesaLocal.sessionOrders.length > 0) {
                         let updated = false;
