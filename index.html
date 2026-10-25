@@ -1551,6 +1551,29 @@
         function updateItemNote(index, note) { currentOrder[index].notaIndividual = note; }
         function removeFromOrder(index) { currentOrder.splice(index, 1); renderOrder(); }
 
+        // AGRUPACIÓN INTELIGENTE DE PRODUCTOS EN LA TANDA
+        function groupOrderItems(itemsList) {
+            const groupedMap = new Map();
+
+            itemsList.forEach(item => {
+                const notaClean = item.notaIndividual ? item.notaIndividual.trim() : '';
+                const key = `${item.id}||${item.nombre}||${notaClean}`;
+
+                if (groupedMap.has(key)) {
+                    const existing = groupedMap.get(key);
+                    existing.qty += item.qty || 1;
+                } else {
+                    groupedMap.set(key, {
+                        ...item,
+                        qty: item.qty || 1,
+                        notaIndividual: notaClean
+                    });
+                }
+            });
+
+            return Array.from(groupedMap.values());
+        }
+
         async function submitOrder() {
             if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
             
@@ -1569,10 +1592,14 @@
             }
 
             let newOrderTotal = 0;
-            const itemsText = currentOrder.map(i => {
-                newOrderTotal += i.precio * i.qty;
-                let desc = `1x ${i.nombre}`;
-                if(i.notaIndividual) desc += ` (${i.notaIndividual})`;
+            currentOrder.forEach(i => newOrderTotal += i.precio * (i.qty || 1));
+
+            // Agrupar elementos idénticos con las mismas notas/modificaciones
+            const groupedOrder = groupOrderItems(currentOrder);
+
+            const itemsText = groupedOrder.map(i => {
+                let desc = `${i.qty}x ${i.nombre}`;
+                if (i.notaIndividual) desc += ` (${i.notaIndividual})`;
                 return desc;
             }).join(' | ');
             
@@ -1601,8 +1628,8 @@
                         .eq('telefono', telefonoCliente);
                 }
 
-                const kitchenItems = currentOrder.filter(i => i.destino === 'cocina');
-                const barItems = currentOrder.filter(i => i.destino === 'barra');
+                const kitchenItems = groupedOrder.filter(i => i.destino === 'cocina');
+                const barItems = groupedOrder.filter(i => i.destino === 'barra');
                 let createdKdsIds = [];
 
                 if (kitchenItems.length > 0) {
@@ -1690,7 +1717,7 @@
                             <div class="space-y-2 my-2">
                                 ${items.map(i => `
                                     <div>
-                                        <p class="text-xs font-bold text-white">• 1x ${i.nombre}</p>
+                                        <p class="text-xs font-bold text-white">• ${i.qty || 1}x ${i.nombre}</p>
                                         ${i.notaIndividual ? `<p class="text-[11px] text-amber-300 font-bold pl-3 mt-0.5">⚠️ ${i.notaIndividual}</p>` : ''}
                                     </div>
                                 `).join('')}
