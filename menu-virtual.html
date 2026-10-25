@@ -13,7 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <style>
-        /* Gradiente cónico para simular los porciones tipo pizza de la ruleta */
+        /* Gradiente cónico para simular las porciones tipo pizza de la ruleta */
         .pizza-wheel {
             background: conic-gradient(
                 #312e81 0deg 90deg,    /* Postre Gratis (Índigo) */
@@ -123,14 +123,14 @@
         </div>
     </div>
 
-    <!-- MODAL RULETA DE PREMIOS (CON VALIDACIÓN DE SEGURIDAD DE VISITA) -->
+    <!-- MODAL RULETA DE PREMIOS (AUTÓNOMO PARA EL CLIENTE) -->
     <div id="roulette-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
         <div class="bg-gray-900 border border-indigo-500/50 rounded-2xl p-5 w-full max-w-sm text-center shadow-2xl relative">
             <button onclick="closeRouletteModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white"><i class="fa-solid fa-times text-base"></i></button>
             
             <div class="mb-3">
                 <h3 class="text-base font-extrabold text-white"><i class="fa-solid fa-gift text-amber-400 mr-1.5"></i>Ruleta de Fidelidad Mookah</h3>
-                <p class="text-[11px] text-gray-300">Ingresa tu teléfono registrado. Se habilitará únicamente si el anfitrión autorizó tu visita premiada hoy.</p>
+                <p class="text-[11px] text-gray-300">Ingresa tu teléfono registrado para girar tu premio de visita especial.</p>
             </div>
 
             <!-- RULETA TIPO PIZZA CON PORCIONES VISUALES -->
@@ -159,7 +159,7 @@
                     <input type="tel" id="user-phone" required placeholder="Ej: 04121234567" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                 </div>
                 <button type="submit" id="btn-spin" class="w-full bg-amber-500 hover:bg-amber-400 text-gray-950 font-black py-2.5 rounded-xl text-xs uppercase tracking-wider shadow transition">
-                    🎰 Validar y Girar Ruleta
+                    🎰 ¡Girar Ruleta Ahora!
                 </button>
             </form>
 
@@ -286,14 +286,12 @@
                 document.getElementById('table-number-text').innerText = `Mesa 0${currentMesaNum}`;
                 document.getElementById('table-badge').classList.remove('hidden');
                 
-                // Autocompletar nombre si existe en sessionStorage
                 if (sessionStorage.getItem('mookah_client_name')) {
                     const savedName = sessionStorage.getItem('mookah_client_name');
                     document.getElementById('client-logged-badge').innerText = `👤 ${savedName}`;
                     document.getElementById('client-logged-badge').classList.remove('hidden');
                 }
 
-                // Autocompletar teléfono si viene desde el panel del mesero
                 if (sessionStorage.getItem('mookah_client_phone')) {
                     const savedPhone = sessionStorage.getItem('mookah_client_phone');
                     const phoneInput = document.getElementById('user-phone');
@@ -374,7 +372,7 @@
             `).join('');
         }
 
-        // --- RULETA Y VALIDACIÓN DE SEGURIDAD EN SUPABASE ---
+        // --- RULETA Y VALIDACIÓN AUTÓNOMA DESDE EL MÓVIL DEL CLIENTE ---
         function openRouletteModal() { document.getElementById('roulette-modal').classList.remove('hidden'); }
         function closeRouletteModal() { document.getElementById('roulette-modal').classList.add('hidden'); }
 
@@ -388,7 +386,7 @@
             }
 
             try {
-                // Validación contra Supabase: Verifica que la mesa esté ocupada y que el anfitrión haya autorizado la ruleta en esta visita
+                // Consulta contra Supabase: Verifica que la mesa esté ocupada y que el anfitrión haya autorizado la ruleta en esta visita
                 const { data: mesaData, error } = await supabaseClient
                     .from('mesas_estado')
                     .select('*')
