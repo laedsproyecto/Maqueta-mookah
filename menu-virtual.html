@@ -13,13 +13,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <style>
-        /* Gradiente cónico para simular las porciones tipo pizza de la ruleta */
+        /* Gradiente cónico rediseñado para la ruleta Mookah Premium */
         .pizza-wheel {
             background: conic-gradient(
-                #312e81 0deg 90deg,    /* Postre Gratis (Índigo) */
-                #064e3b 90deg 180deg,   /* Bebida Gratis (Verde) */
-                #78350f 180deg 270deg,  /* Roll Gratis (Marrón) */
-                #831843 270deg 360deg   /* 15% OFF (Rosa) */
+                #4f46e5 0deg 90deg,     /* 🍧 Postre Gratis (Índigo) */
+                #10b981 90deg 180deg,   /* 🍹 Bebida Gratis (Verde) */
+                #f59e0b 180deg 270deg,  /* 🍣 Roll Gratis (Dorado) */
+                #ec4899 270deg 360deg   /* 🎟️ 15% OFF (Rosa Violeta) */
             );
             transition: transform 4s cubic-bezier(0.15, 0.9, 0.15, 1);
         }
@@ -123,42 +123,46 @@
         </div>
     </div>
 
-    <!-- MODAL RULETA DE PREMIOS (AUTÓNOMO PARA EL CLIENTE) -->
-    <div id="roulette-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
-        <div class="bg-gray-900 border border-indigo-500/50 rounded-2xl p-5 w-full max-w-sm text-center shadow-2xl relative">
-            <button onclick="closeRouletteModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white"><i class="fa-solid fa-times text-base"></i></button>
+    <!-- MODAL RULETA DE PREMIOS (DISEÑO REFINADO MOOKAH) -->
+    <div id="roulette-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-gray-900 border border-indigo-500/50 rounded-2xl p-6 w-full max-w-sm text-center shadow-2xl relative">
+            <button onclick="closeRouletteModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white"><i class="fa-solid fa-times text-lg"></i></button>
             
             <div class="mb-3">
-                <h3 class="text-base font-extrabold text-white"><i class="fa-solid fa-gift text-amber-400 mr-1.5"></i>Ruleta de Fidelidad Mookah</h3>
-                <p class="text-[11px] text-gray-300">Ingresa tu teléfono registrado para girar tu premio de visita especial.</p>
+                <h3 class="text-lg font-extrabold text-white flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-gift text-amber-400 animate-bounce"></i>
+                    <span>Ruleta Mookah</span>
+                </h3>
+                <p class="text-[11px] text-gray-300 mt-1">Ingresa tu teléfono registrado para girar tu premio de visita especial.</p>
             </div>
 
-            <!-- RULETA TIPO PIZZA CON PORCIONES VISUALES -->
-            <div class="relative w-56 h-56 mx-auto my-3 flex items-center justify-center">
-                <!-- Flecha superior indicadora -->
-                <div class="absolute -top-3 z-30 text-amber-400 text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">▼</div>
+            <!-- CONTENEDOR VIVIDO DE LA RULETA -->
+            <div class="relative w-60 h-60 mx-auto my-4 flex items-center justify-center">
+                <!-- Puntero superior en dorado brillante -->
+                <div class="absolute -top-3 z-30 text-amber-400 text-3xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)]">▼</div>
                 
-                <!-- Círculo Giratorio Estilo Pizza -->
-                <div id="pizza-wheel" class="pizza-wheel w-full h-full rounded-full border-4 border-amber-400 shadow-2xl relative overflow-hidden flex items-center justify-center">
-                    <!-- Textos fijos en cada porción de la pizza -->
-                    <span class="absolute top-4 text-indigo-200 font-bold text-[10px] drop-shadow">🍨 Postre</span>
-                    <span class="absolute right-3 text-emerald-200 font-bold text-[10px] drop-shadow">🍹 Bebida</span>
-                    <span class="absolute bottom-4 text-amber-200 font-bold text-[10px] drop-shadow">🍣 Roll</span>
-                    <span class="absolute left-3 text-pink-200 font-bold text-[10px] drop-shadow">🎟️ 15% OFF</span>
-                    <!-- Centro de la ruleta -->
-                    <div class="w-8 h-8 rounded-full bg-amber-400 border-2 border-gray-900 z-20 flex items-center justify-center shadow">
-                        <i class="fa-solid fa-star text-[10px] text-gray-950"></i>
+                <!-- Círculo Giratorio Estilo Pizza con divisiones visuales -->
+                <div id="pizza-wheel" class="pizza-wheel w-full h-full rounded-full border-4 border-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.3)] relative overflow-hidden flex items-center justify-center">
+                    <!-- Textos estilizados en cada porción -->
+                    <span class="absolute top-5 text-white font-extrabold text-xs drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">🍧 Postre</span>
+                    <span class="absolute right-4 text-white font-extrabold text-xs drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">🍹 Bebida</span>
+                    <span class="absolute bottom-5 text-white font-extrabold text-xs drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">🍣 Roll</span>
+                    <span class="absolute left-4 text-white font-extrabold text-xs drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">🎟️ 15% OFF</span>
+                    
+                    <!-- Centro de la ruleta con emblema -->
+                    <div class="w-10 h-10 rounded-full bg-amber-400 border-2 border-gray-950 z-20 flex items-center justify-center shadow-lg">
+                        <i class="fa-solid fa-star text-sm text-gray-950"></i>
                     </div>
                 </div>
             </div>
 
             <!-- FORMULARIO DE VALIDACIÓN Y GIRO -->
-            <form id="roulette-form" onsubmit="handleSpin(event)" class="space-y-2.5 text-left mt-2">
+            <form id="roulette-form" onsubmit="handleSpin(event)" class="space-y-3 text-left mt-2">
                 <div>
                     <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Tu Teléfono Móvil Registrado</label>
-                    <input type="tel" id="user-phone" required placeholder="Ej: 04121234567" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    <input type="tel" id="user-phone" required placeholder="Ej: 04121234567" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400 font-mono">
                 </div>
-                <button type="submit" id="btn-spin" class="w-full bg-amber-500 hover:bg-amber-400 text-gray-950 font-black py-2.5 rounded-xl text-xs uppercase tracking-wider shadow transition">
+                <button type="submit" id="btn-spin" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-gray-950 font-black py-3 rounded-xl text-xs uppercase tracking-wider shadow-lg transition transform active:scale-95">
                     🎰 ¡Girar Ruleta Ahora!
                 </button>
             </form>
@@ -283,7 +287,8 @@
             if (isAdmin) { renderQrAdminPanel(); return; }
 
             if (currentMesaNum) {
-                document.getElementById('table-number-text').innerText = `Mesa 0${currentMesaNum}`;
+                const mesaInt = parseInt(currentMesaNum);
+                document.getElementById('table-number-text').innerText = `Mesa ${mesaInt < 10 ? '0' + mesaInt : mesaInt}`;
                 document.getElementById('table-badge').classList.remove('hidden');
                 
                 if (sessionStorage.getItem('mookah_client_name')) {
@@ -372,24 +377,30 @@
             `).join('');
         }
 
-        // --- RULETA Y VALIDACIÓN AUTÓNOMA DESDE EL MÓVIL DEL CLIENTE ---
+        // --- RULETA Y VALIDACIÓN AUTÓNOMA FLEXIBLE ---
         function openRouletteModal() { document.getElementById('roulette-modal').classList.remove('hidden'); }
         function closeRouletteModal() { document.getElementById('roulette-modal').classList.add('hidden'); }
 
+        function cleanPhone(p) {
+            return p ? p.replace(/\D/g, '').replace(/^58/, '') : '';
+        }
+
         async function handleSpin(e) {
             e.preventDefault();
-            const phone = document.getElementById('user-phone').value.trim();
+            const inputPhone = document.getElementById('user-phone').value.trim();
 
-            if (!phone || !currentMesaNum) { 
-                alert("Por favor ingresa tu teléfono y asegúrate de escanear el código QR de tu mesa."); 
+            if (!inputPhone || !currentMesaNum) { 
+                alert("Por favor ingresa tu teléfono y asegúrate de estar en una mesa escaneada."); 
                 return; 
             }
+
+            const mesaIdInt = parseInt(currentMesaNum);
 
             try {
                 const { data: mesaData, error } = await supabaseClient
                     .from('mesas_estado')
                     .select('*')
-                    .eq('id', currentMesaNum)
+                    .eq('id', mesaIdInt)
                     .maybeSingle();
 
                 if (error || !mesaData || mesaData.estado !== 'ocupada' || !mesaData.cliente_json) {
@@ -398,9 +409,11 @@
                 }
 
                 const clienteMesa = JSON.parse(mesaData.cliente_json);
+                const phoneLimpioInput = cleanPhone(inputPhone);
+                const phoneLimpioMesa = cleanPhone(clienteMesa.telefono);
 
-                if (clienteMesa.telefono !== phone || !clienteMesa.puedeGirarRuleta) {
-                    alert("⛔ Lo sentimos, este teléfono no tiene habilitada la ruleta en esta visita (recuerda que se desbloquea cada 5 visitas con autorización en recepción).");
+                if ((phoneLimpioInput !== phoneLimpioMesa && !clienteMesa.telefono.includes(phoneLimpioInput)) || !clienteMesa.puedeGirarRuleta) {
+                    alert("⛔ Lo sentimos, este teléfono no tiene habilitada la ruleta en esta visita (recuerda que se desbloquea cada 5 visitas).");
                     return;
                 }
 
@@ -416,14 +429,14 @@
                 wheel.style.transform = `rotate(${currentRotation}deg)`;
 
                 await supabaseClient.from('premios_ruleta').insert([{
-                    telefono_cliente: phone,
+                    telefono_cliente: inputPhone,
                     nombre_cliente: clienteMesa.nombre,
-                    mesa_numero: parseInt(currentMesaNum),
+                    mesa_numero: mesaIdInt,
                     premio_ganado: chosenPrize.text,
                     estado: 'pendiente'
                 }]);
 
-                sessionStorage.setItem('mookah_client_phone', phone);
+                sessionStorage.setItem('mookah_client_phone', inputPhone);
                 sessionStorage.setItem('mookah_client_name', clienteMesa.nombre);
 
                 setTimeout(() => {
