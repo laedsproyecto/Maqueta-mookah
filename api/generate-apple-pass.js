@@ -1,7 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-
 export default async function handler(req, res) {
     if (req.method !== 'GET') {
         return res.status(405).json({ error: 'Método no permitido' });
@@ -13,6 +11,16 @@ export default async function handler(req, res) {
     }
 
     try {
+        // Verificar variables de entorno
+        if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            return res.status(500).json({ error: 'Faltan credenciales de Supabase en Vercel' });
+        }
+        if (!process.env.PASSKIT_KEY || !process.env.PASSKIT_SECRET || !process.env.PASSKIT_PROGRAM_ID) {
+            return res.status(500).json({ error: 'Faltan credenciales de PassKit en Vercel' });
+        }
+
+        const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
         // Obtener datos del cliente desde Supabase
         const { data: cliente, error } = await supabase
             .from('clientes')
@@ -21,7 +29,7 @@ export default async function handler(req, res) {
             .single();
 
         if (error || !cliente) {
-            return res.status(404).json({ error: 'Cliente no encontrado' });
+            return res.status(404).json({ error: 'Cliente no encontrado en la base de datos' });
         }
 
         const visitas = cliente.visitas_totales || 1;
@@ -40,7 +48,7 @@ export default async function handler(req, res) {
                 programId: process.env.PASSKIT_PROGRAM_ID,
                 externalId: cliente.telefono,
                 person: {
-                    forename: cliente.nombre,
+                    forename: cliente.nombre || 'Cliente',
                     surname: cliente.apellido || ''
                 },
                 points: visitas,
@@ -50,14 +58,19 @@ export default async function handler(req, res) {
 
         const passResult = await response.json();
 
+        if (!response.ok) {
+            console.error("Error de PassKit API:", passResult);
+            return res.status(500).json({ error: 'Error al comunicarse con PassKit', details: passResult });
+        }
+
         if (passResult && passResult.passUrl) {
             return res.status(200).json({ downloadUrl: passResult.passUrl });
         } else {
-            return res.status(500).json({ error: 'No se pudo generar la URL del pase' });
+            return res.status(500).json({ error: 'PassKit no devolvió una URL de descarga válida', details: passResult });
         }
 
     } catch (err) {
-        console.error("Error generando pase Apple:", err);
-        return res.status(500).json({ error: 'Error interno al procesar el pase' });
+        console.error("Error interno en generate-apple-pass:", err);
+        return res.status(500).json({ error: 'Error interno del servidor', details: err.message });
     }
 }
