@@ -20,7 +20,7 @@ export default async function handler(req, res) {
         if (!supabaseUrl || !supabaseKey) {
             return res.status(500).json({ error: 'Faltan credenciales de Supabase en Vercel' });
         }
-        if (!passkitKey || !passkitSecret || !passkitProgramId) {
+        if (!passkitKey || !passkitProgramId) {
             return res.status(500).json({ error: 'Faltan credenciales de PassKit en Vercel' });
         }
 
@@ -51,9 +51,16 @@ export default async function handler(req, res) {
         const visitas = cliente.visitas_totales || 1;
         const telefonoLimpio = cliente.telefono.replace(/\D/g, '');
 
-        // Codificación limpia en Base64 sin saltos de línea
-        const authString = `${passkitKey}:${passkitSecret}`;
-        const credentials = Buffer.from(authString).toString('base64').replace(/\s/g, '');
+        // Determinar si PassKit usa un Token directo (JWT) o Key/Secret tradicional
+        let authHeader = '';
+        if (passkitSecret) {
+            // Método Clásico: Basic Auth con Key y Secret
+            const credentials = Buffer.from(`${passkitKey}:${passkitSecret}`).toString('base64').replace(/\s/g, '');
+            authHeader = `Basic ${credentials}`;
+        } else {
+            // Método Token Directo: Bearer Token (si solo usas PASSKIT_KEY como token)
+            authHeader = `Bearer ${passkitKey}`;
+        }
 
         const pkPayload = {
             programId: passkitProgramId,
@@ -69,7 +76,7 @@ export default async function handler(req, res) {
         const pkResponse = await fetch(`https://api.pub2.passkit.io/members/member`, {
             method: 'POST',
             headers: {
-                'Authorization': `Basic ${credentials}`,
+                'Authorization': authHeader,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(pkPayload)
