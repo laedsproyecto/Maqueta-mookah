@@ -389,7 +389,7 @@
             }
         }
 
-        // FUNCIÓN CONECTADA AL BACKEND SERVERLESS DE APPLE WALLET (PASSKIT)
+        // FUNCIÓN CONECTADA A LOS BACKENDS DE APPLE WALLET Y GOOGLE WALLET
         async function downloadWalletPass(type) {
             const phone = sessionStorage.getItem('mookah_client_phone') || localStorage.getItem('mookah_client_phone');
 
@@ -419,7 +419,25 @@
                     if (btn) btn.innerHTML = originalText;
                 }
             } else if (type === 'google') {
-                alert("Configurando pasarela de Google Wallet...");
+                const btn = event.currentTarget;
+                const originalText = btn ? btn.innerHTML : '';
+                if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-emerald-400"></i> <span>Generando...</span>';
+
+                try {
+                    const res = await fetch(`/api/generate-google-pass?telefono=${encodeURIComponent(phone)}`);
+                    const data = await res.json();
+
+                    if (res.ok && data.saveUrl) {
+                        window.location.href = data.saveUrl;
+                    } else {
+                        alert("No se pudo generar la tarjeta de Google Wallet: " + (data.error || "Error desconocido."));
+                    }
+                } catch (err) {
+                    console.error("Error al conectar con el servidor de Google Wallet:", err);
+                    alert("Ocurrió un fallo al comunicarse con el servidor de Google Wallet.");
+                } finally {
+                    if (btn) btn.innerHTML = originalText;
+                }
             }
         }
 
