@@ -11,12 +11,11 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Limpiar variables de entorno para eliminar espacios invisibles
-        const supabaseUrl = (process.env.SUPABASE_URL || '').trim();
-        const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-        const passkitKey = (process.env.PASSKIT_KEY || '').trim();
-        const passkitSecret = (process.env.PASSKIT_SECRET || '').trim();
-        const passkitProgramId = (process.env.PASSKIT_PROGRAM_ID || '').trim();
+        const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/[[\]()]/g, '').trim();
+        const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').replace(/[[\]()]/g, '').trim();
+        const passkitKey = (process.env.PASSKIT_KEY || '').replace(/[[\]()]/g, '').trim();
+        const passkitSecret = (process.env.PASSKIT_SECRET || '').replace(/[[\]()]/g, '').trim();
+        const passkitProgramId = (process.env.PASSKIT_PROGRAM_ID || '').replace(/[[\]()]/g, '').trim();
 
         if (!supabaseUrl || !supabaseKey) {
             return res.status(500).json({ error: 'Faltan credenciales de Supabase en Vercel' });
@@ -25,11 +24,11 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Faltan credenciales de PassKit en Vercel' });
         }
 
-        // Normalizar URL base de Supabase quitando barra final si la tiene
         const baseUrl = supabaseUrl.replace(/\/+$/, '');
         const targetUrl = `${baseUrl}/rest/v1/clientes?telefono=eq.${encodeURIComponent(telefono)}&select=*`;
 
-        // Consultar Supabase
+        console.log("Consultando Supabase en:", targetUrl);
+
         const sbResponse = await fetch(targetUrl, {
             method: 'GET',
             headers: {
@@ -38,10 +37,17 @@ export default async function handler(req, res) {
             }
         });
 
-        const clientes = await sbResponse.json();
+        const rawText = await sbResponse.text();
+        let clientes;
+        try {
+            clientes = JSON.parse(rawText);
+        } catch (e) {
+            console.error("Supabase devolvió HTML en lugar de JSON:", rawText);
+            return res.status(500).json({ error: 'Supabase respondió con formato inválido (HTML). Revisa SUPABASE_URL.', details: rawText.substring(0, 150) });
+        }
 
         if (!sbResponse.ok || !clientes || clientes.length === 0) {
-            return res.status(404).json({ error: 'Cliente no encontrado en la base de datos' });
+            return res.status(404).json({ error: 'Cliente no encontrado en la base de datos', details: clientes });
         }
 
         const cliente = clientes[0];
@@ -50,7 +56,6 @@ export default async function handler(req, res) {
 
         const credentials = Buffer.from(`${passkitKey}:${passkitSecret}`).toString('base64');
 
-        // Petición a PassKit
         const pkPayload = {
             programId: passkitProgramId,
             externalId: telefonoLimpio,
@@ -71,7 +76,14 @@ export default async function handler(req, res) {
             body: JSON.stringify(pkPayload)
         });
 
-        const passResult = await pkResponse.json();
+        const passRawText = await pkResponse.text();
+        let passResult;
+        try {
+            passResult = JSON.parse(passRawText);
+        } catch (e) {
+            console.error("PassKit devolvió HTML:", passRawText);
+            return res.status(500).json({ error: 'PassKit respondió con formato inválido', details: passRawText.substring(0, 150) });
+        }
 
         if (!pkResponse.ok) {
             return res.status(500).json({ error: 'PassKit rechazó la solicitud', details: passResult });
@@ -84,6 +96,7 @@ export default async function handler(req, res) {
         }
 
     } catch (err) {
+        console.error("Error crítico en la función:", err.message);
         return res.status(500).json({ error: 'Error interno en la función', details: err.message });
     }
 }
