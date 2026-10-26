@@ -158,26 +158,37 @@
         </div>
     </div>
 
-    <!-- MODAL DETALLE DE CALCULADORA -->
+    <!-- MODAL DETALLE DE CALCULADORA CON 10% DE SERVICIO -->
     <div id="calc-detail-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center hidden z-50 p-0 sm:p-4">
-        <div class="bg-gray-900 border border-gray-800 rounded-t-2xl sm:rounded-2xl p-5 w-full max-w-md text-left shadow-2xl relative max-h-[80vh] flex flex-col">
+        <div class="bg-gray-900 border border-gray-800 rounded-t-2xl sm:rounded-2xl p-5 w-full max-w-md text-left shadow-2xl relative max-h-[85vh] flex flex-col">
             <div class="flex justify-between items-center border-b border-gray-800 pb-3 mb-3">
-                <h3 class="font-bold text-base text-white flex items-center">
-                    <i class="fa-solid fa-calculator text-indigo-400 mr-2"></i> Mi Estimado de Consumo
+                <h3 class="font-bold base text-white flex items-center">
+                    <i class="fa-solid fa-calculator text-indigo-400 mr-2"></i> Detalle de Consumo y Cuenta
                 </h3>
                 <button onclick="toggleCalcDetailModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
             </div>
             <div id="calc-items-list" class="space-y-2 overflow-y-auto flex-1 pr-1 my-2"></div>
-            <div class="border-t border-gray-800 pt-3 space-y-2">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs text-gray-400">Total en Dólares ($):</span>
+            
+            <!-- DESGLOSE DE TOTALES CON 10% DE SERVICIO -->
+            <div class="border-t border-gray-800 pt-3 space-y-2 text-xs">
+                <div class="flex justify-between items-center text-gray-300">
+                    <span>Consumo (Subtotal):</span>
+                    <span id="modal-subtotal-usd" class="font-mono font-bold">$0.00</span>
+                </div>
+                <div class="flex justify-between items-center text-indigo-300">
+                    <span>Costo por Servicio (10%):</span>
+                    <span id="modal-service-usd" class="font-mono font-bold">$0.00</span>
+                </div>
+                <div class="border-t border-gray-800 pt-2 flex justify-between items-center">
+                    <span class="text-xs font-bold text-white uppercase">Total en Dólares ($):</span>
                     <span id="modal-calc-total-usd" class="text-base font-extrabold text-emerald-400">$0.00</span>
                 </div>
                 <div class="flex justify-between items-center">
                     <span class="text-xs text-gray-400">Total Tasa Oficial (BCV):</span>
                     <span id="modal-calc-total-ves" class="text-xs font-mono text-amber-300 font-bold">Bs. 0,00</span>
                 </div>
-                <button onclick="clearCalculator()" class="w-full bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 text-xs font-bold py-2 rounded-lg transition mt-2">
+                <p class="text-[10px] text-gray-500 italic text-center pt-1">Muestra esta lista a tu mesero al momento de ordenar.</p>
+                <button onclick="clearCalculator()" class="w-full bg-red-600/25 hover:bg-red-600/40 text-red-300 border border-red-500/30 text-xs font-bold py-2 rounded-lg transition mt-2">
                     Vaciar Calculadora
                 </button>
             </div>
@@ -406,21 +417,38 @@
         function clearCalculator() { calcCart = []; updateCalcUI(); toggleCalcDetailModal(); }
 
         function updateCalcUI() {
-            let totalUsd = 0, totalItems = 0;
-            calcCart.forEach(c => { totalUsd += c.precio * c.qty; totalItems += c.qty; });
+            let subtotalUsd = 0, totalItems = 0;
+            calcCart.forEach(c => { subtotalUsd += c.precio * c.qty; totalItems += c.qty; });
+            
+            // Cálculo del 10% de servicio
+            let serviceUsd = subtotalUsd * 0.10;
+            let totalUsd = subtotalUsd + serviceUsd;
             let totalVes = totalUsd * bcvRate;
 
+            // Actualizar barra flotante inferior
             document.getElementById('calc-total-usd').innerText = `$${totalUsd.toFixed(2)}`;
             document.getElementById('calc-total-ves').innerText = `Bs. ${totalVes.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             document.getElementById('calc-count').innerText = totalItems;
-            document.getElementById('modal-calc-total-usd').innerText = `$${totalUsd.toFixed(2)}`;
-            document.getElementById('modal-calc-total-ves').innerText = `Bs. ${totalVes.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            // Actualizar modal interno si está abierto
+            const subtotalEl = document.getElementById('modal-subtotal-usd');
+            const serviceEl = document.getElementById('modal-service-usd');
+            const modalTotalUsd = document.getElementById('modal-calc-total-usd');
+            const modalTotalVes = document.getElementById('modal-calc-total-ves');
+
+            if (subtotalEl) subtotalEl.innerText = `$${subtotalUsd.toFixed(2)}`;
+            if (serviceEl) serviceEl.innerText = `$${serviceUsd.toFixed(2)}`;
+            if (modalTotalUsd) modalTotalUsd.innerText = `$${totalUsd.toFixed(2)}`;
+            if (modalTotalVes) modalTotalVes.innerText = `Bs. ${totalVes.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         }
 
         function toggleCalcDetailModal() {
             const modal = document.getElementById('calc-detail-modal');
             modal.classList.toggle('hidden');
-            if (!modal.classList.contains('hidden')) renderCalcDetailList();
+            if (!modal.classList.contains('hidden')) {
+                renderCalcDetailList();
+                updateCalcUI();
+            }
         }
 
         function renderCalcDetailList() {
