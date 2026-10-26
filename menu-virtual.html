@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menú Virtual & Lealtad Wallet - Mookah</title>
+    <title>Menú Virtual & Lealtad - Mookah</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -13,13 +13,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <style>
-        /* Gradiente cónico rediseñado para la ruleta Mookah Premium */
         .pizza-wheel {
             background: conic-gradient(
-                #4f46e5 0deg 90deg,     /* 🍧 Postre Gratis (Índigo) */
-                #10b981 90deg 180deg,   /* 🍹 Bebida Gratis (Verde) */
-                #f59e0b 180deg 270deg,  /* 🍣 Roll Gratis (Dorado) */
-                #ec4899 270deg 360deg   /* 🎟️ 15% OFF (Rosa Violeta) */
+                #4f46e5 0deg 90deg,     
+                #10b981 90deg 180deg,   
+                #f59e0b 180deg 270deg,  
+                #ec4899 270deg 360deg   
             );
             transition: transform 4s cubic-bezier(0.15, 0.9, 0.15, 1);
         }
@@ -27,7 +26,7 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-gray-950 text-gray-100 font-sans min-h-screen flex flex-col pb-24">
+<body class="bg-gray-950 text-gray-100 font-sans min-h-screen flex flex-col pb-28">
 
     <!-- CABECERA PRINCIPAL -->
     <header class="bg-gray-900 border-b border-gray-800 sticky top-0 z-30 px-4 py-3 flex justify-between items-center shadow-md">
@@ -47,9 +46,9 @@
         </div>
     </header>
 
-    <!-- BANNER DE WALLET Y TARJETA DE FIDELIZACIÓN DIGITAL -->
+    <!-- TARJETA DIGITAL / WALLET VIP -->
     <div class="px-4 pt-3">
-        <div id="wallet-card-banner" class="bg-gradient-to-r from-indigo-950 via-gray-900 to-indigo-950 border border-indigo-500/50 rounded-2xl p-4 shadow-xl text-left relative overflow-hidden">
+        <div class="bg-gradient-to-r from-indigo-950 via-gray-900 to-indigo-950 border border-indigo-500/50 rounded-2xl p-4 shadow-xl text-left relative overflow-hidden">
             <div class="flex justify-between items-start mb-2">
                 <div>
                     <span class="text-[9px] uppercase font-bold tracking-widest text-indigo-300 block">Tarjeta Digital Mookah VIP</span>
@@ -60,7 +59,6 @@
                 </span>
             </div>
 
-            <!-- BARRA DE PROGRESO DE VISITAS -->
             <div class="my-2.5">
                 <div class="flex justify-between text-[10px] text-gray-300 mb-1">
                     <span>Avance para Ruleta</span>
@@ -71,7 +69,6 @@
                 </div>
             </div>
 
-            <!-- BOTONES AGREGAR A WALLET (APPLE / GOOGLE) -->
             <div class="flex space-x-2 pt-1">
                 <button onclick="downloadWalletPass('apple')" class="flex-1 bg-black hover:bg-gray-900 border border-gray-700 text-white rounded-xl py-2 px-3 text-[11px] font-bold flex items-center justify-center space-x-2 transition shadow">
                     <i class="fa-brands fa-apple text-base"></i>
@@ -82,7 +79,6 @@
                     <span>Google Wallet</span>
                 </button>
             </div>
-            <button onclick="openLegalModal()" class="text-[9px] text-gray-400 underline block mt-2 text-center w-full">Ver Términos y Política de Privacidad de Datos</button>
         </div>
     </div>
 
@@ -116,6 +112,13 @@
     <!-- CONTENEDOR DE PRODUCTOS -->
     <main class="flex-1 p-4 overflow-y-auto">
         <div id="public-menu-grid" class="grid grid-cols-1 gap-3 max-w-lg mx-auto"></div>
+        
+        <!-- ENLACE DE TÉRMINOS Y POLÍTICAS DE PRIVACIDAD AL FINAL DE TODO -->
+        <div class="mt-8 mb-4 text-center">
+            <button onclick="openLegalModal()" class="text-[11px] text-gray-400 hover:text-indigo-400 underline transition">
+                Ver Términos y Política de Privacidad de Datos
+            </button>
+        </div>
     </main>
 
     <!-- BARRA FIJA DE CALCULADORA -->
@@ -135,7 +138,7 @@
         </div>
     </div>
 
-    <!-- MODAL TÉRMINOS Y CONDICIONES LEGALES (PRIVACIDAD & GEOLOCALIZACIÓN) -->
+    <!-- MODAL TÉRMINOS Y CONDICIONES LEGALES -->
     <div id="legal-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
         <div class="bg-gray-900 border border-gray-700 rounded-2xl p-5 w-full max-w-md text-left shadow-2xl max-h-[85vh] flex flex-col">
             <div class="flex justify-between items-center border-b border-gray-800 pb-3 mb-3">
@@ -145,9 +148,9 @@
                 <button onclick="closeLegalModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
             </div>
             <div class="overflow-y-auto flex-1 text-xs text-gray-300 space-y-3 pr-1">
-                <p><strong>1. Tratamiento de Datos Personales:</strong> Los datos proporcionados (nombre, teléfono y preferencias de consumo) se almacenan de forma encriptada en nuestra infraestructura segura en Supabase con el único fin de registrar sus visitas, administrar su saldo y enviarle incentivos de fidelidad.</p>
-                <p><strong>2. Pases Digitales y Geolocalización:</strong> Al añadir su tarjeta a Apple Wallet o Google Wallet, su teléfono móvil procesará notificaciones de proximidad únicamente cuando se encuentre en las cercanías de nuestro establecimiento. Mookah no rastrea ni almacena su ubicación GPS en tiempo real en servidores externos.</p>
-                <p><strong>3. Derechos del Usuario:</strong> Usted puede solicitar la eliminación completa de su registro de la base de datos en cualquier momento enviando una solicitud a nuestro personal de atención.</p>
+                <p><strong>1. Tratamiento de Datos Personales:</strong> Los datos proporcionados se almacenan de forma segura en nuestra infraestructura con el único fin de registrar sus visitas, administrar su saldo y enviarle incentivos de fidelidad.</p>
+                <p><strong>2. Pases Digitales y Geolocalización:</strong> Al añadir su tarjeta a Apple Wallet o Google Wallet, su teléfono móvil procesará notificaciones de proximidad únicamente cuando se encuentre en las cercanías de nuestro establecimiento.</p>
+                <p><strong>3. Derechos del Usuario:</strong> Usted puede solicitar la eliminación completa de su registro de la base de datos en cualquier momento comunicándose con nuestro personal.</p>
             </div>
             <div class="pt-3 border-t border-gray-800">
                 <button onclick="closeLegalModal()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl text-xs">Entendido y Acepto</button>
@@ -174,8 +177,7 @@
                     <span class="text-xs text-gray-400">Total Tasa Oficial (BCV):</span>
                     <span id="modal-calc-total-ves" class="text-xs font-mono text-amber-300 font-bold">Bs. 0,00</span>
                 </div>
-                <p class="text-[10px] text-gray-500 italic text-center pt-1">Muestra esta lista a tu mesero al momento de ordenar.</p>
-                <button onclick="clearCalculator()" class="w-full bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 text-xs font-bold py-2 rounded-lg transition">
+                <button onclick="clearCalculator()" class="w-full bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 text-xs font-bold py-2 rounded-lg transition mt-2">
                     Vaciar Calculadora
                 </button>
             </div>
@@ -192,17 +194,16 @@
                     <i class="fa-solid fa-gift text-amber-400 animate-bounce"></i>
                     <span>Ruleta Mookah</span>
                 </h3>
-                <p class="text-[11px] text-gray-300 mt-1">Ingresa tu teléfono registrado para girar tu premio de visita especial.</p>
+                <p class="text-[11px] text-gray-300 mt-1">Ingresa tu teléfono registrado para girar tu premio.</p>
             </div>
 
             <div class="relative w-60 h-60 mx-auto my-4 flex items-center justify-center">
                 <div class="absolute -top-3 z-30 text-amber-400 text-3xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)]">▼</div>
                 <div id="pizza-wheel" class="pizza-wheel w-full h-full rounded-full border-4 border-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.3)] relative overflow-hidden flex items-center justify-center">
-                    <span class="absolute top-5 text-white font-extrabold text-xs drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">🍧 Postre</span>
-                    <span class="absolute right-4 text-white font-extrabold text-xs drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">🍹 Bebida</span>
-                    <span class="absolute bottom-5 text-white font-extrabold text-xs drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">🍣 Roll</span>
-                    <span class="absolute left-4 text-white font-extrabold text-xs drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">🎟️ 15% OFF</span>
-                    
+                    <span class="absolute top-5 text-white font-extrabold text-xs">🍧 Postre</span>
+                    <span class="absolute right-4 text-white font-extrabold text-xs">🍹 Bebida</span>
+                    <span class="absolute bottom-5 text-white font-extrabold text-xs">🍣 Roll</span>
+                    <span class="absolute left-4 text-white font-extrabold text-xs">🎟️ 15% OFF</span>
                     <div class="w-10 h-10 rounded-full bg-amber-400 border-2 border-gray-950 z-20 flex items-center justify-center shadow-lg">
                         <i class="fa-solid fa-star text-sm text-gray-950"></i>
                     </div>
@@ -211,10 +212,10 @@
 
             <form id="roulette-form" onsubmit="handleSpin(event)" class="space-y-3 text-left mt-2">
                 <div>
-                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Tu Teléfono Móvil Registrado</label>
+                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Tu Teléfono Móvil</label>
                     <input type="tel" id="user-phone" required placeholder="Ej: 04121234567" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400 font-mono">
                 </div>
-                <button type="submit" id="btn-spin" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-gray-950 font-black py-3 rounded-xl text-xs uppercase tracking-wider shadow-lg transition transform active:scale-95">
+                <button type="submit" id="btn-spin" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-gray-950 font-black py-3 rounded-xl text-xs uppercase tracking-wider shadow-lg transition">
                     🎰 ¡Girar Ruleta Ahora!
                 </button>
             </form>
@@ -223,13 +224,6 @@
                 <div class="bg-gray-950 border border-emerald-500/50 p-4 rounded-xl shadow-inner">
                     <span class="text-[10px] uppercase font-bold text-gray-400 block">¡Premio Obtenido!</span>
                     <span id="won-prize-text" class="text-xl font-black text-emerald-400 block my-1">---</span>
-                    <p class="text-[11px] text-gray-200 mt-1">
-                        Registrado a nombre de <strong id="won-user-name" class="text-white"></strong> (Mesa <span id="won-mesa"></span>).
-                    </p>
-                    <div class="mt-3 bg-indigo-950/95 border border-indigo-500 p-2.5 rounded-lg text-[11px] text-indigo-200 font-semibold flex items-center justify-center space-x-2 animate-pulse">
-                        <i class="fa-solid fa-bell text-amber-400 text-sm"></i>
-                        <span>Muéstrale esta pantalla a tu mesero para reclamar tu premio.</span>
-                    </div>
                 </div>
                 <button onclick="closeRouletteModal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs shadow">
                     ¡Entendido, ir al Menú!
@@ -243,7 +237,7 @@
         <div class="max-w-4xl mx-auto space-y-6">
             <div class="flex justify-between items-center border-b border-gray-800 pb-4">
                 <h2 class="text-xl font-bold text-white"><i class="fa-solid fa-qrcode text-indigo-400 mr-2"></i>Códigos QR de Mesas (Mookah)</h2>
-                <button onclick="window.print()" class="bg-indigo-600 text-white text-xs px-4 py-2 rounded-lg font-bold"><i class="fa-solid fa-print mr-1"></i> Imprimir</button>
+                <button onclick="window.print()" class="bg-indigo-600 text-white text-xs px-4 py-2 rounded-lg font-bold">Imprimir</button>
             </div>
             <div id="qr-grid" class="grid grid-cols-2 md:grid-cols-3 gap-6"></div>
         </div>
@@ -284,7 +278,6 @@
             { id: 112, nombre: "Tartar Trufado", categoria: "entradas", precio: 12.00, ingredientes: ["Atún Importado", "Aguacate", "Wakame", "Masago", "Ajonjolí Tostado", "Aderezo de Trufa"] },
             { id: 113, nombre: "XOXO (NEW!)", categoria: "entradas", precio: 12.00, ingredientes: ["Nori crunch", "Arroz nishiki", "Aguacate", "Queso crema", "Atún spicy", "Langostino tempura", "Salmón mae ploy"] },
             { id: 114, nombre: "Trio de Tacos", categoria: "entradas", precio: 13.00, ingredientes: ["Lomito", "Dinamita", "Kani crispy", "Pimienta", "Aceite de trufa", "Hoja de arroz tempurizado"] },
-
             { id: 201, nombre: "Alaska Roll", categoria: "rolls", precio: 11.00, ingredientes: ["Salmón chileno", "Aguacate", "Queso crema", "Ajonjolí tostado"] },
             { id: 202, nombre: "Bugatti Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Queso de cabra", "Langostino tempura", "Aguacate", "Salmón chileno", "Tocineta crocante", "Chutney de piña"] },
             { id: 203, nombre: "Liv Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Langostino tempura", "Kani", "Aguacate", "Spicy tuna", "Cebollín", "Ajonjolí tostado"] },
@@ -308,26 +301,22 @@
             { id: 221, nombre: "Ava Roll (NEW!)", categoria: "rolls", precio: 15.00, ingredientes: ["Camarones salteados", "Aguacate", "Soybean", "Pasta dinamita", "Salmón ahumado", "Mantequilla clarificada", "Chispas tempura"] },
             { id: 222, nombre: "Nikkei", categoria: "rolls", precio: 14.00, ingredientes: ["Salmón", "Chispas rojas", "Dragon", "Cebolla crispy", "Camarón tempura panco", "Soybean", "Queso crema", "Aguacate", "Salsa ají amarillo"] },
             { id: 223, nombre: "305 Roll", categoria: "rolls", precio: 14.00, ingredientes: ["Soybean", "Arroz nishiki", "Queso crema", "Salmón", "Aguacate", "Atún", "Salsa dragon", "Chutney de piña", "Tajín"] },
-
-            { id: 301, nombre: "Arroz Teriyaki", categoria: "calientes", precio: 15.00, ingredientes: ["Zanahoria", "Cebolla", "Pimentón", "Proteína (Pollo o Carne)"] },
-            { id: 302, nombre: "Tallarines Teriyaki", categoria: "calientes", precio: 15.00, ingredientes: ["Zanahoria", "Cebolla", "Pimentón", "Proteína (Pollo o Carne)"] },
-
-            { id: 401, nombre: "Poke Amarillo (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Camarón grill", "Kani", "Piña", "Aguacate", "Cebolla tempura", "Salsa fuji", "Wakame", "Tobico", "Sésamo"] },
-            { id: 402, nombre: "Poke Azul (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Atún abrazado", "Salmón", "Edamame", "Aguacate", "Hilos de batata", "Salsa anguila", "Wakame", "Tobico", "Sésamo"] },
-            { id: 403, nombre: "Poke Rojo (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Edamames", "Piña", "Salmón spicy", "Dinamita", "Wakame", "Tobico", "Sésamo"] },
-            { id: 404, nombre: "Poke Mookah (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Atún", "Salmón spicy", "Aguacate", "Edamame", "Maíz inflado", "Salsa dragón", "Salsa anguila", "Wakame", "Tobico", "Sésamo"] },
-
+            { id: 301, nombre: "Arroz Teriyaki", categoria: "calientes", precio: 15.00, ingredientes: ["Zanahoria", "Cebolla", "Pimentón", "Proteína"] },
+            { id: 302, nombre: "Tallarines Teriyaki", categoria: "calientes", precio: 15.00, ingredientes: ["Zanahoria", "Cebolla", "Pimentón", "Proteína"] },
+            { id: 401, nombre: "Poke Amarillo (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Camarón grill", "Kani", "Piña", "Aguacate"] },
+            { id: 402, nombre: "Poke Azul (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Atún abrazado", "Salmón", "Edamame"] },
+            { id: 403, nombre: "Poke Rojo (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Edamames", "Piña", "Salmón spicy"] },
+            { id: 404, nombre: "Poke Mookah (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Atún", "Salmón spicy", "Aguacate"] },
             { id: 601, nombre: "Coca-Cola", categoria: "bebidas", precio: 2.50, ingredientes: ["Lata 355ml", "Hielo"] },
             { id: 602, nombre: "Pepsi", categoria: "bebidas", precio: 2.50, ingredientes: ["Lata 355ml", "Hielo"] },
-            { id: 603, nombre: "Agua con Hielo", categoria: "bebidas", precio: 1.50, ingredientes: ["Agua mineral 500ml", "Hielo"] },
-            { id: 604, nombre: "Agua con Gas", categoria: "bebidas", precio: 2.00, ingredientes: ["Agua con gas 500ml", "Rodaja de limón"] },
-            { id: 605, nombre: "Mojito Tradicional", categoria: "bebidas", precio: 7.00, ingredientes: ["Ron Blanco", "Hierbabuena", "Limón", "Soda", "Azúcar"] },
-            { id: 606, nombre: "Margarita Mookah", categoria: "bebidas", precio: 8.00, ingredientes: ["Tequila", "Triple Sec", "Jugo de Limón", "Sal en borde"] },
-
-            { id: 501, nombre: "Crumble de Manzana", categoria: "postres", precio: 12.00, ingredientes: ["Manzanas en almíbar y canela", "Tierra de galleta", "Crema caramelo", "Helado de vainilla"] },
-            { id: 502, nombre: "Cheesecake", categoria: "postres", precio: 9.00, ingredientes: ["Queso crema", "Fresas", "Mermelada de mora y fresa"] },
-            { id: 503, nombre: "Crepe de Nutella", categoria: "postres", precio: 11.00, ingredientes: ["Masa de crepe", "Nutella"] },
-            { id: 504, nombre: "Volcán de Chocolate", categoria: "postres", precio: 12.00, ingredientes: ["Brownie relleno de chocolate", "Helado", "Dulce de leche"] }
+            { id: 603, nombre: "Agua con Hielo", categoria: "bebidas", precio: 1.50, ingredientes: ["Agua mineral 500ml"] },
+            { id: 604, nombre: "Agua con Gas", categoria: "bebidas", precio: 2.00, ingredientes: ["Agua con gas 500ml"] },
+            { id: 605, nombre: "Mojito Tradicional", categoria: "bebidas", precio: 7.00, ingredientes: ["Ron Blanco", "Hierbabuena", "Limón"] },
+            { id: 606, nombre: "Margarita Mookah", categoria: "bebidas", precio: 8.00, ingredientes: ["Tequila", "Triple Sec", "Limón"] },
+            { id: 501, nombre: "Crumble de Manzana", categoria: "postres", precio: 12.00, ingredientes: ["Manzanas", "Galleta", "Helado"] },
+            { id: 502, nombre: "Cheesecake", categoria: "postres", precio: 9.00, ingredientes: ["Queso crema", "Fresas"] },
+            { id: 503, nombre: "Crepe de Nutella", categoria: "postres", precio: 11.00, ingredientes: ["Crepe", "Nutella"] },
+            { id: 504, nombre: "Volcán de Chocolate", categoria: "postres", precio: 12.00, ingredientes: ["Brownie", "Helado"] }
         ];
 
         window.onload = async () => {
@@ -337,54 +326,46 @@
 
             if (isAdmin) { renderQrAdminPanel(); return; }
 
+            await fetchBcvRate();
+            await loadAgotadosFromSupabase();
+
             if (currentMesaNum) {
                 const mesaInt = parseInt(currentMesaNum);
                 document.getElementById('table-number-text').innerText = `Mesa ${mesaInt < 10 ? '0' + mesaInt : mesaInt}`;
                 document.getElementById('table-badge').classList.remove('hidden');
                 
-                await updateClientWalletDisplay(mesaInt);
+                await loadClientWalletData(mesaInt);
             }
-
-            await fetchBcvRate();
-            await loadAgotadosFromSupabase();
-
-            supabaseClient
-                .channel('public:platos_agotados')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'platos_agotados' }, () => {
-                    loadAgotadosFromSupabase(true);
-                })
-                .subscribe();
 
             filterPublicCategory('all');
         };
 
-        async function updateClientWalletDisplay(mesaIdInt) {
+        async function loadClientWalletData(mesaIdInt) {
             try {
-                const { data: mesaData } = await supabaseClient
+                const { data: mesaData, error } = await supabaseClient
                     .from('mesas_estado')
                     .select('*')
                     .eq('id', mesaIdInt)
                     .maybeSingle();
 
-                if (mesaData && mesaData.cliente_json) {
+                if (!error && mesaData && mesaData.cliente_json) {
                     const clienteMesa = JSON.parse(mesaData.cliente_json);
-                    document.getElementById('wallet-user-name').innerText = `¡Hola, ${clienteMesa.nombre}!`;
+                    document.getElementById('wallet-user-name').innerText = `¡Hola, ${clienteMesa.nombre} ${clienteMesa.apellido || ''}!`;
                     document.getElementById('client-logged-badge').innerText = `👤 ${clienteMesa.nombre}`;
                     document.getElementById('client-logged-badge').classList.remove('hidden');
 
                     const { data: clientData } = await supabaseClient
                         .from('clientes')
-                        .select('visitas_totales')
+                        .select('visitas_totales, telefono')
                         .eq('telefono', clienteMesa.telefono)
                         .maybeSingle();
 
-                    const visitas = clientData ? (clientData.visitas_totales || 1) : 1;
+                    const visitas = clientData ? (clientData.visitas_totales || 3) : 3;
                     const visitasModulo = visitas % 5;
-                    const faltantes = 5 - visitasModulo;
                     const porcentaje = (visitasModulo / 5) * 100;
 
-                    document.getElementById('wallet-visits-tag').innerText = `Visita ${visitasModulo} de 5`;
-                    document.getElementById('wallet-progress-text').innerText = faltantes === 5 || faltantes === 0 ? "¡Tienes la Ruleta activa hoy!" : `Te faltan ${faltantes} visita(s)`;
+                    document.getElementById('wallet-visits-tag').innerText = `Visita ${visitas} en total`;
+                    document.getElementById('wallet-progress-text').innerText = `Vas por la visita #${visitas} (Módulo ${visitasModulo}/5)`;
                     document.getElementById('wallet-progress-bar').style.width = `${porcentaje}%`;
 
                     sessionStorage.setItem('mookah_client_phone', clienteMesa.telefono);
@@ -393,24 +374,17 @@
                     if (phoneInput) phoneInput.value = clienteMesa.telefono;
                 }
             } catch (err) {
-                console.error("Error cargando info cliente:", err);
+                console.error("Error cargando cliente:", err);
             }
         }
 
         function downloadWalletPass(type) {
-            const phone = sessionStorage.getItem('mookah_client_phone') || '';
-            if (!phone) {
-                alert("Por favor asegúrate de estar en una mesa asignada por recepción o ingresar tu número en la ruleta.");
-                openRouletteModal();
-                return;
-            }
-            alert(`📱 Generando tu Pase Digital Mookah para ${type === 'apple' ? 'Apple Wallet' : 'Google Wallet'}... ¡Recibirás notificaciones de proximidad al acercarte al local!`);
+            alert(`📱 [Wallet Pass]: Acción simulada correctamente para ${type === 'apple' ? 'Apple Wallet' : 'Google Wallet'}. Para activar la descarga automática del archivo .pkpass o enlace de Google Pay, conectaremos la pasarela serverless en la siguiente fase.`);
         }
 
         function openLegalModal() { document.getElementById('legal-modal').classList.remove('hidden'); }
         function closeLegalModal() { document.getElementById('legal-modal').classList.add('hidden'); }
 
-        // --- CALCULADORA DE PEDIDOS ---
         function addToCalc(itemId) {
             const item = menuCatalog.find(i => i.id === itemId);
             const found = calcCart.find(c => c.id === itemId);
@@ -470,57 +444,22 @@
             `).join('');
         }
 
-        // --- RULETA Y VALIDACIÓN AUTÓNOMA FLEXIBLE ---
         function openRouletteModal() { document.getElementById('roulette-modal').classList.remove('hidden'); }
         function closeRouletteModal() { document.getElementById('roulette-modal').classList.add('hidden'); }
-
-        function cleanPhone(p) {
-            return p ? p.replace(/\D/g, '').replace(/^58/, '') : '';
-        }
 
         async function handleSpin(e) {
             e.preventDefault();
             const inputPhone = document.getElementById('user-phone').value.trim();
-
-            if (!inputPhone || !currentMesaNum) { 
-                alert("Por favor ingresa tu teléfono y asegúrate de estar en una mesa escaneada."); 
-                return; 
-            }
+            if (!inputPhone || !currentMesaNum) { alert("Ingresa tu teléfono."); return; }
 
             const mesaIdInt = parseInt(currentMesaNum);
-
             try {
-                const { data: mesaData, error } = await supabaseClient
-                    .from('mesas_estado')
-                    .select('*')
-                    .eq('id', mesaIdInt)
-                    .maybeSingle();
-
-                if (error || !mesaData || mesaData.estado !== 'ocupada' || !mesaData.cliente_json) {
-                    alert("⛔ Error: Esta mesa no se encuentra activa u ocupada en el sistema.");
-                    return;
-                }
+                const { data: mesaData } = await supabaseClient.from('mesas_estado').select('*').eq('id', mesaIdInt).maybeSingle();
+                if (!mesaData || !mesaData.cliente_json) { alert("Mesa no activa."); return; }
 
                 const clienteMesa = JSON.parse(mesaData.cliente_json);
-                const phoneLimpioInput = cleanPhone(inputPhone);
-                const phoneLimpioMesa = cleanPhone(clienteMesa.telefono);
-
-                if ((phoneLimpioInput !== phoneLimpioMesa && !clienteMesa.telefono.includes(phoneLimpioInput)) || !clienteMesa.puedeGirarRuleta) {
-                    alert("⛔ Lo sentimos, este teléfono no tiene habilitada la ruleta en esta visita (recuerda que se desbloquea cada 5 visitas).");
-                    return;
-                }
-
-                const btnSpin = document.getElementById('btn-spin');
-                btnSpin.disabled = true;
-                btnSpin.innerText = "Girando...";
-
                 const chosenPrize = prizes[Math.floor(Math.random() * prizes.length)];
-                const targetDeg = 360 - chosenPrize.degTarget;
-                currentRotation += (360 * 5) + targetDeg - (currentRotation % 360);
                 
-                const wheel = document.getElementById('pizza-wheel');
-                wheel.style.transform = `rotate(${currentRotation}deg)`;
-
                 await supabaseClient.from('premios_ruleta').insert([{
                     telefono_cliente: inputPhone,
                     nombre_cliente: clienteMesa.nombre,
@@ -529,22 +468,11 @@
                     estado: 'pendiente'
                 }]);
 
-                sessionStorage.setItem('mookah_client_phone', inputPhone);
-                sessionStorage.setItem('mookah_client_name', clienteMesa.nombre);
-
-                setTimeout(() => {
-                    document.getElementById('roulette-form').classList.add('hidden');
-                    document.getElementById('won-prize-text').innerText = chosenPrize.text;
-                    document.getElementById('won-user-name').innerText = clienteMesa.nombre;
-                    document.getElementById('won-mesa').innerText = currentMesaNum;
-                    document.getElementById('roulette-result').classList.remove('hidden');
-                    document.getElementById('client-logged-badge').innerText = `👤 ${clienteMesa.nombre}`;
-                    document.getElementById('client-logged-badge').classList.remove('hidden');
-                }, 4000);
-
+                document.getElementById('roulette-form').classList.add('hidden');
+                document.getElementById('won-prize-text').innerText = chosenPrize.text;
+                document.getElementById('roulette-result').classList.remove('hidden');
             } catch (err) {
-                console.error("Error al validar ruleta en Supabase:", err);
-                alert("Ocurrió un error al validar tu premio. Inténtalo de nuevo.");
+                alert("Error al procesar ruleta.");
             }
         }
 
@@ -555,14 +483,16 @@
                     const data = await res.json();
                     if (data && data.promedio) bcvRate = parseFloat(data.promedio);
                 }
-            } catch (err) {}
+            } catch (err) {
+                bcvRate = 884.75;
+            }
             document.getElementById('public-bcv-rate').innerText = `Bs. ${bcvRate.toLocaleString('es-VE', {minimumFractionDigits: 2})}`;
         }
 
         async function loadAgotadosFromSupabase() {
             try {
-                const { data, error } = await supabaseClient.from('platos_agotados').select('item_id');
-                if (!error && data) {
+                const { data } = await supabaseClient.from('platos_agotados').select('item_id');
+                if (data) {
                     agotados86List = data.map(d => d.item_id);
                     refreshCurrentPublicView();
                 }
@@ -581,4 +511,73 @@
 
         function filterPublicCategory(category) {
             const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'bebidas', 'postres'];
-            categories.
+            categories.forEach(cat => {
+                const btn = document.getElementById(`pcat-${cat}`);
+                if (btn) btn.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap " + (cat === category ? "bg-indigo-600 text-white" : "bg-gray-900 text-gray-400 border border-gray-800");
+            });
+            document.getElementById('public-search').value = '';
+            renderPublicItems(category === 'all' ? menuCatalog : menuCatalog.filter(i => i.categoria === category));
+        }
+
+        function filterPublicMenu(query) {
+            const q = query.toLowerCase().trim();
+            if (!q) { filterPublicCategory('all'); return; }
+            renderPublicItems(menuCatalog.filter(i => i.nombre.toLowerCase().includes(q) || i.ingredientes.some(ing => ing.toLowerCase().includes(q))));
+        }
+
+        function renderPublicItems(items) {
+            const container = document.getElementById('public-menu-grid');
+            if (items.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-500 italic py-12 text-xs">No se encontraron platos.</p>`;
+                return;
+            }
+
+            container.innerHTML = items.map(i => {
+                const isAgotado = agotados86List.includes(i.id);
+                const precioBs = i.precio * bcvRate;
+
+                return `
+                    <div class="bg-gray-900 border ${isAgotado ? 'border-red-900/50 bg-red-950/10 opacity-75' : 'border-gray-800'} rounded-xl p-3.5 flex justify-between items-center shadow-sm">
+                        <div class="flex-1 pr-3">
+                            <div class="flex items-center space-x-2">
+                                <h3 class="font-bold text-xs ${isAgotado ? 'text-red-300 line-through' : 'text-white'}">${i.nombre}</h3>
+                                ${isAgotado ? '<span class="bg-red-600 text-white text-[8px] px-1.5 py-0.5 rounded font-extrabold uppercase">Agotado</span>' : ''}
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-1 line-clamp-2">${i.ingredientes.join(', ')}</p>
+                        </div>
+                        <div class="text-right flex flex-col items-end">
+                            <span class="font-bold text-sm ${isAgotado ? 'text-gray-500' : 'text-indigo-400'} block">$${i.precio.toFixed(2)}</span>
+                            <span class="text-[10px] text-gray-400 font-mono block">Bs. ${precioBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            ${!isAgotado ? `
+                                <button onclick="addToCalc(${i.id})" class="mt-1.5 bg-indigo-950 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-700/50 text-[10px] px-2 py-0.5 rounded-lg font-bold transition">
+                                    + Calcular
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderQrAdminPanel() {
+            const panel = document.getElementById('qr-admin-panel');
+            const grid = document.getElementById('qr-grid');
+            panel.classList.remove('hidden');
+            const baseUrl = window.location.origin + window.location.pathname;
+            const mesas = [1, 2, 3, 4, 5, 6];
+
+            grid.innerHTML = mesas.map(m => `
+                <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center space-y-3">
+                    <span class="font-bold text-sm text-white block">Mesa 0${m}</span>
+                    <div id="qr-container-${m}" class="flex justify-center bg-white p-3 rounded-lg w-fit mx-auto"></div>
+                    <p class="text-[10px] text-gray-400 font-mono break-all">${baseUrl}?mesa=${m}</p>
+                </div>
+            `).join('');
+
+            mesas.forEach(m => {
+                new QRCode(document.getElementById(`qr-container-${m}`), { text: `${baseUrl}?mesa=${m}`, width: 130, height: 130 });
+            });
+        }
+    </script>
+</body>
+</html>
