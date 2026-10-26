@@ -18,7 +18,7 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Faltan credenciales de PassKit en Vercel' });
         }
 
-        // Consultar Supabase directamente mediante REST API (sin módulos externos)
+        // Consultar Supabase
         const sbResponse = await fetch(`${process.env.SUPABASE_URL}/rest/v1/clientes?telefono=eq.${encodeURIComponent(telefono)}&select=*`, {
             method: 'GET',
             headers: {
@@ -35,30 +35,39 @@ export default async function handler(req, res) {
 
         const cliente = clientes[0];
         const visitas = cliente.visitas_totales || 1;
+        
+        // Limpiar teléfono para dejar solo números (necesario para PassKit)
+        const telefonoLimpio = cliente.telefono.replace(/\D/g, '');
+
         const credentials = Buffer.from(`${process.env.PASSKIT_KEY}:${process.env.PASSKIT_SECRET}`).toString('base64');
 
-        // Petición a PassKit para generar el pase de Apple Wallet
+        // Petición a PassKit
+        const pkPayload = {
+            programId: process.env.PASSKIT_PROGRAM_ID.trim(),
+            externalId: telefonoLimpio,
+            person: {
+                forename: cliente.nombre || 'Cliente',
+                surname: cliente.apellido || ''
+            },
+            points: visitas,
+            mobile: telefonoLimpio
+        };
+
+        console.log("Enviando a PassKit:", JSON.stringify(pkPayload));
+
         const pkResponse = await fetch(`https://api.pub2.passkit.io/member/member`, {
             method: 'POST',
             headers: {
                 'Authorization': `Basic ${credentials}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                programId: process.env.PASSKIT_PROGRAM_ID,
-                externalId: cliente.telefono,
-                person: {
-                    forename: cliente.nombre || 'Cliente',
-                    surname: cliente.apellido || ''
-                },
-                points: visitas,
-                mobile: cliente.telefono
-            })
+            body: JSON.stringify(pkPayload)
         });
 
         const passResult = await pkResponse.json();
 
         if (!pkResponse.ok) {
+            console.error("PassKit Error Details:", passResult);
             return res.status(500).json({ error: 'PassKit rechazó la solicitud', details: passResult });
         }
 
@@ -69,6 +78,7 @@ export default async function handler(req, res) {
         }
 
     } catch (err) {
+        console.error("Error interno:", err.message);
         return res.status(500).json({ error: 'Error interno en la función', details: err.message });
     }
 }
