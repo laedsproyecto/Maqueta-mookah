@@ -30,6 +30,18 @@ function signJwt(payload, privateKey) {
     return `${dataToSign}.${signature}`;
 }
 
+// Función auxiliar para formatear la llave privada correctamente
+function formatPrivateKey(rawKey) {
+    if (!rawKey) return '';
+    let key = rawKey.replace(/\\n/g, '\n').trim();
+
+    // Si faltan las cabeceras estándar
+    if (!key.includes('-----BEGIN PRIVATE KEY-----')) {
+        key = `-----BEGIN PRIVATE KEY-----\n${key}\n-----END PRIVATE KEY-----`;
+    }
+    return key;
+}
+
 export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
 
@@ -46,18 +58,17 @@ export default async function handler(req, res) {
         const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/[[\]()]/g, '').trim();
         const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').replace(/[[\]()]/g, '').trim();
         const clientEmail = (process.env.GOOGLE_CLIENT_EMAIL || '').trim();
-        let privateKey = (process.env.GOOGLE_PRIVATE_KEY || '').trim();
+        const rawPrivateKey = process.env.GOOGLE_PRIVATE_KEY || '';
         const issuerId = (process.env.GOOGLE_ISSUER_ID || '').trim();
 
         if (!supabaseUrl || !supabaseKey) {
             return res.status(500).json({ error: 'Faltan credenciales de Supabase' });
         }
-        if (!clientEmail || !privateKey || !issuerId) {
+        if (!clientEmail || !rawPrivateKey || !issuerId) {
             return res.status(500).json({ error: 'Faltan credenciales de Google Wallet en Vercel' });
         }
 
-        // Formatear saltos de línea de la llave privada
-        privateKey = privateKey.replace(/\\n/g, '\n');
+        const privateKey = formatPrivateKey(rawPrivateKey);
 
         // 1. Consultar datos del cliente en Supabase
         const baseUrl = supabaseUrl.replace(/\/+$/, '');
