@@ -70,7 +70,7 @@
             </div>
 
             <div class="flex space-x-2 pt-1">
-                <button onclick="downloadWalletPass('apple')" class="flex-1 bg-black hover:bg-gray-900 border border-gray-700 text-white rounded-xl py-2 px-3 text-[11px] font-bold flex items-center justify-center space-x-2 transition shadow">
+                <button id="apple-wallet-btn" onclick="downloadWalletPass('apple')" class="flex-1 bg-black hover:bg-gray-900 border border-gray-700 text-white rounded-xl py-2 px-3 text-[11px] font-bold flex items-center justify-center space-x-2 transition shadow">
                     <i class="fa-brands fa-apple text-base"></i>
                     <span>Añadir a Apple Wallet</span>
                 </button>
@@ -389,8 +389,38 @@
             }
         }
 
-        function downloadWalletPass(type) {
-            alert(`📱 [Wallet Pass]: Acción simulada correctamente para ${type === 'apple' ? 'Apple Wallet' : 'Google Wallet'}. Para activar la descarga automática del archivo .pkpass o enlace de Google Pay, conectaremos la pasarela serverless en la siguiente fase.`);
+        // FUNCIÓN CONECTADA AL BACKEND SERVERLESS DE APPLE WALLET (PASSKIT)
+        async function downloadWalletPass(type) {
+            const phone = sessionStorage.getItem('mookah_client_phone') || localStorage.getItem('mookah_client_phone');
+
+            if (!phone) {
+                alert("Por favor escanea el código QR de tu mesa o ingresa tu número para verificar tu tarjeta.");
+                return;
+            }
+
+            if (type === 'apple') {
+                const btn = document.getElementById('apple-wallet-btn');
+                const originalText = btn ? btn.innerHTML : '';
+                if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Generando...</span>';
+
+                try {
+                    const res = await fetch(`/api/generate-apple-pass?telefono=${encodeURIComponent(phone)}`);
+                    const data = await res.json();
+
+                    if (data.downloadUrl) {
+                        window.location.href = data.downloadUrl;
+                    } else {
+                        alert("No se pudo generar el pase. Verifica tus datos e intenta de nuevo.");
+                    }
+                } catch (err) {
+                    console.error("Error al conectar con el servidor de pases:", err);
+                    alert("Ocurrió un error al generar la tarjeta de Apple Wallet.");
+                } finally {
+                    if (btn) btn.innerHTML = originalText;
+                }
+            } else if (type === 'google') {
+                alert("Configurando pasarela de Google Wallet...");
+            }
         }
 
         function openLegalModal() { document.getElementById('legal-modal').classList.remove('hidden'); }
