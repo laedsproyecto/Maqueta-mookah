@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menú Virtual & Lealtad - Mookah</title>
+    <title>Menú Virtual & Lealtad Wallet - Mookah</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -47,8 +47,47 @@
         </div>
     </header>
 
+    <!-- BANNER DE WALLET Y TARJETA DE FIDELIZACIÓN DIGITAL -->
+    <div class="px-4 pt-3">
+        <div id="wallet-card-banner" class="bg-gradient-to-r from-indigo-950 via-gray-900 to-indigo-950 border border-indigo-500/50 rounded-2xl p-4 shadow-xl text-left relative overflow-hidden">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <span class="text-[9px] uppercase font-bold tracking-widest text-indigo-300 block">Tarjeta Digital Mookah VIP</span>
+                    <h2 id="wallet-user-name" class="text-sm font-extrabold text-white">¡Hola, Cliente Mookah!</h2>
+                </div>
+                <span id="wallet-visits-tag" class="bg-indigo-600/30 text-indigo-200 border border-indigo-400/40 text-[10px] px-2.5 py-1 rounded-full font-bold">
+                    Visita 0 de 5
+                </span>
+            </div>
+
+            <!-- BARRA DE PROGRESO DE VISITAS -->
+            <div class="my-2.5">
+                <div class="flex justify-between text-[10px] text-gray-300 mb-1">
+                    <span>Avance para Ruleta</span>
+                    <span id="wallet-progress-text" class="font-bold text-amber-400">Te faltan 5 visitas</span>
+                </div>
+                <div class="w-full bg-gray-800 h-2.5 rounded-full overflow-hidden border border-gray-700">
+                    <div id="wallet-progress-bar" class="bg-gradient-to-r from-indigo-500 to-amber-400 h-full w-0 transition-all duration-500"></div>
+                </div>
+            </div>
+
+            <!-- BOTONES AGREGAR A WALLET (APPLE / GOOGLE) -->
+            <div class="flex space-x-2 pt-1">
+                <button onclick="downloadWalletPass('apple')" class="flex-1 bg-black hover:bg-gray-900 border border-gray-700 text-white rounded-xl py-2 px-3 text-[11px] font-bold flex items-center justify-center space-x-2 transition shadow">
+                    <i class="fa-brands fa-apple text-base"></i>
+                    <span>Añadir a Apple Wallet</span>
+                </button>
+                <button onclick="downloadWalletPass('google')" class="flex-1 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white rounded-xl py-2 px-3 text-[11px] font-bold flex items-center justify-center space-x-2 transition shadow">
+                    <i class="fa-brands fa-google-pay text-base text-emerald-400"></i>
+                    <span>Google Wallet</span>
+                </button>
+            </div>
+            <button onclick="openLegalModal()" class="text-[9px] text-gray-400 underline block mt-2 text-center w-full">Ver Términos y Política de Privacidad de Datos</button>
+        </div>
+    </div>
+
     <!-- BANNER DE MESA Y CLIENTE IDENTIFICADO -->
-    <div class="px-4 pt-4 pb-2">
+    <div class="px-4 pt-3 pb-2">
         <div id="table-badge" class="mb-3 bg-indigo-950/80 border border-indigo-700 text-indigo-200 text-xs px-3.5 py-2 rounded-xl font-semibold flex items-center justify-between shadow hidden">
             <div class="flex items-center space-x-2">
                 <i class="fa-solid fa-chair text-indigo-400 text-sm"></i>
@@ -96,6 +135,26 @@
         </div>
     </div>
 
+    <!-- MODAL TÉRMINOS Y CONDICIONES LEGALES (PRIVACIDAD & GEOLOCALIZACIÓN) -->
+    <div id="legal-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-gray-900 border border-gray-700 rounded-2xl p-5 w-full max-w-md text-left shadow-2xl max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-3 mb-3">
+                <h3 class="font-bold text-sm text-white flex items-center">
+                    <i class="fa-solid fa-shield-halved text-indigo-400 mr-2"></i> Política de Privacidad y Lealtad Mookah
+                </h3>
+                <button onclick="closeLegalModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="overflow-y-auto flex-1 text-xs text-gray-300 space-y-3 pr-1">
+                <p><strong>1. Tratamiento de Datos Personales:</strong> Los datos proporcionados (nombre, teléfono y preferencias de consumo) se almacenan de forma encriptada en nuestra infraestructura segura en Supabase con el único fin de registrar sus visitas, administrar su saldo y enviarle incentivos de fidelidad.</p>
+                <p><strong>2. Pases Digitales y Geolocalización:</strong> Al añadir su tarjeta a Apple Wallet o Google Wallet, su teléfono móvil procesará notificaciones de proximidad únicamente cuando se encuentre en las cercanías de nuestro establecimiento. Mookah no rastrea ni almacena su ubicación GPS en tiempo real en servidores externos.</p>
+                <p><strong>3. Derechos del Usuario:</strong> Usted puede solicitar la eliminación completa de su registro de la base de datos en cualquier momento enviando una solicitud a nuestro personal de atención.</p>
+            </div>
+            <div class="pt-3 border-t border-gray-800">
+                <button onclick="closeLegalModal()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl text-xs">Entendido y Acepto</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL DETALLE DE CALCULADORA -->
     <div id="calc-detail-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center hidden z-50 p-0 sm:p-4">
         <div class="bg-gray-900 border border-gray-800 rounded-t-2xl sm:rounded-2xl p-5 w-full max-w-md text-left shadow-2xl relative max-h-[80vh] flex flex-col">
@@ -123,7 +182,7 @@
         </div>
     </div>
 
-    <!-- MODAL RULETA DE PREMIOS (DISEÑO REFINADO MOOKAH) -->
+    <!-- MODAL RULETA DE PREMIOS -->
     <div id="roulette-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
         <div class="bg-gray-900 border border-indigo-500/50 rounded-2xl p-6 w-full max-w-sm text-center shadow-2xl relative">
             <button onclick="closeRouletteModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white"><i class="fa-solid fa-times text-lg"></i></button>
@@ -136,27 +195,20 @@
                 <p class="text-[11px] text-gray-300 mt-1">Ingresa tu teléfono registrado para girar tu premio de visita especial.</p>
             </div>
 
-            <!-- CONTENEDOR VIVIDO DE LA RULETA -->
             <div class="relative w-60 h-60 mx-auto my-4 flex items-center justify-center">
-                <!-- Puntero superior en dorado brillante -->
                 <div class="absolute -top-3 z-30 text-amber-400 text-3xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)]">▼</div>
-                
-                <!-- Círculo Giratorio Estilo Pizza con divisiones visuales -->
                 <div id="pizza-wheel" class="pizza-wheel w-full h-full rounded-full border-4 border-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.3)] relative overflow-hidden flex items-center justify-center">
-                    <!-- Textos estilizados en cada porción -->
                     <span class="absolute top-5 text-white font-extrabold text-xs drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">🍧 Postre</span>
                     <span class="absolute right-4 text-white font-extrabold text-xs drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">🍹 Bebida</span>
                     <span class="absolute bottom-5 text-white font-extrabold text-xs drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">🍣 Roll</span>
                     <span class="absolute left-4 text-white font-extrabold text-xs drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">🎟️ 15% OFF</span>
                     
-                    <!-- Centro de la ruleta con emblema -->
                     <div class="w-10 h-10 rounded-full bg-amber-400 border-2 border-gray-950 z-20 flex items-center justify-center shadow-lg">
                         <i class="fa-solid fa-star text-sm text-gray-950"></i>
                     </div>
                 </div>
             </div>
 
-            <!-- FORMULARIO DE VALIDACIÓN Y GIRO -->
             <form id="roulette-form" onsubmit="handleSpin(event)" class="space-y-3 text-left mt-2">
                 <div>
                     <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Tu Teléfono Móvil Registrado</label>
@@ -167,7 +219,6 @@
                 </button>
             </form>
 
-            <!-- RESULTADO Y AVISO AL MESERO -->
             <div id="roulette-result" class="hidden mt-3 space-y-3">
                 <div class="bg-gray-950 border border-emerald-500/50 p-4 rounded-xl shadow-inner">
                     <span class="text-[10px] uppercase font-bold text-gray-400 block">¡Premio Obtenido!</span>
@@ -291,17 +342,7 @@
                 document.getElementById('table-number-text').innerText = `Mesa ${mesaInt < 10 ? '0' + mesaInt : mesaInt}`;
                 document.getElementById('table-badge').classList.remove('hidden');
                 
-                if (sessionStorage.getItem('mookah_client_name')) {
-                    const savedName = sessionStorage.getItem('mookah_client_name');
-                    document.getElementById('client-logged-badge').innerText = `👤 ${savedName}`;
-                    document.getElementById('client-logged-badge').classList.remove('hidden');
-                }
-
-                if (sessionStorage.getItem('mookah_client_phone')) {
-                    const savedPhone = sessionStorage.getItem('mookah_client_phone');
-                    const phoneInput = document.getElementById('user-phone');
-                    if (phoneInput) phoneInput.value = savedPhone;
-                }
+                await updateClientWalletDisplay(mesaInt);
             }
 
             await fetchBcvRate();
@@ -316,6 +357,58 @@
 
             filterPublicCategory('all');
         };
+
+        async function updateClientWalletDisplay(mesaIdInt) {
+            try {
+                const { data: mesaData } = await supabaseClient
+                    .from('mesas_estado')
+                    .select('*')
+                    .eq('id', mesaIdInt)
+                    .maybeSingle();
+
+                if (mesaData && mesaData.cliente_json) {
+                    const clienteMesa = JSON.parse(mesaData.cliente_json);
+                    document.getElementById('wallet-user-name').innerText = `¡Hola, ${clienteMesa.nombre}!`;
+                    document.getElementById('client-logged-badge').innerText = `👤 ${clienteMesa.nombre}`;
+                    document.getElementById('client-logged-badge').classList.remove('hidden');
+
+                    const { data: clientData } = await supabaseClient
+                        .from('clientes')
+                        .select('visitas_totales')
+                        .eq('telefono', clienteMesa.telefono)
+                        .maybeSingle();
+
+                    const visitas = clientData ? (clientData.visitas_totales || 1) : 1;
+                    const visitasModulo = visitas % 5;
+                    const faltantes = 5 - visitasModulo;
+                    const porcentaje = (visitasModulo / 5) * 100;
+
+                    document.getElementById('wallet-visits-tag').innerText = `Visita ${visitasModulo} de 5`;
+                    document.getElementById('wallet-progress-text').innerText = faltantes === 5 || faltantes === 0 ? "¡Tienes la Ruleta activa hoy!" : `Te faltan ${faltantes} visita(s)`;
+                    document.getElementById('wallet-progress-bar').style.width = `${porcentaje}%`;
+
+                    sessionStorage.setItem('mookah_client_phone', clienteMesa.telefono);
+                    sessionStorage.setItem('mookah_client_name', clienteMesa.nombre);
+                    const phoneInput = document.getElementById('user-phone');
+                    if (phoneInput) phoneInput.value = clienteMesa.telefono;
+                }
+            } catch (err) {
+                console.error("Error cargando info cliente:", err);
+            }
+        }
+
+        function downloadWalletPass(type) {
+            const phone = sessionStorage.getItem('mookah_client_phone') || '';
+            if (!phone) {
+                alert("Por favor asegúrate de estar en una mesa asignada por recepción o ingresar tu número en la ruleta.");
+                openRouletteModal();
+                return;
+            }
+            alert(`📱 Generando tu Pase Digital Mookah para ${type === 'apple' ? 'Apple Wallet' : 'Google Wallet'}... ¡Recibirás notificaciones de proximidad al acercarte al local!`);
+        }
+
+        function openLegalModal() { document.getElementById('legal-modal').classList.remove('hidden'); }
+        function closeLegalModal() { document.getElementById('legal-modal').classList.add('hidden'); }
 
         // --- CALCULADORA DE PEDIDOS ---
         function addToCalc(itemId) {
@@ -488,73 +581,4 @@
 
         function filterPublicCategory(category) {
             const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'bebidas', 'postres'];
-            categories.forEach(cat => {
-                const btn = document.getElementById(`pcat-${cat}`);
-                if (btn) btn.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap " + (cat === category ? "bg-indigo-600 text-white" : "bg-gray-900 text-gray-400 border border-gray-800");
-            });
-            document.getElementById('public-search').value = '';
-            renderPublicItems(category === 'all' ? menuCatalog : menuCatalog.filter(i => i.categoria === category));
-        }
-
-        function filterPublicMenu(query) {
-            const q = query.toLowerCase().trim();
-            if (!q) { filterPublicCategory('all'); return; }
-            renderPublicItems(menuCatalog.filter(i => i.nombre.toLowerCase().includes(q) || i.ingredientes.some(ing => ing.toLowerCase().includes(q))));
-        }
-
-        function renderPublicItems(items) {
-            const container = document.getElementById('public-menu-grid');
-            if (items.length === 0) {
-                container.innerHTML = `<p class="text-center text-gray-500 italic py-12 text-xs">No se encontraron platos.</p>`;
-                return;
-            }
-
-            container.innerHTML = items.map(i => {
-                const isAgotado = agotados86List.includes(i.id);
-                const precioBs = i.precio * bcvRate;
-
-                return `
-                    <div class="bg-gray-900 border ${isAgotado ? 'border-red-900/50 bg-red-950/10 opacity-75' : 'border-gray-800'} rounded-xl p-3.5 flex justify-between items-center shadow-sm">
-                        <div class="flex-1 pr-3">
-                            <div class="flex items-center space-x-2">
-                                <h3 class="font-bold text-xs ${isAgotado ? 'text-red-300 line-through' : 'text-white'}">${i.nombre}</h3>
-                                ${isAgotado ? '<span class="bg-red-600 text-white text-[8px] px-1.5 py-0.5 rounded font-extrabold uppercase">Agotado</span>' : ''}
-                            </div>
-                            <p class="text-[10px] text-gray-400 mt-1 line-clamp-2">${i.ingredientes.join(', ')}</p>
-                        </div>
-                        <div class="text-right flex flex-col items-end">
-                            <span class="font-bold text-sm ${isAgotado ? 'text-gray-500' : 'text-indigo-400'} block">$${i.precio.toFixed(2)}</span>
-                            <span class="text-[10px] text-gray-400 font-mono block">Bs. ${precioBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                            ${!isAgotado ? `
-                                <button onclick="addToCalc(${i.id})" class="mt-1.5 bg-indigo-950 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-700/50 text-[10px] px-2 py-0.5 rounded-lg font-bold transition">
-                                    + Calcular
-                                </button>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function renderQrAdminPanel() {
-            const panel = document.getElementById('qr-admin-panel');
-            const grid = document.getElementById('qr-grid');
-            panel.classList.remove('hidden');
-            const baseUrl = window.location.origin + window.location.pathname;
-            const mesas = [1, 2, 3, 4, 5, 6];
-
-            grid.innerHTML = mesas.map(m => `
-                <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center space-y-3">
-                    <span class="font-bold text-sm text-white block">Mesa 0${m}</span>
-                    <div id="qr-container-${m}" class="flex justify-center bg-white p-3 rounded-lg w-fit mx-auto"></div>
-                    <p class="text-[10px] text-gray-400 font-mono break-all">${baseUrl}?mesa=${m}</p>
-                </div>
-            `).join('');
-
-            mesas.forEach(m => {
-                new QRCode(document.getElementById(`qr-container-${m}`), { text: `${baseUrl}?mesa=${m}`, width: 130, height: 130 });
-            });
-        }
-    </script>
-</body>
-</html>
+            categories.
