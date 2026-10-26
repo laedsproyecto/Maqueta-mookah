@@ -162,14 +162,13 @@
     <div id="calc-detail-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center hidden z-50 p-0 sm:p-4">
         <div class="bg-gray-900 border border-gray-800 rounded-t-2xl sm:rounded-2xl p-5 w-full max-w-md text-left shadow-2xl relative max-h-[85vh] flex flex-col">
             <div class="flex justify-between items-center border-b border-gray-800 pb-3 mb-3">
-                <h3 class="font-bold base text-white flex items-center">
+                <h3 class="font-bold text-base text-white flex items-center">
                     <i class="fa-solid fa-calculator text-indigo-400 mr-2"></i> Detalle de Consumo y Cuenta
                 </h3>
                 <button onclick="toggleCalcDetailModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
             </div>
             <div id="calc-items-list" class="space-y-2 overflow-y-auto flex-1 pr-1 my-2"></div>
             
-            <!-- DESGLOSE DE TOTALES CON 10% DE SERVICIO -->
             <div class="border-t border-gray-800 pt-3 space-y-2 text-xs">
                 <div class="flex justify-between items-center text-gray-300">
                     <span>Consumo (Subtotal):</span>
@@ -195,7 +194,7 @@
         </div>
     </div>
 
-    <!-- MODAL RULETA DE PREMIOS -->
+    <!-- MODAL RULETA DE PREMIOS (CON VALIDACIÓN ESTRICTA DE VISITAS HABILITADAS) -->
     <div id="roulette-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
         <div class="bg-gray-900 border border-indigo-500/50 rounded-2xl p-6 w-full max-w-sm text-center shadow-2xl relative">
             <button onclick="closeRouletteModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white"><i class="fa-solid fa-times text-lg"></i></button>
@@ -205,7 +204,7 @@
                     <i class="fa-solid fa-gift text-amber-400 animate-bounce"></i>
                     <span>Ruleta Mookah</span>
                 </h3>
-                <p class="text-[11px] text-gray-300 mt-1">Ingresa tu teléfono registrado para girar tu premio.</p>
+                <p class="text-[11px] text-gray-300 mt-1">Ingresa tu teléfono para verificar si tienes habilitada la ruleta en esta visita.</p>
             </div>
 
             <div class="relative w-60 h-60 mx-auto my-4 flex items-center justify-center">
@@ -223,7 +222,7 @@
 
             <form id="roulette-form" onsubmit="handleSpin(event)" class="space-y-3 text-left mt-2">
                 <div>
-                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Tu Teléfono Móvil</label>
+                    <label class="block text-[10px] font-semibold uppercase text-gray-400 mb-1">Tu Teléfono Móvil Registrado</label>
                     <input type="tel" id="user-phone" required placeholder="Ej: 04121234567" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400 font-mono">
                 </div>
                 <button type="submit" id="btn-spin" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-gray-950 font-black py-3 rounded-xl text-xs uppercase tracking-wider shadow-lg transition">
@@ -235,6 +234,7 @@
                 <div class="bg-gray-950 border border-emerald-500/50 p-4 rounded-xl shadow-inner">
                     <span class="text-[10px] uppercase font-bold text-gray-400 block">¡Premio Obtenido!</span>
                     <span id="won-prize-text" class="text-xl font-black text-emerald-400 block my-1">---</span>
+                    <p class="text-[11px] text-gray-200 mt-1">Muéstrale esta pantalla a tu mesero para reclamar tu premio.</p>
                 </div>
                 <button onclick="closeRouletteModal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs shadow">
                     ¡Entendido, ir al Menú!
@@ -420,17 +420,14 @@
             let subtotalUsd = 0, totalItems = 0;
             calcCart.forEach(c => { subtotalUsd += c.precio * c.qty; totalItems += c.qty; });
             
-            // Cálculo del 10% de servicio
             let serviceUsd = subtotalUsd * 0.10;
             let totalUsd = subtotalUsd + serviceUsd;
             let totalVes = totalUsd * bcvRate;
 
-            // Actualizar barra flotante inferior
             document.getElementById('calc-total-usd').innerText = `$${totalUsd.toFixed(2)}`;
             document.getElementById('calc-total-ves').innerText = `Bs. ${totalVes.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             document.getElementById('calc-count').innerText = totalItems;
 
-            // Actualizar modal interno si está abierto
             const subtotalEl = document.getElementById('modal-subtotal-usd');
             const serviceEl = document.getElementById('modal-service-usd');
             const modalTotalUsd = document.getElementById('modal-calc-total-usd');
@@ -475,19 +472,55 @@
         function openRouletteModal() { document.getElementById('roulette-modal').classList.remove('hidden'); }
         function closeRouletteModal() { document.getElementById('roulette-modal').classList.add('hidden'); }
 
+        function cleanPhone(p) {
+            return p ? p.replace(/\D/g, '').replace(/^58/, '') : '';
+        }
+
+        // VALIDACIÓN ESTRICTA DE LA RULETA (SOLO SI TIENE PERMISO DE VISITA)
         async function handleSpin(e) {
             e.preventDefault();
             const inputPhone = document.getElementById('user-phone').value.trim();
-            if (!inputPhone || !currentMesaNum) { alert("Ingresa tu teléfono."); return; }
+
+            if (!inputPhone || !currentMesaNum) { 
+                alert("Por favor ingresa tu teléfono y asegúrate de estar en una mesa escaneada."); 
+                return; 
+            }
 
             const mesaIdInt = parseInt(currentMesaNum);
+
             try {
-                const { data: mesaData } = await supabaseClient.from('mesas_estado').select('*').eq('id', mesaIdInt).maybeSingle();
-                if (!mesaData || !mesaData.cliente_json) { alert("Mesa no activa."); return; }
+                const { data: mesaData, error } = await supabaseClient
+                    .from('mesas_estado')
+                    .select('*')
+                    .eq('id', mesaIdInt)
+                    .maybeSingle();
+
+                if (error || !mesaData || mesaData.estado !== 'ocupada' || !mesaData.cliente_json) {
+                    alert("⛔ Error: Esta mesa no se encuentra activa u ocupada en el sistema con un cliente válido.");
+                    return;
+                }
 
                 const clienteMesa = JSON.parse(mesaData.cliente_json);
+                const phoneLimpioInput = cleanPhone(inputPhone);
+                const phoneLimpioMesa = cleanPhone(clienteMesa.telefono);
+
+                // Validar estrictamente el teléfono y si tiene habilitada la ruleta (puedeGirarRuleta == true)
+                if ((phoneLimpioInput !== phoneLimpioMesa && !clienteMesa.telefono.includes(phoneLimpioInput)) || !clienteMesa.puedeGirarRuleta) {
+                    alert("⛔ Lo sentimos, este teléfono no tiene habilitada la ruleta en esta visita (recuerda que se desbloquea estrictamente cada 5 visitas).");
+                    return;
+                }
+
+                const btnSpin = document.getElementById('btn-spin');
+                btnSpin.disabled = true;
+                btnSpin.innerText = "Girando...";
+
                 const chosenPrize = prizes[Math.floor(Math.random() * prizes.length)];
+                const targetDeg = 360 - chosenPrize.degTarget;
+                currentRotation += (360 * 5) + targetDeg - (currentRotation % 360);
                 
+                const wheel = document.getElementById('pizza-wheel');
+                wheel.style.transform = `rotate(${currentRotation}deg)`;
+
                 await supabaseClient.from('premios_ruleta').insert([{
                     telefono_cliente: inputPhone,
                     nombre_cliente: clienteMesa.nombre,
@@ -496,11 +529,15 @@
                     estado: 'pendiente'
                 }]);
 
-                document.getElementById('roulette-form').classList.add('hidden');
-                document.getElementById('won-prize-text').innerText = chosenPrize.text;
-                document.getElementById('roulette-result').classList.remove('hidden');
+                setTimeout(() => {
+                    document.getElementById('roulette-form').classList.add('hidden');
+                    document.getElementById('won-prize-text').innerText = chosenPrize.text;
+                    document.getElementById('roulette-result').classList.remove('hidden');
+                }, 4000);
+
             } catch (err) {
-                alert("Error al procesar ruleta.");
+                console.error("Error al validar ruleta en Supabase:", err);
+                alert("Ocurrió un error al validar tu premio. Inténtalo de nuevo.");
             }
         }
 
