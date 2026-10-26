@@ -11,19 +11,30 @@ export default async function handler(req, res) {
     }
 
     try {
-        if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        // Limpiar variables de entorno para eliminar espacios invisibles
+        const supabaseUrl = (process.env.SUPABASE_URL || '').trim();
+        const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+        const passkitKey = (process.env.PASSKIT_KEY || '').trim();
+        const passkitSecret = (process.env.PASSKIT_SECRET || '').trim();
+        const passkitProgramId = (process.env.PASSKIT_PROGRAM_ID || '').trim();
+
+        if (!supabaseUrl || !supabaseKey) {
             return res.status(500).json({ error: 'Faltan credenciales de Supabase en Vercel' });
         }
-        if (!process.env.PASSKIT_KEY || !process.env.PASSKIT_SECRET || !process.env.PASSKIT_PROGRAM_ID) {
+        if (!passkitKey || !passkitSecret || !passkitProgramId) {
             return res.status(500).json({ error: 'Faltan credenciales de PassKit en Vercel' });
         }
 
+        // Normalizar URL base de Supabase quitando barra final si la tiene
+        const baseUrl = supabaseUrl.replace(/\/+$/, '');
+        const targetUrl = `${baseUrl}/rest/v1/clientes?telefono=eq.${encodeURIComponent(telefono)}&select=*`;
+
         // Consultar Supabase
-        const sbResponse = await fetch(`${process.env.SUPABASE_URL}/rest/v1/clientes?telefono=eq.${encodeURIComponent(telefono)}&select=*`, {
+        const sbResponse = await fetch(targetUrl, {
             method: 'GET',
             headers: {
-                'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY,
-                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`
             }
         });
 
@@ -35,15 +46,13 @@ export default async function handler(req, res) {
 
         const cliente = clientes[0];
         const visitas = cliente.visitas_totales || 1;
-        
-        // Limpiar teléfono para dejar solo números (necesario para PassKit)
         const telefonoLimpio = cliente.telefono.replace(/\D/g, '');
 
-        const credentials = Buffer.from(`${process.env.PASSKIT_KEY}:${process.env.PASSKIT_SECRET}`).toString('base64');
+        const credentials = Buffer.from(`${passkitKey}:${passkitSecret}`).toString('base64');
 
         // Petición a PassKit
         const pkPayload = {
-            programId: process.env.PASSKIT_PROGRAM_ID.trim(),
+            programId: passkitProgramId,
             externalId: telefonoLimpio,
             person: {
                 forename: cliente.nombre || 'Cliente',
@@ -52,8 +61,6 @@ export default async function handler(req, res) {
             points: visitas,
             mobile: telefonoLimpio
         };
-
-        console.log("Enviando a PassKit:", JSON.stringify(pkPayload));
 
         const pkResponse = await fetch(`https://api.pub2.passkit.io/member/member`, {
             method: 'POST',
@@ -67,7 +74,6 @@ export default async function handler(req, res) {
         const passResult = await pkResponse.json();
 
         if (!pkResponse.ok) {
-            console.error("PassKit Error Details:", passResult);
             return res.status(500).json({ error: 'PassKit rechazó la solicitud', details: passResult });
         }
 
@@ -78,7 +84,6 @@ export default async function handler(req, res) {
         }
 
     } catch (err) {
-        console.error("Error interno:", err.message);
         return res.status(500).json({ error: 'Error interno en la función', details: err.message });
     }
 }
