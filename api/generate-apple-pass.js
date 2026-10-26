@@ -51,7 +51,9 @@ export default async function handler(req, res) {
         const visitas = cliente.visitas_totales || 1;
         const telefonoLimpio = cliente.telefono.replace(/\D/g, '');
 
-        const credentials = Buffer.from(`${passkitKey}:${passkitSecret}`).toString('base64');
+        // Codificación limpia en Base64 sin saltos de línea
+        const authString = `${passkitKey}:${passkitSecret}`;
+        const credentials = Buffer.from(authString).toString('base64').replace(/\s/g, '');
 
         const pkPayload = {
             programId: passkitProgramId,
@@ -64,7 +66,6 @@ export default async function handler(req, res) {
             mobile: telefonoLimpio
         };
 
-        // Ruta corregida en plural: /members/member
         const pkResponse = await fetch(`https://api.pub2.passkit.io/members/member`, {
             method: 'POST',
             headers: {
