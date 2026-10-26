@@ -9,11 +9,7 @@ function base64url(str) {
 }
 
 function signJwt(payload, privateKey) {
-    const header = {
-        alg: 'RS256',
-        typ: 'JWT'
-    };
-
+    const header = { alg: 'RS256', typ: 'JWT' };
     const encodedHeader = base64url(JSON.stringify(header));
     const encodedPayload = base64url(JSON.stringify(payload));
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
@@ -28,18 +24,6 @@ function signJwt(payload, privateKey) {
         .replace(/\//g, '_');
 
     return `${dataToSign}.${signature}`;
-}
-
-// Función auxiliar para formatear la llave privada correctamente
-function formatPrivateKey(rawKey) {
-    if (!rawKey) return '';
-    let key = rawKey.replace(/\\n/g, '\n').trim();
-
-    // Si faltan las cabeceras estándar
-    if (!key.includes('-----BEGIN PRIVATE KEY-----')) {
-        key = `-----BEGIN PRIVATE KEY-----\n${key}\n-----END PRIVATE KEY-----`;
-    }
-    return key;
 }
 
 export default async function handler(req, res) {
@@ -58,17 +42,22 @@ export default async function handler(req, res) {
         const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/[[\]()]/g, '').trim();
         const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').replace(/[[\]()]/g, '').trim();
         const clientEmail = (process.env.GOOGLE_CLIENT_EMAIL || '').trim();
-        const rawPrivateKey = process.env.GOOGLE_PRIVATE_KEY || '';
+        let rawKey = process.env.GOOGLE_PRIVATE_KEY || '';
         const issuerId = (process.env.GOOGLE_ISSUER_ID || '').trim();
 
         if (!supabaseUrl || !supabaseKey) {
             return res.status(500).json({ error: 'Faltan credenciales de Supabase' });
         }
-        if (!clientEmail || !rawPrivateKey || !issuerId) {
+        if (!clientEmail || !rawKey || !issuerId) {
             return res.status(500).json({ error: 'Faltan credenciales de Google Wallet en Vercel' });
         }
 
-        const privateKey = formatPrivateKey(rawPrivateKey);
+        // Limpieza robusta de la llave privada para evitar errores de OpenSSL
+        rawKey = rawKey.replace(/^["']|["']$/g, '').trim();
+        let privateKey = rawKey.includes('\\n') ? rawKey.replace(/\\n/g, '\n') : rawKey;
+        if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+            privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
+        }
 
         // 1. Consultar datos del cliente en Supabase
         const baseUrl = supabaseUrl.replace(/\/+$/, '');
@@ -99,7 +88,6 @@ export default async function handler(req, res) {
         const nombreCliente = `${cliente.nombre || 'Cliente'} ${cliente.apellido || ''}`.trim();
         const telefonoLimpio = cliente.telefono.replace(/\D/g, '');
 
-        // Identificadores de Google Wallet Class y Object
         const classId = `${issuerId}.MOOKAH_LOYALTY_PROGRAM`;
         const objectId = `${issuerId}.${telefonoLimpio}_MOOKAH_PASS`;
 
@@ -109,7 +97,7 @@ export default async function handler(req, res) {
             classId: classId,
             state: 'ACTIVE',
             accountName: nombreCliente,
-            accountId: telefonoLimpio,
+            accountId: telefonoLපිmo = telefonoLimpio,
             textModulesData: [
                 {
                     header: 'PUNTOS / VISITAS',
