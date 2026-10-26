@@ -27,8 +27,6 @@ export default async function handler(req, res) {
         const baseUrl = supabaseUrl.replace(/\/+$/, '');
         const targetUrl = `${baseUrl}/rest/v1/clientes?telefono=eq.${encodeURIComponent(telefono)}&select=*`;
 
-        console.log("Consultando Supabase en:", targetUrl);
-
         const sbResponse = await fetch(targetUrl, {
             method: 'GET',
             headers: {
@@ -42,8 +40,7 @@ export default async function handler(req, res) {
         try {
             clientes = JSON.parse(rawText);
         } catch (e) {
-            console.error("Supabase devolvió HTML en lugar de JSON:", rawText);
-            return res.status(500).json({ error: 'Supabase respondió con formato inválido (HTML). Revisa SUPABASE_URL.', details: rawText.substring(0, 150) });
+            return res.status(500).json({ error: 'Supabase respondió con formato inválido', details: rawText.substring(0, 150) });
         }
 
         if (!sbResponse.ok || !clientes || clientes.length === 0) {
@@ -67,7 +64,8 @@ export default async function handler(req, res) {
             mobile: telefonoLimpio
         };
 
-        const pkResponse = await fetch(`https://api.pub2.passkit.io/member/member`, {
+        // Ruta corregida en plural: /members/member
+        const pkResponse = await fetch(`https://api.pub2.passkit.io/members/member`, {
             method: 'POST',
             headers: {
                 'Authorization': `Basic ${credentials}`,
@@ -81,7 +79,6 @@ export default async function handler(req, res) {
         try {
             passResult = JSON.parse(passRawText);
         } catch (e) {
-            console.error("PassKit devolvió HTML:", passRawText);
             return res.status(500).json({ error: 'PassKit respondió con formato inválido', details: passRawText.substring(0, 150) });
         }
 
@@ -96,7 +93,6 @@ export default async function handler(req, res) {
         }
 
     } catch (err) {
-        console.error("Error crítico en la función:", err.message);
         return res.status(500).json({ error: 'Error interno en la función', details: err.message });
     }
 }
