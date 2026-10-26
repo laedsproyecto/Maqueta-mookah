@@ -1,7 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
 export default async function handler(req, res) {
-    // Configurar cabeceras para asegurar que siempre respondemos JSON
     res.setHeader('Content-Type', 'application/json');
 
     if (req.method !== 'GET') {
@@ -21,24 +18,27 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Faltan credenciales de PassKit en Vercel' });
         }
 
-        const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+        // Consultar Supabase directamente mediante REST API (sin módulos externos)
+        const sbResponse = await fetch(`${process.env.SUPABASE_URL}/rest/v1/clientes?telefono=eq.${encodeURIComponent(telefono)}&select=*`, {
+            method: 'GET',
+            headers: {
+                'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY,
+                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+            }
+        });
 
-        // Buscar cliente por teléfono
-        const { data: cliente, error } = await supabase
-            .from('clientes')
-            .select('*')
-            .eq('telefono', telefono)
-            .single();
+        const clientes = await sbResponse.json();
 
-        if (error || !cliente) {
-            return res.status(404).json({ error: 'Cliente no encontrado en la base de datos para el teléfono: ' + telefono });
+        if (!sbResponse.ok || !clientes || clientes.length === 0) {
+            return res.status(404).json({ error: 'Cliente no encontrado en la base de datos' });
         }
 
+        const cliente = clientes[0];
         const visitas = cliente.visitas_totales || 1;
         const credentials = Buffer.from(`${process.env.PASSKIT_KEY}:${process.env.PASSKIT_SECRET}`).toString('base64');
 
-        // Petición a PassKit
-        const response = await fetch(`https://api.pub2.passkit.io/member/member`, {
+        // Petición a PassKit para generar el pase de Apple Wallet
+        const pkResponse = await fetch(`https://api.pub2.passkit.io/member/member`, {
             method: 'POST',
             headers: {
                 'Authorization': `Basic ${credentials}`,
@@ -56,16 +56,16 @@ export default async function handler(req, res) {
             })
         });
 
-        const passResult = await response.json();
+        const passResult = await pkResponse.json();
 
-        if (!response.ok) {
+        if (!pkResponse.ok) {
             return res.status(500).json({ error: 'PassKit rechazó la solicitud', details: passResult });
         }
 
         if (passResult && passResult.passUrl) {
             return res.status(200).json({ downloadUrl: passResult.passUrl });
         } else {
-            return res.status(500).json({ error: 'PassKit no devolvió una URL de pase válida', details: passResult });
+            return res.status(500).json({ error: 'PassKit no devolvió una URL válida', details: passResult });
         }
 
     } catch (err) {
