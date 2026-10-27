@@ -14,17 +14,13 @@ function signJwt(payload, pemKey) {
     const encodedPayload = base64url(JSON.stringify(payload));
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
-    // Crear el objeto de clave privada especificando formato PEM
-    const privateKey = crypto.createPrivateKey({
-        key: pemKey,
-        format: 'pem'
-    });
-
+    // Usar el método de firma directa pasando la llave como string PEM crudo
+    // sin el objeto intermedio que causa conflicto en Vercel
     const signer = crypto.createSign('RSA-SHA256');
     signer.update(dataToSign);
     signer.end();
 
-    const signature = signer.sign(privateKey, 'base64')
+    const signature = signer.sign(pemKey, 'base64')
         .replace(/=/g, '')
         .replace(/\+/g, '-')
         .replace(/\//g, '_');
@@ -57,7 +53,7 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Faltan credenciales de Google Wallet en Vercel' });
         }
 
-        // Llave privada limpia organizada en líneas exactas
+        // Llave privada con formato limpio asegurado
         const pemKey = [
             "-----BEGIN PRIVATE KEY-----",
             "MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCpM9lY1iuC4fEo",
