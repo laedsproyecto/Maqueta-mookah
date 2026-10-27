@@ -14,21 +14,33 @@ function signJwt(payload, privateKeyInput) {
     const encodedPayload = base64url(JSON.stringify(payload));
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
-    // Normalización extrema de la llave privada para evitar bloqueos de OpenSSL
-    let cleanKey = privateKeyInput
-        .replace(/\\n/g, '\n')
-        .replace(/"/g, '')
-        .trim();
+    // Limpieza y normalización robusta de la llave privada
+    let cleanKey = privateKeyInput ? privateKeyInput.trim() : '';
+    
+    // Remover comillas envolventes si las hubiera
+    if ((cleanKey.startsWith('"') && cleanKey.endsWith('"')) || (cleanKey.startsWith("'") && cleanKey.endsWith("'"))) {
+        cleanKey = cleanKey.slice(1, -1);
+    }
 
+    // Reemplazar saltos de línea escapados por saltos reales
+    cleanKey = cleanKey.replace(/\\n/g, '\n');
+
+    // Asegurar las cabeceras estándar del formato PEM
     if (!cleanKey.includes('-----BEGIN PRIVATE KEY-----')) {
         cleanKey = `-----BEGIN PRIVATE KEY-----\n${cleanKey}\n-----END PRIVATE KEY-----`;
     }
+
+    // Crear el objeto de llave privada nativo de Node.js
+    const privateKeyObject = crypto.createPrivateKey({
+        key: cleanKey,
+        format: 'pem'
+    });
 
     const signer = crypto.createSign('RSA-SHA256');
     signer.update(dataToSign);
     signer.end();
 
-    const signature = signer.sign(cleanKey, 'base64')
+    const signature = signer.sign(privateKeyObject, 'base64')
         .replace(/=/g, '')
         .replace(/\+/g, '-')
         .replace(/\//g, '_');
@@ -52,13 +64,13 @@ export default async function handler(req, res) {
         const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/[[\]()]/g, '').trim();
         const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').replace(/[[\]()]/g, '').trim();
         const clientEmail = (process.env.GOOGLE_CLIENT_EMAIL || '').trim();
-        const privateKey = process.env.GOOGLE_PRIVATE_KEY || '';
+        const privateKeyInput = process.env.GOOGLE_PRIVATE_KEY || '';
         const issuerId = (process.env.GOOGLE_ISSUER_ID || '').trim();
 
         if (!supabaseUrl || !supabaseKey) {
             return res.status(500).json({ error: 'Faltan credenciales de Supabase' });
         }
-        if (!clientEmail || !privateKey || !issuerId) {
+        if (!clientEmail || !privateKeyInput || !issuerId) {
             return res.status(500).json({ error: 'Faltan credenciales de Google Wallet en Vercel' });
         }
 
@@ -128,7 +140,7 @@ export default async function handler(req, res) {
             origins: []
         };
 
-        const token = signJwt(jwtPayload, privateKey);
+        const token = signJwt(jwtPayload, privateKeyInput);
         const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
 
         return res.status(200).json({ saveUrl });
