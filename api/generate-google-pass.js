@@ -14,23 +14,31 @@ function signJwt(payload, privateKeyInput) {
     const encodedPayload = base64url(JSON.stringify(payload));
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
-    // Limpieza y normalización robusta de la llave privada
+    // 1. Limpieza inicial de la entrada
     let cleanKey = privateKeyInput ? privateKeyInput.trim() : '';
     
-    // Remover comillas envolventes si las hubiera
     if ((cleanKey.startsWith('"') && cleanKey.endsWith('"')) || (cleanKey.startsWith("'") && cleanKey.endsWith("'"))) {
         cleanKey = cleanKey.slice(1, -1);
     }
 
-    // Reemplazar saltos de línea escapados por saltos reales
+    // Reemplazar saltos de línea escapados si existen
     cleanKey = cleanKey.replace(/\\n/g, '\n');
 
-    // Asegurar las cabeceras estándar del formato PEM
-    if (!cleanKey.includes('-----BEGIN PRIVATE KEY-----')) {
-        cleanKey = `-----BEGIN PRIVATE KEY-----\n${cleanKey}\n-----END PRIVATE KEY-----`;
+    // 2. Si Vercel unió todo en una sola línea, reconstruimos el formato PEM automáticamente
+    if (!cleanKey.includes('\n') || cleanKey.split('\n').length < 3) {
+        cleanKey = cleanKey
+            .replace('-----BEGIN PRIVATE KEY-----', '')
+            .replace('-----END PRIVATE KEY-----', '')
+            .replace(/\s+/g, '');
+        
+        // Dividir el contenido base64 en bloques exactos de 64 caracteres
+        const chunks = cleanKey.match(/.{1,64}/g);
+        if (chunks) {
+            cleanKey = `-----BEGIN PRIVATE KEY-----\n${chunks.join('\n')}\n-----END PRIVATE KEY-----`;
+        }
     }
 
-    // Crear el objeto de llave privada nativo de Node.js
+    // Crear el objeto de llave privada nativo de Node.js de manera segura
     const privateKeyObject = crypto.createPrivateKey({
         key: cleanKey,
         format: 'pem'
