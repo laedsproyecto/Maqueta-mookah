@@ -108,7 +108,7 @@ export default async function handler(req, res) {
             }
         };
 
-        // 2. Construir y firmar JWT con jsrsasign (100% puro JS, sin OpenSSL)
+        // 2. Construir y firmar JWT correctamente con KEYUTIL limpio
         const header = { alg: 'RS256', typ: 'JWT' };
         const payload = {
             iss: clientEmail,
@@ -121,8 +121,9 @@ export default async function handler(req, res) {
             origins: []
         };
 
+        // Forzar la lectura limpia del PEM mediante KEYUTIL
         const rsaKey = jsrsasign.KEYUTIL.getKey(pemKey);
-        const token = jsrsasign.jws.JWS.sign("RS256", JSON.stringify(header), JSON.stringify(payload), rsaKey);
+        const token = jsrsasign.jws.JWS.sign(null, JSON.stringify(header), JSON.stringify(payload), rsaKey);
         const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
 
         return res.status(200).json({ saveUrl });
