@@ -8,42 +8,23 @@ function base64url(str) {
         .replace(/\//g, '_');
 }
 
-// Firma JWT utilizando Web Crypto API nativa (biega por completo los errores de OpenSSL)
-async function signJwtWebCrypto(payload, pemKeyString) {
+function signJwt(payload, pemKey) {
     const header = { alg: 'RS256', typ: 'JWT' };
     const encodedHeader = base64url(JSON.stringify(header));
     const encodedPayload = base64url(JSON.stringify(payload));
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
-    // Limpiar el formato PEM para extraer solo el contenido en base64
-    const cleanPem = pemKeyString
-        .replace('-----BEGIN PRIVATE KEY-----', '')
-        .replace('-----END PRIVATE KEY-----', '')
-        .replace(/\s+/g, '');
+    // Crear el objeto de clave privada especificando formato PEM
+    const privateKey = crypto.createPrivateKey({
+        key: pemKey,
+        format: 'pem'
+    });
 
-    const binaryKey = Buffer.from(cleanPem, 'base64');
+    const signer = crypto.createSign('RSA-SHA256');
+    signer.update(dataToSign);
+    signer.end();
 
-    // Importar la llave de forma segura usando Web Crypto
-    const cryptoKey = await crypto.subtle.importKey(
-        'pkcs8',
-        binaryKey,
-        {
-            name: 'RSASSA-PKCS1-v1_5',
-            hash: { name: 'SHA-256' },
-        },
-        false,
-        ['sign']
-    );
-
-    // Firmar los datos del JWT
-    const signatureBuffer = await crypto.subtle.sign(
-        'RSASSA-PKCS1-v1_5',
-        cryptoKey,
-        new TextEncoder().encode(dataToSign)
-    );
-
-    const signature = Buffer.from(signatureBuffer)
-        .toString('base64')
+    const signature = signer.sign(privateKey, 'base64')
         .replace(/=/g, '')
         .replace(/\+/g, '-')
         .replace(/\//g, '_');
@@ -76,7 +57,7 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Faltan credenciales de Google Wallet en Vercel' });
         }
 
-        // Llave privada limpia organizada en líneas
+        // Llave privada limpia organizada en líneas exactas
         const pemKey = [
             "-----BEGIN PRIVATE KEY-----",
             "MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCpM9lY1iuC4fEo",
@@ -174,8 +155,7 @@ export default async function handler(req, res) {
             origins: []
         };
 
-        // Firmar usando Web Crypto API
-        const token = await signJwtWebCrypto(jwtPayload, pemKey);
+        const token = signJwt(jwtPayload, pemKey);
         const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
 
         return res.status(200).json({ saveUrl });
