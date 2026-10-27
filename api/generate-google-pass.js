@@ -8,24 +8,47 @@ function base64url(str) {
         .replace(/\//g, '_');
 }
 
-function signJwt(payload, pemKey) {
+function signJwt(payload, pemKeyString) {
     const header = { alg: 'RS256', typ: 'JWT' };
     const encodedHeader = base64url(JSON.stringify(header));
     const encodedPayload = base64url(JSON.stringify(payload));
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
-    // Usar el método de firma directa pasando la llave como string PEM crudo
-    // sin el objeto intermedio que causa conflicto en Vercel
-    const signer = crypto.createSign('RSA-SHA256');
-    signer.update(dataToSign);
-    signer.end();
+    let privateKeyObject;
+    
+    // Intentar cargar la llave probando diferentes formatos compatibles con OpenSSL 3
+    try {
+        privateKeyObject = crypto.createPrivateKey({
+            key: pemKeyString,
+            format: 'pem',
+            type: 'pkcs8'
+        });
+    } catch (e1) {
+        try {
+            privateKeyObject = crypto.createPrivateKey({
+                key: pemKeyString,
+                format: 'pem',
+                type: 'pkcs1'
+            });
+        } catch (e2) {
+            // Si ambos fallan, intentar como formato genérico sin especificar tipo
+            privateKeyObject = crypto.createPrivateKey(pemKeyString);
+        }
+    }
 
-    const signature = signer.sign(pemKey, 'base64')
+    const signature = crypto.sign(
+        'sha256',
+        Buffer.from(dataToSign),
+        privateKeyObject
+    );
+
+    const encodedSignature = signature
+        .toString('base64')
         .replace(/=/g, '')
         .replace(/\+/g, '-')
         .replace(/\//g, '_');
 
-    return `${dataToSign}.${signature}`;
+    return `${dataToSign}.${encodedSignature}`;
 }
 
 export default async function handler(req, res) {
