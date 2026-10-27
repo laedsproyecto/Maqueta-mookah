@@ -8,47 +8,22 @@ function base64url(str) {
         .replace(/\//g, '_');
 }
 
-function signJwt(payload, pemKeyString) {
+function signJwt(payload, pemKey) {
     const header = { alg: 'RS256', typ: 'JWT' };
     const encodedHeader = base64url(JSON.stringify(header));
     const encodedPayload = base64url(JSON.stringify(payload));
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
-    let privateKeyObject;
-    
-    // Intentar cargar la llave probando diferentes formatos compatibles con OpenSSL 3
-    try {
-        privateKeyObject = crypto.createPrivateKey({
-            key: pemKeyString,
-            format: 'pem',
-            type: 'pkcs8'
-        });
-    } catch (e1) {
-        try {
-            privateKeyObject = crypto.createPrivateKey({
-                key: pemKeyString,
-                format: 'pem',
-                type: 'pkcs1'
-            });
-        } catch (e2) {
-            // Si ambos fallan, intentar como formato genérico sin especificar tipo
-            privateKeyObject = crypto.createPrivateKey(pemKeyString);
-        }
-    }
+    const signer = crypto.createSign('RSA-SHA256');
+    signer.update(dataToSign);
+    signer.end();
 
-    const signature = crypto.sign(
-        'sha256',
-        Buffer.from(dataToSign),
-        privateKeyObject
-    );
-
-    const encodedSignature = signature
-        .toString('base64')
+    const signature = signer.sign(pemKey, 'base64')
         .replace(/=/g, '')
         .replace(/\+/g, '-')
         .replace(/\//g, '_');
 
-    return `${dataToSign}.${encodedSignature}`;
+    return `${dataToSign}.${signature}`;
 }
 
 export default async function handler(req, res) {
@@ -76,7 +51,6 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Faltan credenciales de Google Wallet en Vercel' });
         }
 
-        // Llave privada con formato limpio asegurado
         const pemKey = [
             "-----BEGIN PRIVATE KEY-----",
             "MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCpM9lY1iuC4fEo",
