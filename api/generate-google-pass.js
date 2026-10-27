@@ -23,10 +23,17 @@ export default async function handler(req, res) {
     try {
         const clientEmail = (process.env.GOOGLE_CLIENT_EMAIL || '').trim();
         const issuerId = (process.env.GOOGLE_ISSUER_ID || '').trim();
-        
-        // Vamos a probar leyendo la llave de la variable de entorno para ver si ese es el problema con OpenSSL
-        const rawKey = process.env.GOOGLE_PRIVATE_KEY || '';
+        const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/[[\]()]/g, '').trim();
+        const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').replace(/[[\]()]/g, '').trim();
 
+        if (!supabaseUrl || !supabaseKey) {
+            return res.status(500).json({ error: 'Faltan credenciales de Supabase' });
+        }
+        if (!clientEmail || !issuerId) {
+            return res.status(500).json({ error: 'Faltan credenciales de Google Wallet en Vercel' });
+        }
+
+        // Llave privada completa formateada sin errores de decodificación OpenSSL
         const pemKey = [
             "-----BEGIN PRIVATE KEY-----",
             "MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCpM9lY1iuC4fEo",
@@ -58,24 +65,82 @@ export default async function handler(req, res) {
             "-----END PRIVATE KEY-----"
         ].join('\n');
 
-        // Intentar crear la llave con crypto
+        // Usar tipo de llave RSA explícito para evitar fallas en el decodificador de Node 18+
         const privateKeyObject = crypto.createPrivateKey({
             key: pemKey,
-            format: 'pem'
+            format: 'pem',
+            type: 'pkcs8'
         });
 
-        const header = { alg: 'RS256', typ: 'JWT' };
-        const payload = {
+        // 1. Consultar datos del cliente en Supabase
+        const baseUrl = supabaseUrl.replace(/\/+$/, '');
+        const targetUrl = `${baseUrl}/rest/v1/clientes?telefono=eq.${encodeURIComponent(telefono)}&select=*`;
+
+        const sbResponse = await fetch(targetUrl, {
+            method: 'GET',
+            headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`
+            }
+        });
+
+        const rawText = await sbResponse.text();
+        let clientes;
+        try {
+            clientes = JSON.parse(rawText);
+        } catch (e) {
+            return res.status(500).json({ error: 'Respuesta de Supabase no es JSON válido' });
+        }
+
+        if (!sbResponse.ok || !clientes || clientes.length === 0) {
+            return res.status(404).json({ error: 'Cliente no encontrado en Supabase' });
+        }
+
+        const cliente = clientes[0];
+        const visitas = cliente.visitas_totales || 1;
+        const nombreCliente = `${cliente.nombre || 'Cliente'} ${cliente.apellido || ''}`.trim();
+        const telefonoLimpio = cliente.telefono.replace(/\D/g, '');
+
+        const classId = `${issuerId}.MOOKAH_LOYALTY_PROGRAM`;
+        const objectId = `${issuerId}.${telefonoLimpio}_MOOKAH_PASS`;
+
+        // 2. Armar el objeto de lealtad de Google Wallet
+        const loyaltyObject = {
+            id: objectId,
+            classId: classId,
+            state: 'ACTIVE',
+            accountName: nombreCliente,
+            accountId: telefonoLimpio,
+            textModulesData: [
+                {
+                    header: 'PUNTOS / VISITAS',
+                    body: `${visitas} Visita(s)`,
+                    id: 'visitas'
+                }
+            ],
+            barcode: {
+                type: 'QR_CODE',
+                value: telefonoLimpio,
+                alternateText: telefonoLimpio
+            }
+        };
+
+        // 3. Crear Payload JWT para Google Wallet
+        const now = Math.floor(Date.now() / 1000);
+        const jwtPayload = {
             iss: clientEmail,
             aud: 'google',
             typ: 'savetowallet',
-            iat: Math.floor(Date.now() / 1000),
-            payload: { loyaltyObjects: [] },
+            iat: now,
+            payload: {
+                loyaltyObjects: [loyaltyObject]
+            },
             origins: []
         };
 
+        const header = { alg: 'RS256', typ: 'JWT' };
         const encodedHeader = base64url(JSON.stringify(header));
-        const encodedPayload = base64url(JSON.stringify(payload));
+        const encodedPayload = base64url(JSON.stringify(jwtPayload));
         const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
         const signer = crypto.createSign('RSA-SHA256');
@@ -88,15 +153,15 @@ export default async function handler(req, res) {
             .replace(/\//g, '_');
 
         const token = `${dataToSign}.${signature}`;
-        return res.status(200).json({ success: true, tokenPreview: token.substring(0, 20) });
+        const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
+
+        return res.status(200).json({ saveUrl });
 
     } catch (err) {
-        // Esto nos devolverá el mensaje exacto, el código y la línea exacta del error
         return res.status(500).json({
-            error: "DETALLE EXACTO DEL ERROR",
-            message: err.message,
-            code: err.code,
-            stack: err.stack
+            error: 'Error interno en la función',
+            details: err.message,
+            code: err.code
         });
     }
 }
