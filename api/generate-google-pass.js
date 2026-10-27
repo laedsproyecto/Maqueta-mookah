@@ -8,39 +8,41 @@ function base64url(str) {
         .replace(/\//g, '_');
 }
 
+function getValidPrivateKey(rawKey) {
+    if (!rawKey) throw new Error("GOOGLE_PRIVATE_KEY no está definida en Vercel");
+    
+    // Limpiar comillas iniciales o finales si las hubiera
+    let key = rawKey.trim();
+    if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+        key = key.slice(1, -1).trim();
+    }
+    
+    // Reemplazar saltos de línea escapados ('\n') por saltos de línea reales y eliminar retornos de carro
+    key = key.replace(/\\n/g, '\n').replace(/\r/g, '');
+    
+    // Extraer limpiamente el cuerpo base64 de la llave sin importar cómo se haya pegado
+    let base64Body = key
+        .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+        .replace(/-----END PRIVATE KEY-----/g, '')
+        .replace(/\s+/g, '');
+    
+    // Reconstruir el formato PEM estándar con bloques exactos de 64 caracteres
+    const chunks = base64Body.match(/.{1,64}/g) || [];
+    return `-----BEGIN PRIVATE KEY-----\n${chunks.join('\n')}\n-----END PRIVATE KEY-----`;
+}
+
 function signJwt(payload, privateKeyInput) {
     const header = { alg: 'RS256', typ: 'JWT' };
     const encodedHeader = base64url(JSON.stringify(header));
     const encodedPayload = base64url(JSON.stringify(payload));
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
-    // 1. Limpieza inicial de la entrada
-    let cleanKey = privateKeyInput ? privateKeyInput.trim() : '';
-    
-    if ((cleanKey.startsWith('"') && cleanKey.endsWith('"')) || (cleanKey.startsWith("'") && cleanKey.endsWith("'"))) {
-        cleanKey = cleanKey.slice(1, -1);
-    }
-
-    // Reemplazar saltos de línea escapados si existen
-    cleanKey = cleanKey.replace(/\\n/g, '\n');
-
-    // 2. Si Vercel unió todo en una sola línea, reconstruimos el formato PEM automáticamente
-    if (!cleanKey.includes('\n') || cleanKey.split('\n').length < 3) {
-        cleanKey = cleanKey
-            .replace('-----BEGIN PRIVATE KEY-----', '')
-            .replace('-----END PRIVATE KEY-----', '')
-            .replace(/\s+/g, '');
-        
-        // Dividir el contenido base64 en bloques exactos de 64 caracteres
-        const chunks = cleanKey.match(/.{1,64}/g);
-        if (chunks) {
-            cleanKey = `-----BEGIN PRIVATE KEY-----\n${chunks.join('\n')}\n-----END PRIVATE KEY-----`;
-        }
-    }
+    // Obtener la llave normalizada
+    const cleanPemKey = getValidPrivateKey(privateKeyInput);
 
     // Crear el objeto de llave privada nativo de Node.js de manera segura
     const privateKeyObject = crypto.createPrivateKey({
-        key: cleanKey,
+        key: cleanPemKey,
         format: 'pem'
     });
 
