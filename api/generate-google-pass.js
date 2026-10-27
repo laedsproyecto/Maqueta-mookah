@@ -52,7 +52,7 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Faltan credenciales de Google Wallet en Vercel' });
         }
 
-        // Limpieza robusta de la llave privada para evitar errores de OpenSSL
+        // Limpieza robusta de la llave privada
         rawKey = rawKey.replace(/^["']|["']$/g, '').trim();
         let privateKey = rawKey.includes('\\n') ? rawKey.replace(/\\n/g, '\n') : rawKey;
         if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
             classId: classId,
             state: 'ACTIVE',
             accountName: nombreCliente,
-            accountId: telefonoLපිmo = telefonoLimpio,
+            accountId: telefonoLimpio,
             textModulesData: [
                 {
                     header: 'PUNTOS / VISITAS',
