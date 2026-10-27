@@ -1,4 +1,4 @@
-import { importPKCS8, SignJWT } from 'jose';
+import jsrsasign from 'jsrsasign';
 
 export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
@@ -108,23 +108,23 @@ export default async function handler(req, res) {
             }
         };
 
-        // 2. Firmar el JWT utilizando la librería 'jose'
-        const privateKey = await importPKCS8(pemKey, 'RS256');
-        
-        const token = await new SignJWT({
+        // 2. Construir y firmar JWT con jsrsasign (100% puro JS, sin OpenSSL)
+        const header = { alg: 'RS256', typ: 'JWT' };
+        const payload = {
             iss: clientEmail,
             aud: 'google',
             typ: 'savetowallet',
+            iat: Math.floor(Date.now() / 1000),
             payload: {
                 loyaltyObjects: [loyaltyObject]
             },
             origins: []
-        })
-            .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
-            .setIssuedAt()
-            .sign(privateKey);
+        };
 
+        const rsaKey = jsrsasign.KEYUTIL.getKey(pemKey);
+        const token = jsrsasign.jws.JWS.sign("RS256", JSON.stringify(header), JSON.stringify(payload), rsaKey);
         const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
+
         return res.status(200).json({ saveUrl });
 
     } catch (err) {
