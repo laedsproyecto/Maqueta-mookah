@@ -8,17 +8,27 @@ function base64url(str) {
         .replace(/\//g, '_');
 }
 
-function signJwt(payload, privateKey) {
+function signJwt(payload, privateKeyInput) {
     const header = { alg: 'RS256', typ: 'JWT' };
     const encodedHeader = base64url(JSON.stringify(header));
     const encodedPayload = base64url(JSON.stringify(payload));
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
+    // Normalización extrema de la llave privada para evitar bloqueos de OpenSSL
+    let cleanKey = privateKeyInput
+        .replace(/\\n/g, '\n')
+        .replace(/"/g, '')
+        .trim();
+
+    if (!cleanKey.includes('-----BEGIN PRIVATE KEY-----')) {
+        cleanKey = `-----BEGIN PRIVATE KEY-----\n${cleanKey}\n-----END PRIVATE KEY-----`;
+    }
+
     const signer = crypto.createSign('RSA-SHA256');
     signer.update(dataToSign);
     signer.end();
 
-    const signature = signer.sign(privateKey, 'base64')
+    const signature = signer.sign(cleanKey, 'base64')
         .replace(/=/g, '')
         .replace(/\+/g, '-')
         .replace(/\//g, '_');
@@ -42,21 +52,14 @@ export default async function handler(req, res) {
         const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/[[\]()]/g, '').trim();
         const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').replace(/[[\]()]/g, '').trim();
         const clientEmail = (process.env.GOOGLE_CLIENT_EMAIL || '').trim();
-        let rawKey = process.env.GOOGLE_PRIVATE_KEY || '';
+        const privateKey = process.env.GOOGLE_PRIVATE_KEY || '';
         const issuerId = (process.env.GOOGLE_ISSUER_ID || '').trim();
 
         if (!supabaseUrl || !supabaseKey) {
             return res.status(500).json({ error: 'Faltan credenciales de Supabase' });
         }
-        if (!clientEmail || !rawKey || !issuerId) {
+        if (!clientEmail || !privateKey || !issuerId) {
             return res.status(500).json({ error: 'Faltan credenciales de Google Wallet en Vercel' });
-        }
-
-        // Limpieza robusta de la llave privada
-        rawKey = rawKey.replace(/^["']|["']$/g, '').trim();
-        let privateKey = rawKey.includes('\\n') ? rawKey.replace(/\\n/g, '\n') : rawKey;
-        if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
-            privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
         }
 
         // 1. Consultar datos del cliente en Supabase
