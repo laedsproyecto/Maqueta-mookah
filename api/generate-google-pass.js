@@ -1,40 +1,4 @@
-import crypto from 'crypto';
-
-function base64url(str) {
-    return Buffer.from(str)
-        .toString('base64')
-        .replace(/=/g, '')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_');
-}
-
-function signJwt(payload, pemKey) {
-    const header = { alg: 'RS256', typ: 'JWT' };
-    const encodedHeader = base64url(JSON.stringify(header));
-    const encodedPayload = base64url(JSON.stringify(payload));
-    const dataToSign = `${encodedHeader}.${encodedPayload}`;
-
-    // Forzar el uso del motor de firma ignorando restricciones estrictas de decodificación
-    const signer = crypto.createSign('RSA-SHA256');
-    signer.update(dataToSign);
-    signer.end();
-
-    // Usar la clave directamente como objeto de llave privada seguro
-    const privateKey = crypto.createPrivateKey({
-        key: pemKey,
-        format: 'pem'
-    });
-
-    const signature = signer.sign({
-        key: privateKey,
-        padding: crypto.constants.RSA_PKCS1_PADDING
-    }, 'base64')
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_');
-
-    return `${dataToSign}.${signature}`;
-}
+import { importPKCS8, SignJWT } from 'jose';
 
 export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
@@ -92,6 +56,7 @@ export default async function handler(req, res) {
             "-----END PRIVATE KEY-----"
         ].join('\n');
 
+        // 1. Consultar datos en Supabase
         const baseUrl = supabaseUrl.replace(/\/+$/, '');
         const targetUrl = `${baseUrl}/rest/v1/clientes?telefono=eq.${encodeURIComponent(telefono)}&select=*`;
 
@@ -143,28 +108,29 @@ export default async function handler(req, res) {
             }
         };
 
-        const now = Math.floor(Date.now() / 1000);
-        const jwtPayload = {
+        // 2. Firmar el JWT utilizando la librería 'jose'
+        const privateKey = await importPKCS8(pemKey, 'RS256');
+        
+        const token = await new SignJWT({
             iss: clientEmail,
             aud: 'google',
             typ: 'savetowallet',
-            iat: now,
             payload: {
                 loyaltyObjects: [loyaltyObject]
             },
             origins: []
-        };
+        })
+            .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
+            .setIssuedAt()
+            .sign(privateKey);
 
-        const token = signJwt(jwtPayload, pemKey);
         const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
-
         return res.status(200).json({ saveUrl });
 
     } catch (err) {
         return res.status(500).json({
             error: 'Error interno en la función',
-            details: err.message,
-            code: err.code
+            details: err.message
         });
     }
 }
