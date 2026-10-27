@@ -627,7 +627,6 @@
                 .channel('public:kds_comandas')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'kds_comandas' }, payload => {
                     loadKdsOrdersFromSupabase();
-                    // Sincronizar el estado del KDS en tiempo real hacia las tandas de la mesa del mesero
                     if (payload.new) {
                         syncKdsStatusToMesas(payload.new.id, payload.new.estado);
                     }
@@ -746,6 +745,9 @@
             }
             if (!document.getElementById('view-server').classList.contains('hidden')) renderMesasServer();
             if (!document.getElementById('view-host').classList.contains('hidden')) renderMesasHost();
+            
+            if (!document.getElementById('main-view-kds-kitchen').classList.contains('hidden')) renderKdsGrid('cocina');
+            if (!document.getElementById('main-view-kds-bar').classList.contains('hidden')) renderKdsGrid('barra');
         }
 
         async function cargarClientesRegulares() {
@@ -1319,7 +1321,7 @@
                 mesa_numero: mesa.numero,
                 mesero: currentMeseroName,
                 destino: itemSeleccionado.destino,
-                items_json: JSON.stringify([{ nombre: itemSeleccionado.nombre, qty: 1, paraLlevar: false, ingredientesObj: [] }]),
+                items_json: JSON.stringify([{ nombre: itemSeleccionado.nombre, qty: 1, paraLlevar: false, ingredientesObj: [], timestampMs: Date.now() }]),
                 nota: `Cortesía Ruleta Canjeada (${premioObj.premio_ganado})`,
                 estado: 'por_empezar',
                 creado_ms: Date.now()
@@ -1348,6 +1350,342 @@
             filterCategory('all');
         }
 
+        function filterCategory(cat, keepSearch = false) {
+            if (!keepSearch) {
+                const searchInput = document.getElementById('menu-search-input');
+                if (searchInput) searchInput.value = '';
+            }
+
+            const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'bebidas', 'postres'];
+            categories.forEach(c => {
+                const btn = document.getElementById(`cat-btn-${c}`);
+                if (btn) {
+                    if (c === cat) {
+                        btn.className = "px-3 py-1 rounded-md text-xs transition bg-indigo-600 text-white font-bold";
+                    } else {
+                        btn.className = "px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white";
+                    }
+                }
+            });
+
+            const filtered = cat === 'all' ? menuCatalog : menuCatalog.filter(m => m.categoria === cat);
+            renderMenuItems(filtered);
+        }
+
+        function filterMenuBySearch(query) {
+            const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'bebidas', 'postres'];
+            categories.forEach(c => {
+                const btn = document.getElementById(`cat-btn-${c}`);
+                if (btn) btn.className = "px-3 py-1 rounded-md text-xs transition bg-gray-700 text-gray-300 hover:text-white";
+            });
+
+            if (!query.trim()) {
+                filterCategory('all');
+                return;
+            }
+
+            const q = query.toLowerCase();
+            const filtered = menuCatalog.filter(item => 
+                item.nombre.toLowerCase().includes(q) || 
+                item.categoria.toLowerCase().includes(q) ||
+                (item.ingredientes && item.ingredientes.some(ing => ing.toLowerCase().includes(q)))
+            );
+
+            renderMenuItems(filtered);
+        }
+
+        function renderMenuItems(items) {
+            const grid = document.getElementById('menu-items-grid');
+            if (items.length === 0) {
+                grid.innerHTML = `<p class="col-span-2 text-center text-xs text-gray-500 py-6 italic">No se encontraron productos que coincidan con la búsqueda.</p>`;
+                return;
+            }
+
+            grid.innerHTML = items.map(item => {
+                const isAgotado = agotados86List.includes(item.id);
+                const precioBs = item.precio * bcvRate;
+
+                if (isAgotado) {
+                    return `
+                        <div class="bg-gray-900 border border-red-900/50 rounded-xl p-3 flex flex-col justify-between relative opacity-60">
+                            <span class="absolute top-2 right-2 bg-red-600/80 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow">AGOTADO (86)</span>
+                            <div>
+                                <h4 class="font-bold text-xs text-gray-400">${item.nombre}</h4>
+                                <p class="text-[10px] text-gray-500 mt-1 line-clamp-2">${item.ingredientes ? item.ingredientes.join(", ") : ""}</p>
+                            </div>
+                            <div class="mt-2 flex justify-between items-center border-t border-gray-800 pt-2">
+                                <div>
+                                    <span class="text-xs font-bold text-gray-500">$${item.precio.toFixed(2)}</span>
+                                    <span class="text-[9px] text-gray-600 block font-mono">Bs. ${precioBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                </div>
+                                <button disabled class="bg-gray-800 text-gray-600 text-xs px-2.5 py-1 rounded cursor-not-allowed">No disp.</button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="bg-gray-900 border border-gray-700/60 hover:border-indigo-500 rounded-xl p-3 flex flex-col justify-between transition group shadow-sm">
+                        <div>
+                            <div class="flex justify-between items-start">
+                                <h4 class="font-bold text-xs text-white group-hover:text-indigo-300 transition">${item.nombre}</h4>
+                                <span class="text-[9px] px-1.5 py-0.5 rounded bg-gray-800 text-indigo-300 font-semibold uppercase">${item.destino}</span>
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-1 line-clamp-2">${item.ingredientes ? item.ingredientes.join(", ") : ""}</p>
+                        </div>
+                        <div class="mt-2 flex justify-between items-center border-t border-gray-800 pt-2">
+                            <div>
+                                <span class="text-xs font-bold text-emerald-400">$${item.precio.toFixed(2)}</span>
+                                <span class="text-[9px] text-emerald-300/70 block font-mono">Bs. ${precioBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            </div>
+                            <button onclick="addToOrder(${item.id})" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-2.5 py-1 rounded font-semibold transition flex items-center space-x-1 shadow">
+                                <i class="fa-solid fa-plus text-[10px]"></i>
+                                <span>Agregar</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addToOrder(itemId) {
+            const item = menuCatalog.find(m => m.id === itemId);
+            if (!item) return;
+
+            if (premioEnEsperaDeSeleccion) {
+                aplicarPremioCortesiaParaItem(item);
+                return;
+            }
+
+            const existing = currentOrder.find(o => o.id === itemId && !o.paraLlevar && o.ingredientesEliminados.length === 0);
+            if (existing) {
+                existing.qty++;
+            } else {
+                currentOrder.push({
+                    id: item.id,
+                    nombre: item.nombre,
+                    precio: item.precio,
+                    destino: item.destino,
+                    qty: 1,
+                    paraLlevar: false,
+                    ingredientesBase: item.ingredientes ? [...item.ingredientes] : [],
+                    ingredientesEliminados: []
+                });
+            }
+            renderOrderItems();
+        }
+
+        function renderOrderItems() {
+            const list = document.getElementById('order-items-list');
+            if (currentOrder.length === 0) {
+                list.innerHTML = `<p class="text-gray-500 text-xs italic text-center py-4">Selecciona ítems del menú.</p>`;
+                updateTotalsDisplay();
+                return;
+            }
+
+            list.innerHTML = currentOrder.map((item, index) => {
+                const subtotal = item.precio * item.qty;
+                const subtotalBs = subtotal * bcvRate;
+
+                return `
+                    <div class="bg-gray-900 border border-gray-700 rounded-lg p-2.5 space-y-2">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1 pr-2">
+                                <h5 class="font-bold text-xs text-white">${item.nombre}</h5>
+                                <div class="text-[10px] text-emerald-400 font-semibold">$${item.precio.toFixed(2)} c/u</div>
+                            </div>
+                            <button onclick="removeOrderItem(${index})" class="text-red-400 hover:text-red-300 text-xs"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+
+                        ${item.ingredientesBase.length > 0 ? `
+                            <div class="text-[10px] bg-gray-950 p-2 rounded border border-gray-800 space-y-1">
+                                <span class="text-gray-400 font-bold block uppercase text-[9px]">Ingredientes / Personalizar:</span>
+                                <div class="flex flex-wrap gap-1">
+                                    ${item.ingredientesBase.map(ing => {
+                                        const isRemoved = item.ingredientesEliminados.includes(ing);
+                                        return `
+                                            <button onclick="toggleIngrediente(${index}, '${ing}')" class="px-1.5 py-0.5 rounded text-[9px] transition ${isRemoved ? 'bg-red-950 text-red-400 line-through border border-red-800' : 'bg-gray-800 text-gray-300 border border-gray-700 hover:border-gray-500'}">
+                                                ${isRemoved ? 'Sin ' : ''}${ing}
+                                            </button>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <div class="flex justify-between items-center border-t border-gray-800 pt-2 text-xs">
+                            <label class="flex items-center space-x-1.5 cursor-pointer text-[10px] text-amber-300">
+                                <input type="checkbox" ${item.paraLlevar ? 'checked' : ''} onchange="toggleParaLlevar(${index})" class="rounded bg-gray-800 border-gray-700 text-amber-500 focus:ring-0">
+                                <span>Para llevar</span>
+                            </label>
+
+                            <div class="flex items-center space-x-2">
+                                <div class="flex items-center bg-gray-800 border border-gray-700 rounded">
+                                    <button onclick="updateQty(${index}, -1)" class="px-2 py-0.5 text-gray-300 hover:text-white font-bold">-</button>
+                                    <span class="px-2 font-mono font-bold text-xs text-white">${item.qty}</span>
+                                    <button onclick="updateQty(${index}, 1)" class="px-2 py-0.5 text-gray-300 hover:text-white font-bold">+</button>
+                                </div>
+                                <div class="text-right">
+                                    <span class="font-bold text-emerald-400 text-xs block">$${subtotal.toFixed(2)}</span>
+                                    <span class="text-[9px] text-emerald-300/70 block font-mono">Bs. ${subtotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            updateTotalsDisplay();
+        }
+
+        function toggleIngrediente(itemIndex, ing) {
+            const item = currentOrder[itemIndex];
+            const idx = item.ingredientesEliminados.indexOf(ing);
+            if (idx > -1) item.ingredientesEliminados.splice(idx, 1);
+            else item.ingredientesEliminados.push(ing);
+            renderOrderItems();
+        }
+
+        function toggleParaLlevar(itemIndex) {
+            currentOrder[itemIndex].paraLlevar = !currentOrder[itemIndex].paraLlevar;
+            renderOrderItems();
+        }
+
+        function updateQty(index, delta) {
+            currentOrder[index].qty += delta;
+            if (currentOrder[index].qty <= 0) currentOrder.splice(index, 1);
+            renderOrderItems();
+        }
+
+        function removeOrderItem(index) {
+            currentOrder.splice(index, 1);
+            renderOrderItems();
+        }
+
+        function updateTotalsDisplay() {
+            const currentTotalUSD = currentOrder.reduce((acc, i) => acc + (i.precio * i.qty), 0);
+            const currentTotalVES = currentTotalUSD * bcvRate;
+
+            document.getElementById('order-total').innerText = `$${currentTotalUSD.toFixed(2)}`;
+            document.getElementById('order-total-ves').innerText = `Bs. ${currentTotalVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            const mesa = mesas.find(m => m.id === selectedMesaId);
+            let consumedUSD = 0;
+
+            if (mesa && mesa.sessionOrders && mesa.sessionOrders.length > 0) {
+                mesa.sessionOrders.forEach(p => {
+                    consumedUSD += calculateTandaCost(p.items, p.totalTanda);
+                });
+            }
+
+            const consumedVES = consumedUSD * bcvRate;
+            document.getElementById('summary-consumed-total').innerText = `$${consumedUSD.toFixed(2)}`;
+            document.getElementById('summary-consumed-ves').innerText = `Bs. ${consumedVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            const grandTotalUSD = consumedUSD + currentTotalUSD;
+            const grandTotalVES = grandTotalUSD * bcvRate;
+
+            document.getElementById('grand-total-account').innerText = `$${grandTotalUSD.toFixed(2)}`;
+            document.getElementById('grand-total-ves').innerText = `Bs. ${grandTotalVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+
+        async function submitOrder() {
+            if (currentOrder.length === 0) {
+                alert("Agrega al menos un ítem al pedido antes de enviar.");
+                return;
+            }
+
+            const mesa = mesas.find(m => m.id === selectedMesaId);
+            if (!mesa || mesa.estado !== 'ocupada') {
+                alert("Debes asignar un cliente a la mesa desde Recepción antes de enviar pedidos.");
+                return;
+            }
+
+            const notaGeneral = document.getElementById('order-notes').value.trim();
+            const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const cocinaItems = currentOrder.filter(i => i.destino === 'cocina');
+            const barraItems = currentOrder.filter(i => i.destino === 'barra');
+
+            let generatedKdsIds = [];
+            const nowMs = Date.now();
+
+            if (cocinaItems.length > 0) {
+                const { data: resC } = await supabaseClient.from('kds_comandas').insert([{
+                    mesa_numero: mesa.numero,
+                    mesero: currentMeseroName,
+                    destino: 'cocina',
+                    items_json: JSON.stringify(cocinaItems.map(i => ({
+                        nombre: i.nombre,
+                        qty: i.qty,
+                        paraLlevar: i.paraLlevar,
+                        ingredientesObj: i.ingredientesBase.map(ing => ({
+                            nombre: ing,
+                            incluido: !i.ingredientesEliminados.includes(ing)
+                        })),
+                        timestampMs: nowMs
+                    }))),
+                    nota: notaGeneral,
+                    estado: 'por_empezar',
+                    creado_ms: nowMs
+                }]).select();
+                if (resC && resC.length > 0) generatedKdsIds.push(resC[0].id);
+            }
+
+            if (barraItems.length > 0) {
+                const { data: resB } = await supabaseClient.from('kds_comandas').insert([{
+                    mesa_numero: mesa.numero,
+                    mesero: currentMeseroName,
+                    destino: 'barra',
+                    items_json: JSON.stringify(barraItems.map(i => ({
+                        nombre: i.nombre,
+                        qty: i.qty,
+                        paraLlevar: i.paraLlevar,
+                        ingredientesObj: i.ingredientesBase.map(ing => ({
+                            nombre: ing,
+                            incluido: !i.ingredientesEliminados.includes(ing)
+                        })),
+                        timestampMs: nowMs
+                    }))),
+                    nota: notaGeneral,
+                    estado: 'por_empezar',
+                    creado_ms: nowMs
+                }]).select();
+                if (resB && resB.length > 0) generatedKdsIds.push(resB[0].id);
+            }
+
+            const itemsFormattedText = currentOrder.map(i => {
+                let extras = [];
+                if (i.paraLlevar) extras.push("Para llevar");
+                if (i.ingredientesEliminados.length > 0) extras.push(`Sin ${i.ingredientesEliminados.join(", ")}`);
+                const extraStr = extras.length > 0 ? ` (${extras.join(" | ")})` : "";
+                return `${i.qty}x ${i.nombre}${extraStr}`;
+            }).join(" | ");
+
+            const totalNuevaTanda = currentOrder.reduce((acc, item) => acc + (item.precio * item.qty), 0);
+
+            if (!mesa.sessionOrders) mesa.sessionOrders = [];
+            mesa.sessionOrders.push({
+                hora: horaActual,
+                mesero: currentMeseroName,
+                items: itemsFormattedText,
+                nota: notaGeneral,
+                totalTanda: totalNuevaTanda,
+                entregado: false,
+                kdsEstado: 'por_empezar',
+                kdsIds: generatedKdsIds
+            });
+
+            await syncMesaToSupabase(mesa);
+
+            currentOrder = [];
+            document.getElementById('order-notes').value = '';
+            renderOrderItems();
+            renderTableHistory(mesa);
+            alert("✅ Pedido enviado exitosamente a KDS.");
+            loadKdsOrdersFromSupabase();
+        }
+
         function renderTableHistory(mesa) {
             const historyContainer = document.getElementById('table-history-list');
 
@@ -1372,512 +1710,197 @@
                 sessionAccumulated += costoTanda;
                 let costoTandaBs = costoTanda * bcvRate;
 
-                // Definir estado y color según kdsEstado sincronizado
-                let estadoBadge = '';
-                if (p.entregado || p.kdsEstado === 'despachado') {
-                    estadoBadge = '<span class="text-[9px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded font-bold">✓ Entregado a Mesa</span>';
-                } else if (p.kdsEstado === 'preparando') {
-                    estadoBadge = '<span class="text-[9px] bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded font-bold">🔥 En Preparación</span>';
-                } else {
-                    estadoBadge = '<span class="text-[9px] bg-sky-950 text-sky-300 border border-sky-800 px-2 py-0.5 rounded font-bold">⏳ Enviado a Cocina</span>';
-                }
+                let statusBadge = p.entregado ? '<span class="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[9px] px-2 py-0.5 rounded font-bold">✔ Entregado al cliente</span>' :
+                                  p.kdsEstado === 'listo' ? '<span class="bg-amber-950 text-amber-300 border border-amber-800 text-[9px] px-2 py-0.5 rounded font-bold animate-pulse">🔥 Listo para servir</span>' :
+                                  p.kdsEstado === 'en_proceso' ? '<span class="bg-blue-950 text-blue-300 border border-blue-800 text-[9px] px-2 py-0.5 rounded font-bold">🍳 En preparación</span>' :
+                                  '<span class="bg-gray-800 text-gray-300 border border-gray-700 text-[9px] px-2 py-0.5 rounded font-bold">⏳ En cola</span>';
 
                 return `
-                    <div class="border-b border-gray-800 pb-2 mb-2">
-                        <div class="flex justify-between items-start mb-1.5">
-                            <span class="text-indigo-300 font-bold text-xs">Tanda #${index + 1} (${p.hora}):</span>
-                            <div class="text-right flex flex-col items-end space-y-0.5">
-                                <span class="text-xs font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-2 py-0.5 rounded leading-none">$${costoTanda.toFixed(2)}</span>
-                                <span class="text-[10px] text-gray-400 font-mono block pt-0.5">Bs. ${costoTandaBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                            </div>
+                    <div class="bg-gray-950 p-2.5 rounded-lg border border-gray-800 space-y-1.5">
+                        <div class="flex justify-between items-center text-[10px]">
+                            <span class="font-bold text-indigo-300">Tanda #${index + 1} • ${p.hora}</span>
+                            <div>${statusBadge}</div>
                         </div>
-                        <p class="text-white font-medium text-xs leading-relaxed">👉 ${p.items}</p>
-                        <div class="flex justify-between items-center mt-1 text-[10px] text-gray-400">
-                            <span>Nota: ${p.nota || 'Ninguna'}</span>
-                            ${estadoBadge}
+                        <p class="text-xs text-white font-medium">${p.items}</p>
+                        ${p.nota ? `<p class="text-[10px] text-amber-300/80 italic">Nota: "${p.nota}"</p>` : ''}
+                        <div class="flex justify-between items-center border-t border-gray-800/80 pt-1.5 text-[10px]">
+                            <span class="text-gray-400">Atendido por: ${p.mesero}</span>
+                            <div class="text-right">
+                                <span class="font-bold text-emerald-400">$${costoTanda.toFixed(2)}</span>
+                                <span class="text-[9px] text-gray-400 ml-1 font-mono">(Bs. ${costoTandaBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})})</span>
+                            </div>
                         </div>
                     </div>
                 `;
             }).join('');
 
-            let sessionAccumulatedBs = sessionAccumulated * bcvRate;
+            const accumVES = sessionAccumulated * bcvRate;
             document.getElementById('session-accumulated-total').innerText = `$${sessionAccumulated.toFixed(2)}`;
-            document.getElementById('session-accumulated-ves').innerText = `Bs. ${sessionAccumulatedBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('session-accumulated-ves').innerText = `Bs. ${accumVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         }
 
-        function filterCategory(category, keepSearchInput = false) {
-            const categories = ['all', 'entradas', 'rolls', 'calientes', 'pokes', 'bebidas', 'postres'];
-            categories.forEach(cat => {
-                const btn = document.getElementById(`cat-btn-${cat}`);
-                if (btn) btn.className = "px-3 py-1 rounded-md text-xs transition " + (cat === category ? "bg-indigo-600 text-white font-bold" : "bg-gray-700 text-gray-300 hover:text-white");
-            });
-
-            if (!keepSearchInput) {
-                const searchInput = document.getElementById('menu-search-input');
-                if (searchInput) searchInput.value = '';
-            }
-
-            renderMenuItems(category === 'all' ? menuCatalog : menuCatalog.filter(i => i.categoria === category));
-        }
-
-        function filterMenuBySearch(query) {
-            const q = query.toLowerCase().trim();
-            if (!q) {
-                const activeCatBtn = document.querySelector('.bg-indigo-600.font-bold');
-                const cat = activeCatBtn ? activeCatBtn.id.replace('cat-btn-', '') : 'all';
-                filterCategory(cat, true);
-                return;
-            }
-
-            const matched = menuCatalog.filter(i => 
-                i.nombre.toLowerCase().includes(q) || 
-                i.ingredientes.some(ing => ing.toLowerCase().includes(q)) ||
-                i.categoria.toLowerCase().includes(q)
-            );
-            renderMenuItems(matched);
-        }
-
-        function renderMenuItems(items) {
-            const container = document.getElementById('menu-items-grid');
-            if (items.length === 0) {
-                container.innerHTML = `<p class="col-span-2 text-center text-gray-500 italic py-8 text-xs">No se encontraron productos.</p>`;
-                return;
-            }
-
-            container.innerHTML = items.map(i => {
-                const isAgotado = agotados86List.includes(i.id);
-                let precioBs = i.precio * bcvRate;
-                return `
-                    <div ${isAgotado ? '' : `onclick="addToOrder(${i.id})"`} class="p-3 rounded-lg border transition flex flex-col justify-between ${
-                        isAgotado 
-                            ? 'bg-red-950/40 border-red-600 opacity-90 cursor-not-allowed shadow-[0_0_10px_rgba(239,68,68,0.3)]' 
-                            : 'bg-gray-900 border-gray-700 hover:border-indigo-500 cursor-pointer'
-                    }">
-                        <div>
-                            <div class="flex justify-between items-start">
-                                <h4 class="font-bold text-xs ${isAgotado ? 'text-red-200' : 'text-white'}">${i.nombre}</h4>
-                                ${isAgotado ? '<span class="bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase animate-pulse">AGOTADO</span>' : ''}
-                            </div>
-                            <p class="text-[9px] ${isAgotado ? 'text-red-300/80' : 'text-gray-400'} mt-0.5 line-clamp-2">Ings: ${i.ingredientes.join(', ')}</p>
-                        </div>
-                        <div class="flex justify-between items-end mt-2">
-                            <div>
-                                <span class="font-bold ${isAgotado ? 'text-red-400' : 'text-indigo-400'} text-xs block">$${i.precio.toFixed(2)}</span>
-                                <span class="text-[10px] ${isAgotado ? 'text-red-300/70' : 'text-emerald-400/90'} font-mono block">Bs. ${precioBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                            </div>
-                            <span class="text-[9px] px-2 py-0.5 rounded font-bold ${isAgotado ? 'bg-red-600 text-white shadow' : 'bg-indigo-950 text-indigo-300 border border-indigo-800/50'}">
-                                ${isAgotado ? 'NO DISPONIBLE' : 'Agregar +'}
-                            </span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function groupOrderItems(itemsList) {
-            const groupedMap = new Map();
-
-            itemsList.forEach(item => {
-                const inactivosStr = item.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
-                const paraLlevarFlag = item.paraLlevar ? '1' : '0';
-                const key = `${item.id}||${inactivosStr}||${paraLlevarFlag}`;
-
-                if (groupedMap.has(key)) {
-                    const existing = groupedMap.get(key);
-                    existing.qty += (item.qty || 1);
-                } else {
-                    groupedMap.set(key, {
-                        ...item,
-                        qty: item.qty || 1,
-                        ingredientesObj: JSON.parse(JSON.stringify(item.ingredientesObj)),
-                        paraLlevar: !!item.paraLlevar
-                    });
-                }
-            });
-
-            return Array.from(groupedMap.values());
-        }
-
-        function addToOrder(itemId) {
-            if (agotados86List.includes(itemId)) {
-                alert("Este plato se encuentra agotado.");
-                return;
-            }
-            const item = menuCatalog.find(i => i.id === itemId);
-
-            if (premioEnEsperaDeSeleccion) {
-                const tipoPremio = premioEnEsperaDeSeleccion.premio_ganado.toLowerCase();
-                if (tipoPremio.includes('bebida') && item.destino !== 'barra') {
-                    alert("⛔ Este premio es una BEBIDA GRATIS. Solo puedes seleccionar un ítem de la categoría de Bebidas.");
-                    return;
-                }
-                if (tipoPremio.includes('postre') && item.categoria !== 'postres') {
-                    alert("⛔ Este premio es un POSTRE GRATIS. Solo puedes seleccionar un ítem de la categoría de Postres.");
-                    return;
-                }
-                if (tipoPremio.includes('roll') && item.categoria !== 'rolls') {
-                    alert("⛔ Este premio es un ROLL GRATIS. Solo puedes seleccionar un Sushi Roll.");
-                    return;
-                }
-                aplicarPremioCortesiaParaItem(item);
-                return;
-            }
-
-            const ingredientesObj = item.ingredientes.map(ing => ({ nombre: ing, activo: true }));
-            currentOrder.push({ ...item, qty: 1, ingredientesObj: ingredientesObj, paraLlevar: false });
-            renderOrder();
-        }
-
-        function renderOrder() {
-            const container = document.getElementById('order-items-list');
-            if (currentOrder.length === 0) {
-                container.innerHTML = `<p class="text-gray-500 text-xs italic text-center py-4">Selecciona ítems del menú.</p>`;
-                updateTotalsDisplay();
-                return;
-            }
-
-            const groupedList = groupOrderItems(currentOrder);
-
-            container.innerHTML = groupedList.map((i, index) => {
-                let subtotalUsd = i.precio * i.qty;
-                let subtotalBs = subtotalUsd * bcvRate;
-                let inactivosStr = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
-                let llevarClass = i.paraLlevar ? 'bg-amber-950/80 border-amber-500 text-amber-200' : 'bg-gray-900 border-gray-700 text-white';
-
-                return `
-                    <div class="${llevarClass} p-3 rounded-xl border text-xs space-y-2.5 shadow-sm transition">
-                        <div class="flex justify-between items-center">
-                            <div class="flex items-center space-x-2">
-                                <span class="font-bold text-white text-sm">${i.qty}x ${i.nombre}</span>
-                                <button onclick="toggleParaLlevarGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar})" class="px-2 py-0.5 rounded text-[10px] font-black transition ${i.paraLlevar ? 'bg-amber-500 text-gray-950 shadow' : 'bg-gray-800 text-gray-400 hover:text-white'}">
-                                    <i class="fa-solid fa-box-open mr-1"></i>${i.paraLlevar ? '📦 PARA LLEVAR' : 'Para Llevar'}
-                                </button>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <div class="text-right">
-                                    <span class="font-bold text-indigo-400 block">$${subtotalUsd.toFixed(2)}</span>
-                                    <span class="text-[9px] text-gray-400 font-mono block">Bs. ${subtotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                </div>
-                                <div class="flex items-center space-x-1">
-                                    <button onclick="changeItemQtyGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, -1)" class="bg-gray-800 hover:bg-gray-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">-</button>
-                                    <button onclick="changeItemQtyGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, 1)" class="bg-gray-800 hover:bg-gray-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">+</button>
-                                    <button onclick="removeGroupFromOrder(${i.id}, '${inactivosStr}', ${i.paraLlevar})" class="text-red-400 hover:text-red-300 ml-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-[10px] bg-gray-950 p-2 rounded border border-gray-800">
-                            <p class="font-semibold text-indigo-300 mb-1">Ingredientes (clic para quitar/restaurar):</p>
-                            <div class="flex flex-wrap gap-1">
-                                ${i.ingredientesObj.map((ing, ingIdx) => `
-                                    <span onclick="toggleIngredientGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, ${ingIdx})" class="px-2 py-0.5 rounded cursor-pointer border font-semibold transition ${ing.activo ? 'bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700' : 'bg-red-950 text-red-400 border-red-800 line-through'}">
-                                        ${ing.activo ? '✓ ' + ing.nombre : '✕ Sin ' + ing.nombre}
-                                    </span>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            updateTotalsDisplay();
-        }
-
-        function toggleParaLlevarGroup(itemId, inactivosStr, currentEstado) {
-            currentOrder.forEach(i => {
-                const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
-                if (i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === currentEstado) {
-                    i.paraLlevar = !currentEstado;
-                }
-            });
-            renderOrder();
-        }
-
-        function toggleIngredientGroup(itemId, inactivosStr, paraLlevar, ingIdx) {
-            const targetItem = currentOrder.find(i => {
-                const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
-                return i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar;
-            });
-
-            if (targetItem) {
-                targetItem.ingredientesObj[ingIdx].activo = !targetItem.ingredientesObj[ingIdx].activo;
-            }
-            renderOrder();
-        }
-
-        function changeItemQtyGroup(itemId, inactivosStr, paraLlevar, delta) {
-            if (delta > 0) {
-                const refItem = currentOrder.find(i => {
-                    const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
-                    return i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar;
-                });
-                if (refItem) {
-                    currentOrder.push({
-                        ...refItem,
-                        qty: 1,
-                        ingredientesObj: JSON.parse(JSON.stringify(refItem.ingredientesObj)),
-                        paraLlevar: refItem.paraLlevar
-                    });
-                }
-            } else {
-                const idx = currentOrder.findIndex(i => {
-                    const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
-                    return i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar;
-                });
-                if (idx > -1) {
-                    currentOrder.splice(idx, 1);
-                }
-            }
-            renderOrder();
-        }
-
-        function removeGroupFromOrder(itemId, inactivosStr, paraLlevar) {
-            currentOrder = currentOrder.filter(i => {
-                const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
-                return !(i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar);
-            });
-            renderOrder();
-        }
-
-        function updateTotalsDisplay() {
+        async function closeTable() {
             const mesa = mesas.find(m => m.id === selectedMesaId);
-            let consumedTotal = 0;
-            if (mesa && mesa.sessionOrders && mesa.sessionOrders.length > 0) {
-                mesa.sessionOrders.forEach(order => {
-                    consumedTotal += calculateTandaCost(order.items, order.totalTanda);
-                });
-            }
-
-            let newOrderTotal = 0;
-            currentOrder.forEach(i => newOrderTotal += i.precio * (i.qty || 1));
-
-            let grandTotal = consumedTotal + newOrderTotal;
-            let consumedTotalBs = consumedTotal * bcvRate;
-            let newOrderTotalBs = newOrderTotal * bcvRate;
-            let grandTotalBs = grandTotal * bcvRate;
-
-            document.getElementById('summary-consumed-total').innerText = `$${consumedTotal.toFixed(2)}`;
-            document.getElementById('summary-consumed-ves').innerText = `Bs. ${consumedTotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-
-            document.getElementById('order-total').innerText = `$${newOrderTotal.toFixed(2)}`;
-            document.getElementById('order-total-ves').innerText = `Bs. ${newOrderTotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-
-            document.getElementById('grand-total-account').innerText = `$${grandTotal.toFixed(2)}`;
-            document.getElementById('grand-total-ves').innerText = `Bs. ${grandTotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        }
-
-        async function submitOrder() {
-            if (currentOrder.length === 0) { alert('La comanda está vacía.'); return; }
-            
-            for (let item of currentOrder) {
-                if (agotados86List.includes(item.id)) {
-                    alert(`El plato "${item.nombre}" se encuentra AGOTADO. No se puede procesar el pedido.`);
-                    return;
-                }
-            }
-
-            const mesa = mesas.find(m => m.id === selectedMesaId);
-            
-            if (mesa.estado !== 'ocupada') {
-                alert("Debes asignar un cliente a la mesa desde la pantalla de Recepción (Host) antes de tomar un pedido.");
+            if (!mesa || mesa.estado !== 'ocupada') {
+                alert("La mesa no está ocupada.");
                 return;
             }
 
-            let newOrderTotal = 0;
-            currentOrder.forEach(i => newOrderTotal += i.precio * (i.qty || 1));
-
-            const groupedOrder = groupOrderItems(currentOrder);
-
-            const itemsText = groupedOrder.map(i => {
-                let desc = `${i.qty}x ${i.nombre}`;
-                let inactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre);
-                let detalles = [];
-                if (inactivos.length > 0) detalles.push(`Sin ${inactivos.join(', sin ')}`);
-                if (i.paraLlevar) detalles.push(`📦 PARA LLEVAR`);
-                if (detalles.length > 0) desc += ` (${detalles.join(' - ')})`;
-                return desc;
-            }).join(' | ');
-            
-            const generalNote = document.getElementById('order-notes').value || 'Sin notas';
-            const fechaHoraActual = new Date().toLocaleString();
-            const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const cantidadComensales = mesa.cliente && mesa.cliente.comensales ? mesa.cliente.comensales : 1;
-
-            try {
-                if (mesa.cliente && mesa.cliente.telefono && mesa.cliente.telefono !== "S/N") {
-                    const telefonoCliente = mesa.cliente.telefono;
-
-                    const { data: clienteData } = await supabaseClient
-                        .from('clientes')
-                        .select('historial_preferencias')
-                        .eq('telefono', telefonoCliente)
-                        .maybeSingle();
-
-                    const prevHistorial = (clienteData && clienteData.historial_preferencias) ? clienteData.historial_preferencias : '';
-                    const nuevoPedidoTexto = `[${fechaHoraActual}] Pedido en ${mesa.numero} (${cantidadComensales} comensales): ${itemsText} ($${newOrderTotal.toFixed(2)}) | Mesero: ${currentMeseroName} | Notas: ${generalNote}`;
-                    const historialActualizado = prevHistorial ? `${prevHistorial} | ${nuevoPedidoTexto}` : nuevoPedidoTexto;
-
-                    await supabaseClient
-                        .from('clientes')
-                        .update({ historial_preferencias: historialActualizado })
-                        .eq('telefono', telefonoCliente);
-                }
-
-                const kitchenItems = groupedOrder.filter(i => i.destino === 'cocina');
-                const barItems = groupedOrder.filter(i => i.destino === 'barra');
-                let createdKdsIds = [];
-
-                if (kitchenItems.length > 0) {
-                    const { data: resK } = await supabaseClient.from('kds_comandas').insert([{
-                        mesa_numero: mesa.numero,
-                        mesero: currentMeseroName,
-                        destino: 'cocina',
-                        items_json: JSON.stringify(kitchenItems),
-                        nota: generalNote,
-                        estado: 'por_empezar',
-                        creado_ms: Date.now()
-                    }]).select();
-                    if (resK && resK.length > 0) createdKdsIds.push(resK[0].id);
-                }
-
-                if (barItems.length > 0) {
-                    const { data: resB } = await supabaseClient.from('kds_comandas').insert([{
-                        mesa_numero: mesa.numero,
-                        mesero: currentMeseroName,
-                        destino: 'barra',
-                        items_json: JSON.stringify(barItems),
-                        nota: generalNote,
-                        estado: 'por_empezar',
-                        creado_ms: Date.now()
-                    }]).select();
-                    if (resB && resB.length > 0) createdKdsIds.push(resB[0].id);
-                }
-
-                if (!mesa.sessionOrders) mesa.sessionOrders = [];
-                mesa.sessionOrders.push({
-                    hora: horaActual,
-                    mesero: currentMeseroName,
-                    items: itemsText,
-                    nota: generalNote,
-                    totalTanda: newOrderTotal,
-                    entregado: false,
-                    kdsEstado: 'por_empezar', // Inicialmente recién enviado
-                    kdsIds: createdKdsIds
-                });
-
+            if (confirm(`¿Confirmas cerrar la cuenta para la ${mesa.numero}? Pasará a estado "Por Limpiar".`)) {
+                mesa.estado = 'por-limpiar';
                 await syncMesaToSupabase(mesa);
+                renderMesasHost();
+                renderMesasServer();
+                selectMesaServer(selectedMesaId);
+                alert(`Mesa ${mesa.numero} marcada para limpieza.`);
+            }
+        }
 
-                alert(`✅ ¡Pedido de $${newOrderTotal.toFixed(2)} (${cantidadComensales} comensales) enviado correctamente a Cocina/Barra!`);
-                currentOrder = [];
-                document.getElementById('order-notes').value = '';
-                renderOrder();
-                renderTableHistory(mesa);
-                updateTotalsDisplay();
-                await cargarClientesRegulares();
-                await loadKdsOrdersFromSupabase();
+        async function cleanTable() {
+            cleanTableDirect(selectedMesaId);
+        }
 
-            } catch (err) { 
-                console.error("Error:", err); 
-                alert("Ocurrió un error al procesar el pedido."); 
+        async function cleanTableDirect(mesaId) {
+            const mesa = mesas.find(m => m.id === mesaId);
+            if (!mesa) return;
+
+            if (confirm(`¿Marcar la ${mesa.numero} como completamente limpia y lista para nuevos clientes?`)) {
+                mesa.estado = 'disponible';
+                mesa.cliente = null;
+                mesa.sessionStartTimeMs = null;
+                mesa.sessionOrders = [];
+                await syncMesaToSupabase(mesa);
+                renderMesasHost();
+                renderMesasServer();
+                selectMesaServer(selectedMesaId);
+                alert(`✨ Mesa ${mesa.numero} liberada y lista.`);
             }
         }
 
         function renderKdsGrid(destino) {
-            const containerId = destino === 'cocina' ? 'kds-kitchen-orders-grid' : 'kds-bar-orders-grid';
-            const container = document.getElementById(containerId);
-            const filtered = kdsOrders.filter(o => o.destino === destino);
+            const grid = document.getElementById(destino === 'cocina' ? 'kds-kitchen-orders-grid' : 'kds-bar-orders-grid');
+            const filteredOrders = kdsOrders.filter(o => o.destino === destino);
 
-            if (filtered.length === 0) {
-                container.innerHTML = `<p class="col-span-full text-center text-gray-500 italic py-12">No hay comandas pendientes en ${destino}.</p>`;
+            if (filteredOrders.length === 0) {
+                grid.innerHTML = `<p class="col-span-full text-center text-gray-500 italic py-12">No hay comandas pendientes en esta estación.</p>`;
                 return;
             }
 
-            container.innerHTML = filtered.map(o => {
-                const items = JSON.parse(o.items_json || '[]');
-                const mins = Math.floor((Date.now() - o.creado_ms) / 60000);
-                
-                let cardBg = o.estado === 'por_empezar' ? 'border-red-500 bg-red-950/20' : 'border-amber-500 bg-amber-950/20';
-                let statusBadge = o.estado === 'por_empezar' ? '<span class="bg-red-900 text-red-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Por Empezar</span>' : '<span class="bg-amber-900 text-amber-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Preparando</span>';
+            grid.innerHTML = filteredOrders.map(o => {
+                let itemsList = [];
+                try { itemsList = JSON.parse(o.items_json); } catch(e) {}
 
-                let tieneNotaGeneral = o.nota && o.nota.trim() !== '' && o.nota.toLowerCase() !== 'sin notas';
+                // Extracción de todos los platos de la comanda con sus tiempos individuales de transcurso
+                let extractedItems = [];
+                itemsList.forEach((it, idx) => {
+                    const itemTime = it.timestampMs || o.creado_ms || Date.now();
+                    const ageMins = Math.floor((Date.now() - itemTime) / 60000);
+                    extractedItems.push({
+                        ...it,
+                        itemTime,
+                        ageMins,
+                        originalIndex: idx
+                    });
+                });
+
+                // Ordenación de prioridad: los platos más antiguos (mayor tiempo de transcurso) van primero
+                extractedItems.sort((a, b) => a.itemTime - b.itemTime);
+
+                const minsComandaGeneral = Math.floor((Date.now() - (o.creado_ms || Date.now())) / 60000);
+
+                let headerBg = o.estado === 'por_empezar' ? 'bg-indigo-900/60 border-indigo-700' :
+                               o.estado === 'en_proceso' ? 'bg-amber-900/60 border-amber-700' : 'bg-emerald-900/60 border-emerald-700';
 
                 return `
-                    <div class="border-2 ${cardBg} rounded-xl p-4 flex flex-col justify-between shadow-lg">
+                    <div class="bg-gray-800 border-2 ${headerBg} rounded-xl p-4 flex flex-col justify-between shadow-xl">
                         <div>
-                            <div class="flex justify-between items-center border-b border-gray-700 pb-2 mb-2">
-                                <span class="font-bold text-base text-white">${o.mesa_numero}</span>
-                                ${statusBadge}
-                            </div>
-                            <p class="text-[10px] text-gray-400 mb-2">Mesero: <span class="text-indigo-300 font-bold">${o.mesero}</span> • Hace ${mins} min</p>
-                            
-                            <div class="space-y-2.5 my-2">
-                                ${items.map(i => {
-                                    let inactivos = i.ingredientesObj ? i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre) : [];
-                                    let itemLlevar = i.paraLlevar;
-                                    return `
-                                        <div class="p-2 rounded border ${itemLlevar ? 'bg-amber-500/20 border-amber-400' : 'bg-gray-900 border-gray-800'}">
-                                            <div class="flex justify-between items-center">
-                                                <p class="text-xs font-bold text-white">• ${i.qty || 1}x ${i.nombre}</p>
-                                                ${itemLlevar ? '<span class="bg-amber-500 text-gray-950 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">📦 EMPACAR / LLEVAR</span>' : ''}
-                                            </div>
-                                            ${inactivos.length > 0 ? `<p class="text-[11px] text-red-400 font-bold mt-1">⚠️ Sin: ${inactivos.join(', ')}</p>` : ''}
-                                        </div>
-                                    `;
-                                }).join('')}
+                            <div class="flex justify-between items-start border-b border-gray-700 pb-2 mb-3">
+                                <div>
+                                    <h3 class="font-black text-base text-white">${o.mesa_numero}</h3>
+                                    <p class="text-[10px] text-gray-400">Mesero: <strong class="text-indigo-300">${o.mesero}</strong></p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-xs font-mono font-bold text-amber-400 animate-pulse">⏱ Order: ${minsComandaGeneral} min</span>
+                                </div>
                             </div>
 
-                            ${tieneNotaGeneral ? `
-                                <div class="mt-3 bg-amber-500/20 border-2 border-amber-400 p-2.5 rounded-lg text-center shadow animate-pulse">
-                                    <span class="text-[10px] uppercase font-black text-amber-300 block tracking-wider">📌 NOTA GENERAL</span>
-                                    <p class="text-sm font-black text-amber-200 uppercase mt-0.5">${o.nota}</p>
+                            <div class="space-y-2 mb-3">
+                                ${extractedItems.map(it => `
+                                    <div class="bg-gray-900 p-2 rounded-lg border border-gray-700/80 flex flex-col space-y-1">
+                                        <div class="flex justify-between items-start">
+                                            <div class="flex items-center space-x-1.5 pr-2">
+                                                <span class="bg-indigo-600 text-white font-bold text-xs px-1.5 py-0.5 rounded">${it.qty}x</span>
+                                                <span class="font-bold text-xs text-white">${it.nombre}</span>
+                                            </div>
+                                            <!-- Tiempo individual transcurrido por plato -->
+                                            <span class="text-[10px] bg-gray-800 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold whitespace-nowrap">
+                                                ⏱ ${it.ageMins} min
+                                            </span>
+                                        </div>
+
+                                        ${it.paraLlevar ? `<span class="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] px-1.5 py-0.5 rounded font-bold w-fit">📦 Para llevar</span>` : ''}
+
+                                        ${it.ingredientesObj && it.ingredientesObj.length > 0 ? `
+                                            <div class="text-[10px] text-gray-400 pt-0.5 flex flex-wrap gap-1">
+                                                ${it.ingredientesObj.map(ing => `
+                                                    <span class="${ing.incluido ? 'text-gray-400' : 'text-red-400 font-bold line-through bg-red-950/60 px-1 rounded border border-red-800'}">
+                                                        ${ing.incluido ? ing.nombre : 'Sin ' + ing.nombre}
+                                                    </span>
+                                                `).join(', ')}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                me`).join('')}
+                            </div>
+
+                            ${o.nota ? `
+                                <div class="bg-amber-950/40 border border-amber-800/60 p-2 rounded text-xs text-amber-300 mb-3">
+                                    <i class="fa-solid fa-comment-dots mr-1"></i> Nota: ${o.nota}
                                 </div>
                             ` : ''}
                         </div>
 
-                        <div class="pt-3 border-t border-gray-700 flex space-x-2 mt-4">
-                            ${o.estado === 'por_empezar' ? 
-                                `<button onclick="updateKdsStatus(${o.id}, 'preparando')" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded text-xs transition">Empezar a Preparar</button>` :
-                                `<button onclick="updateKdsStatus(${o.id}, 'despachado')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-xs transition">Marcar Listo / Despachado ✓</button>`
-                            }
+                        <div class="pt-2 border-t border-gray-700 flex space-x-2">
+                            ${o.estado === 'por_empezar' ? `
+                                <button onclick="updateKdsOrderStatus(${o.id}, 'en_proceso')" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center space-x-1">
+                                    <i class="fa-solid fa-fire"></i>
+                                    <span>Iniciar Preparación</span>
+                                </button>
+                            ` : o.estado === 'en_proceso' ? `
+                                <button onclick="updateKdsOrderStatus(${o.id}, 'listo')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center space-x-1">
+                                    <i class="fa-solid fa-check"></i>
+                                    <span>Marcar Listo</span>
+                                </button>
+                            ` : `
+                                <button onclick="updateKdsOrderStatus(${o.id}, 'despachado')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center space-x-1">
+                                    <i class="fa-solid fa-bell"></i>
+                                    <span>Despachar / Entregado</span>
+                                </button>
+                            `}
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
-        async function updateKdsStatus(orderId, newStatus) {
-            await supabaseClient.from('kds_comandas').update({ estado: newStatus }).eq('id', orderId);
-            
-            // Actualizar localmente y sincronizar en mesas
-            for (let mesaLocal of mesas) {
-                if (mesaLocal.sessionOrders && mesaLocal.sessionOrders.length > 0) {
-                    let updated = false;
-                    mesaLocal.sessionOrders.forEach(so => {
-                        if (so.kdsIds && so.kdsIds.includes(orderId)) {
-                            so.kdsEstado = newStatus;
-                            if (newStatus === 'despachado') so.entregado = true;
-                            updated = true;
-                        }
-                    });
-                    if (updated) {
-                        await syncMesaToSupabase(mesaLocal);
-                        if (selectedMesaId === mesaLocal.id) {
-                            renderTableHistory(mesaLocal);
-                        }
-                    }
-                }
-            }
-
-            await loadKdsOrdersFromSupabase();
+        async function updateKdsOrderStatus(orderId, newStatus) {
+            try {
+                await supabaseClient.from('kds_comandas').update({ estado: newStatus }).eq('id', orderId);
+                await loadKdsOrdersFromSupabase();
+            } catch (err) { console.error("Error actualizando KDS:", err); }
         }
 
         function toggle86Modal(destino = 'cocina') {
             modalFilterDestino = destino;
             const modal = document.getElementById('modal-86');
-            modal.classList.toggle('hidden');
-            if (!modal.classList.contains('hidden')) {
-                document.getElementById('modal-86-title').innerHTML = `<i class="fa-solid fa-ban text-red-400 mr-2"></i>Gestión de Agotados (${destino === 'cocina' ? 'Comidas y Postres' : 'Bebidas'})`;
-                document.getElementById('modal-86-search-input').value = '';
+            if (modal.classList.contains('hidden')) {
+                document.getElementById('modal-86-title').innerText = `Gestión de Agotados (${destino.toUpperCase()})`;
+                const searchInput = document.getElementById('modal-86-search-input');
+                if (searchInput) searchInput.value = '';
                 render86List();
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
             }
         }
 
@@ -1885,90 +1908,48 @@
             render86List(query.toLowerCase().trim());
         }
 
-        function render86List(filterQuery = '') {
-            const container = document.getElementById('list-86-items');
-            let itemsFiltrados = menuCatalog.filter(item => item.destino === modalFilterDestino);
+        function render86List(searchQuery = '') {
+            const list = document.getElementById('list-86-items');
+            let items = menuCatalog.filter(m => m.destino === modalFilterDestino);
 
-            if (filterQuery) {
-                itemsFiltrados = itemsFiltrados.filter(item => 
-                    item.nombre.toLowerCase().includes(filterQuery) || 
-                    item.categoria.toLowerCase().includes(filterQuery)
+            if (searchQuery) {
+                items = items.filter(m => 
+                    m.nombre.toLowerCase().includes(searchQuery) ||
+                    m.categoria.toLowerCase().includes(searchQuery)
                 );
             }
 
-            if (itemsFiltrados.length === 0) {
-                container.innerHTML = `<p class="text-center text-gray-500 italic py-6 text-xs">No se encontraron ítems coincidentes.</p>`;
+            if (items.length === 0) {
+                list.innerHTML = `<p class="text-xs text-gray-500 italic text-center py-4">No se encontraron ítems.</p>`;
                 return;
             }
 
-            container.innerHTML = itemsFiltrados.map(item => {
+            list.innerHTML = items.map(item => {
                 const isAgotado = agotados86List.includes(item.id);
                 return `
-                    <div class="flex justify-between items-center bg-gray-900 p-3 rounded-lg border border-gray-700">
-                        <span class="text-xs font-bold text-white">${item.nombre} <span class="text-[10px] text-gray-400">(${item.categoria})</span></span>
-                        <button onclick="toggleAgotado(${item.id})" class="px-4 py-1.5 rounded-lg text-xs font-bold transition shadow ${isAgotado ? 'bg-red-600 text-white animate-pulse' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
-                            ${isAgotado ? 'AGOTADO' : 'Disponible'}
+                    <div class="flex justify-between items-center bg-gray-900 p-2.5 rounded-lg border border-gray-700">
+                        <div>
+                            <span class="font-bold text-xs text-white">${item.nombre}</span>
+                            <span class="text-[10px] text-gray-400 block">${item.categoria} • $${item.precio.toFixed(2)}</span>
+                        </div>
+                        <button onclick="toggle86Item(${item.id})" class="px-3 py-1 rounded text-xs font-bold transition ${isAgotado ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}">
+                            ${isAgotado ? 'Agotado (Activar)' : 'Disponible (Bloquear)'}
                         </button>
                     </div>
                 `;
             }).join('');
         }
 
-        async function toggleAgotado(itemId) {
-            const isAgotado = agotados86List.includes(itemId);
-            
-            if (isAgotado) {
-                agotados86List = agotados86List.filter(id => id !== itemId);
-            } else {
-                if (!agotados86List.includes(itemId)) agotados86List.push(itemId);
-            }
-
-            const searchVal = document.getElementById('modal-86-search-input')?.value.toLowerCase().trim() || '';
-            render86List(searchVal);
-            refreshCurrentMenuView();
-
+        async function toggle86Item(itemId) {
             try {
+                const isAgotado = agotados86List.includes(itemId);
                 if (isAgotado) {
                     await supabaseClient.from('platos_agotados').delete().eq('item_id', itemId);
                 } else {
-                    await supabaseClient.from('platos_agotados').upsert([{ item_id: itemId }], { onConflict: 'item_id' });
+                    await supabaseClient.from('platos_agotados').insert([{ item_id: itemId, registrado_por: currentMeseroName }]);
                 }
-            } catch (err) {
-                console.error("Error al actualizar estado en Supabase:", err);
-            }
-        }
-
-        async function closeTable() {
-            const mesa = mesas.find(m => m.id === selectedMesaId);
-            if (mesa.estado === 'disponible') { alert('Mesa ya disponible.'); return; }
-            
-            mesa.estado = 'por-limpiar';
-            mesa.cliente = null;
-            mesa.sessionStartTimeMs = Date.now();
-            mesa.sessionOrders = [];
-
-            await syncMesaToSupabase(mesa);
-            selectMesaServer(mesa.id);
-            renderMesasHost();
-            alert(`Mesa ${mesa.numero} enviada a limpieza. Cuenta cerrada.`);
-        }
-
-        async function cleanTable() {
-            const mesa = mesas.find(m => m.id === selectedMesaId);
-            await cleanTableDirect(mesa.id);
-        }
-
-        async function cleanTableDirect(mesaId) {
-            const mesa = mesas.find(m => m.id === mesaId);
-            mesa.estado = 'disponible';
-            mesa.cliente = null;
-            mesa.sessionStartTimeMs = null;
-            mesa.sessionOrders = [];
-
-            await syncMesaToSupabase(mesa);
-            selectMesaServer(mesa.id);
-            renderMesasHost();
-            alert(`✨ Mesa ${mesa.numero} limpia y DISPONIBLE.`);
+                await loadAgotadosFromSupabase(false);
+            } catch (err) { console.error(err); }
         }
     </script>
 </body>
