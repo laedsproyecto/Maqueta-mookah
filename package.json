@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "jose": "^5.2.0"
+    "jsrsasign": "^11.1.0"
   }
 }
