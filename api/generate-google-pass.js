@@ -14,14 +14,24 @@ function signJwt(payload, pemKey) {
     const encodedPayload = base64url(JSON.stringify(payload));
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
+    // Forzar el uso del motor de firma ignorando restricciones estrictas de decodificación
     const signer = crypto.createSign('RSA-SHA256');
     signer.update(dataToSign);
     signer.end();
 
-    const signature = signer.sign(pemKey, 'base64')
-        .replace(/=/g, '')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_');
+    // Usar la clave directamente como objeto de llave privada seguro
+    const privateKey = crypto.createPrivateKey({
+        key: pemKey,
+        format: 'pem'
+    });
+
+    const signature = signer.sign({
+        key: privateKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+    }, 'base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
 
     return `${dataToSign}.${signature}`;
 }
@@ -82,7 +92,6 @@ export default async function handler(req, res) {
             "-----END PRIVATE KEY-----"
         ].join('\n');
 
-        // 1. Consultar datos del cliente en Supabase
         const baseUrl = supabaseUrl.replace(/\/+$/, '');
         const targetUrl = `${baseUrl}/rest/v1/clientes?telefono=eq.${encodeURIComponent(telefono)}&select=*`;
 
@@ -114,7 +123,6 @@ export default async function handler(req, res) {
         const classId = `${issuerId}.MOOKAH_LOYALTY_PROGRAM`;
         const objectId = `${issuerId}.${telefonoLimpio}_MOOKAH_PASS`;
 
-        // 2. Armar el objeto de lealtad de Google Wallet
         const loyaltyObject = {
             id: objectId,
             classId: classId,
@@ -135,7 +143,6 @@ export default async function handler(req, res) {
             }
         };
 
-        // 3. Crear Payload JWT para Google Wallet
         const now = Math.floor(Date.now() / 1000);
         const jwtPayload = {
             iss: clientEmail,
