@@ -50,7 +50,7 @@
             </div>
             
             <div class="flex items-center space-x-4">
-                <!-- SELECTOR DE PANTALLA PRINCIPAL (SE OCULTA SEGÚN EL ROL) -->
+                <!-- SELECTOR DE PANTALLA PRINCIPAL -->
                 <div id="main-nav-buttons" class="flex space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-700">
                     <button id="nav-pos" onclick="switchMainView('pos')" class="px-3 py-1 rounded text-xs font-bold transition bg-indigo-600 text-white">
                         <i class="fa-solid fa-chair mr-1"></i>POS / Salón
@@ -1077,11 +1077,11 @@
         function filterRegularClients(query) {
             const resultsContainer = document.getElementById('regular-search-results');
             if (!query.trim()) { resultsContainer.classList.add('hidden'); return; }
-            const q = query.toLowerCase();
+            const q = query.toLowerCase().trim();
             currentFilteredMatches = listaClientesDB.filter(c => 
                 (c.nombre && c.nombre.toLowerCase().includes(q)) || 
                 (c.apellido && c.apellido.toLowerCase().includes(q)) || 
-                (c.telefono && c.telefono.includes(q))
+                (c.telefono && String(c.telefono).toLowerCase().includes(q))
             );
             if (currentFilteredMatches.length === 0) {
                 resultsContainer.innerHTML = `<div class="p-2.5 text-xs text-gray-500 italic text-center">No se encontraron clientes.</div>`;
@@ -1089,7 +1089,7 @@
                 resultsContainer.innerHTML = currentFilteredMatches.map((c, index) => `
                     <div onclick="selectRegularClientByIndex(${index})" class="p-2.5 hover:bg-indigo-600/30 cursor-pointer border-b border-gray-800 transition flex justify-between items-center">
                         <div>
-                            <p class="font-bold text-xs text-white">${c.nombre} ${c.apellido || ''}</p>
+                            <p class="font-bold text-xs text-white">${c.nombre || ''} ${c.apellido || ''}</p>
                             <p class="text-[10px] text-gray-400">Visitas: <strong class="text-amber-400">${c.visitas_totales || 1}</strong> | Tel: ${c.telefono || 'Sin tel.'}</p>
                         </div>
                         <i class="fa-solid fa-check text-indigo-400 text-xs"></i>
@@ -1102,8 +1102,8 @@
         function selectRegularClientByIndex(index) {
             const cliente = currentFilteredMatches[index];
             if (cliente) {
-                checkinData.selectedClienteTelefono = cliente.telefono;
-                document.getElementById('search-regular-input').value = `${cliente.nombre} ${cliente.apellido || ''}`;
+                checkinData.selectedClienteTelefono = cliente.telefono ? String(cliente.telefono).trim() : null;
+                document.getElementById('search-regular-input').value = `${cliente.nombre || ''} ${cliente.apellido || ''}`.trim();
                 document.getElementById('reg-name').value = cliente.nombre || '';
                 document.getElementById('reg-lastname').value = cliente.apellido || '';
                 document.getElementById('reg-phone').value = cliente.telefono || '';
@@ -1220,18 +1220,28 @@
             try {
                 let visitasNuevas = 1;
                 if (checkinData.tipo === 'nuevo') {
-                    await supabaseClient.from('clientes').insert([{ 
-                        telefono: checkinData.telefono, 
-                        nombre: checkinData.nombre, 
-                        apellido: checkinData.apellido, 
-                        correo: checkinData.correo,
-                        visitas_totales: 1,
-                        historial_preferencias: `[${fechaHoraVisita}] Visita iniciada: ${checkinData.comensales} comensales` 
-                    }]);
+                    // Verificar si ya existe por teléfono para evitar duplicados o error de constraint
+                    const { data: existente } = await supabaseClient.from('clientes').select('*').eq('telefono', checkinData.telefono).maybeSingle();
+                    if (existente) {
+                        visitasNuevas = (existente.visitas_totales || 0) + 1;
+                        await supabaseClient.from('clientes').update({ 
+                            visitas_totales: visitasNuevas,
+                            historial_preferencias: (existente.historial_preferencias ? existente.historial_preferencias + ' | ' : '') + `[${fechaHoraVisita}] Visita iniciada: ${checkinData.comensales} comensales`
+                        }).eq('telefono', checkinData.telefono);
+                    } else {
+                        await supabaseClient.from('clientes').insert([{ 
+                            telefono: checkinData.telefono, 
+                            nombre: checkinData.nombre, 
+                            apellido: checkinData.apellido, 
+                            correo: checkinData.correo,
+                            visitas_totales: 1,
+                            historial_preferencias: `[${fechaHoraVisita}] Visita iniciada: ${checkinData.comensales} comensales` 
+                        }]);
+                    }
                     telefonoFinal = checkinData.telefono;
                     await cargarClientesRegulares();
                 } else if (checkinData.tipo === 'regular' && telefonoFinal) {
-                    const clienteActual = listaClientesDB.find(c => c.telefono === telefonoFinal);
+                    const clienteActual = listaClientesDB.find(c => String(c.telefono).trim() === String(telefonoFinal).trim());
                     visitasNuevas = (clienteActual ? (clienteActual.visitas_totales || 0) : 0) + 1;
                     const prevHistorial = clienteActual && clienteActual.historial_preferencias ? clienteActual.historial_preferencias : '';
                     const nuevaVisita = `[${fechaHoraVisita}] Visita iniciada: ${checkinData.comensales} comensales`;
@@ -1670,7 +1680,7 @@
                                     `).join('')}
                                 </div>
                             </div>
-                            <!-- NOTA ESPECÍFICA PARA ESTE ÍTEM (LÍNEA ROJA SOLICITADA) -->
+                            <!-- NOTA ESPECÍFICA PARA ESTE ÍTEM -->
                             <div>
                                 <input type="text" onchange="updateItemNote(${i.id}, '${inactivosStr}', ${i.paraLlevar}, '${encodeURIComponent(i.notaItem || '')}', this.value)" value="${i.notaItem || ''}" placeholder="Nota específica de este ítem (ej: bien cocido, sin salsa...)" class="w-full bg-gray-900 border border-red-500/60 rounded px-2 py-1 text-[10px] text-white focus:outline-none focus:border-red-400">
                             </div>
@@ -1771,11 +1781,8 @@
             let newOrderTotal = 0;
             currentOrder.forEach(i => newOrderTotal += i.precio * (i.qty || 1));
 
-            // Consumo Subtotal general de la cuenta (Previo + Nueva Tanda)
             let consumoSubtotal = consumedTotal + newOrderTotal;
-            // Costo por servicio 10%
             let costoServicio = consumoSubtotal * 0.10;
-            // Gran Total en Dólares incluyendo el 10%
             let grandTotal = consumoSubtotal + costoServicio;
 
             let consumoSubtotalBs = consumoSubtotal * bcvRate;
@@ -1788,7 +1795,6 @@
             document.getElementById('order-total').innerText = `$${newOrderTotal.toFixed(2)}`;
             document.getElementById('order-total-ves').innerText = `Bs. ${(newOrderTotal * bcvRate).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
-            // Actualizar etiquetas de subtotales solicitadas
             document.getElementById('subtotal-consumo-usd').innerText = `$${consumoSubtotal.toFixed(2)}`;
             document.getElementById('subtotal-servicio-usd').innerText = `$${costoServicio.toFixed(2)}`;
 
@@ -1835,23 +1841,28 @@
             const cantidadComensales = mesa.cliente && mesa.cliente.comensales ? mesa.cliente.comensales : 1;
 
             try {
+                // Sincronización segura con la base de datos de clientes
                 if (mesa.cliente && mesa.cliente.telefono && mesa.cliente.telefono !== "S/N") {
-                    const telefonoCliente = mesa.cliente.telefono;
+                    const telefonoCliente = String(mesa.cliente.telefono).trim();
 
-                    const { data: clienteData } = await supabaseClient
-                        .from('clientes')
-                        .select('historial_preferencias')
-                        .eq('telefono', telefonoCliente)
-                        .maybeSingle();
+                    try {
+                        const { data: clienteData } = await supabaseClient
+                            .from('clientes')
+                            .select('historial_preferencias')
+                            .eq('telefono', telefonoCliente)
+                            .maybeSingle();
 
-                    const prevHistorial = (clienteData && clienteData.historial_preferencias) ? clienteData.historial_preferencias : '';
-                    const nuevoPedidoTexto = `[${fechaHoraActual}] Pedido en ${mesa.numero} (${cantidadComensales} comensales): ${itemsText} ($${newOrderTotal.toFixed(2)}) | Mesero: ${currentMeseroName} | Notas: ${generalNote}`;
-                    const historialActualizado = prevHistorial ? `${prevHistorial} | ${nuevoPedidoTexto}` : nuevoPedidoTexto;
+                        const prevHistorial = (clienteData && clienteData.historial_preferencias) ? clienteData.historial_preferencias : '';
+                        const nuevoPedidoTexto = `[${fechaHoraActual}] Pedido en ${mesa.numero} (${cantidadComensales} comensales): ${itemsText} ($${newOrderTotal.toFixed(2)}) | Mesero: ${currentMeseroName} | Notas: ${generalNote}`;
+                        const historialActualizado = prevHistorial ? `${prevHistorial} | ${nuevoPedidoTexto}` : nuevoPedidoTexto;
 
-                    await supabaseClient
-                        .from('clientes')
-                        .update({ historial_preferencias: historialActualizado })
-                        .eq('telefono', telefonoCliente);
+                        await supabaseClient
+                            .from('clientes')
+                            .update({ historial_preferencias: historialActualizado })
+                            .eq('telefono', telefonoCliente);
+                    } catch (dbClientErr) {
+                        console.warn("Aviso de historial de cliente (no crítico):", dbClientErr);
+                    }
                 }
 
                 // Enrutamiento automático según destino: cocina, sushi o barra
@@ -1931,7 +1942,7 @@
         function renderKdsGrid(destino) {
             const containerId = destino === 'cocina' ? 'kds-kitchen-orders-grid' : destino === 'sushi' ? 'kds-sushi-orders-grid' : 'kds-bar-orders-grid';
             const container = document.getElementById(containerId);
-            const activeTab = kdsActiveTab[destino]; // 'prep' o 'history'
+            const activeTab = kdsActiveTab[destino];
 
             let filtered = [];
             if (activeTab === 'prep') {
@@ -1957,7 +1968,6 @@
                 return `
                     <div class="border-2 ${cardBg} rounded-xl p-4 flex flex-col justify-between shadow-lg mb-4">
                         <div>
-                            <!-- Banderola de Prioridad superior limpia -->
                             <div class="flex justify-between items-center bg-gray-900/80 px-3 py-1.5 rounded-lg border border-gray-700 mb-3">
                                 <span class="font-extrabold text-xs text-indigo-300">Prioridad #${idx + 1}</span>
                                 ${statusBadge}
@@ -2137,4 +2147,3 @@
     </script>
 </body>
 </html>
-```[cite: 18]
