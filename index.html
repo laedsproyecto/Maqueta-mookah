@@ -58,6 +58,9 @@
                     <button id="nav-kds-kitchen" onclick="switchMainView('kds-kitchen')" class="px-3 py-1 rounded text-xs font-bold transition text-gray-400 hover:text-white">
                         <i class="fa-solid fa-fire-burner mr-1"></i>KDS Cocina
                     </button>
+                    <button id="nav-kds-sushi" onclick="switchMainView('kds-sushi')" class="px-3 py-1 rounded text-xs font-bold transition text-gray-400 hover:text-white">
+                        <i class="fa-solid fa-fish-fins mr-1"></i>KDS Sushi Bar
+                    </button>
                     <button id="nav-kds-bar" onclick="switchMainView('kds-bar')" class="px-3 py-1 rounded text-xs font-bold transition text-gray-400 hover:text-white">
                         <i class="fa-solid fa-martini-glass-citrus mr-1"></i>KDS Barra
                     </button>
@@ -259,14 +262,41 @@
                 <div class="flex justify-between items-center bg-gray-800 p-4 rounded-xl border border-gray-700">
                     <div class="flex items-center space-x-3">
                         <i class="fa-solid fa-fire-burner text-amber-400 text-2xl"></i>
-                        <h2 class="text-lg font-bold">Pantalla KDS - Cocina (Comidas y Postres)</h2>
+                        <h2 class="text-lg font-bold">Pantalla KDS - Cocina (Platos Calientes y Postres)</h2>
                     </div>
-                    <button onclick="toggle86Modal('cocina')" class="bg-red-600/30 hover:bg-red-600 border border-red-500 text-red-300 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center space-x-2">
-                        <i class="fa-solid fa-ban"></i>
-                        <span>Gestionar Platos Agotados</span>
-                    </button>
+                    <div class="flex items-center space-x-3">
+                        <div class="flex bg-gray-900 p-1 rounded-lg border border-gray-700">
+                            <button onclick="switchKdsTab('cocina', 'prep')" id="kds-tab-cocina-prep" class="px-3 py-1 rounded text-xs font-bold transition bg-amber-600 text-white">En Preparación</button>
+                            <button onclick="switchKdsTab('cocina', 'history')" id="kds-tab-cocina-history" class="px-3 py-1 rounded text-xs font-bold transition text-gray-400 hover:text-white">Historial de Salida</button>
+                        </div>
+                        <button onclick="toggle86Modal('cocina')" class="bg-red-600/30 hover:bg-red-600 border border-red-500 text-red-300 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center space-x-2">
+                            <i class="fa-solid fa-ban"></i>
+                            <span>Gestionar Platos Agotados</span>
+                        </button>
+                    </div>
                 </div>
                 <div id="kds-kitchen-orders-grid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto flex-1 p-1"></div>
+            </div>
+
+            <!-- SECCIÓN KDS SUSHI BAR -->
+            <div id="main-view-kds-sushi" class="hidden flex-1 flex flex-col space-y-4 overflow-hidden">
+                <div class="flex justify-between items-center bg-gray-800 p-4 rounded-xl border border-gray-700">
+                    <div class="flex items-center space-x-3">
+                        <i class="fa-solid fa-fish-fins text-sky-400 text-2xl"></i>
+                        <h2 class="text-lg font-bold">Pantalla KDS - Sushi Bar (Rolls, Pokes y Entradas Frías)</h2>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <div class="flex bg-gray-900 p-1 rounded-lg border border-gray-700">
+                            <button onclick="switchKdsTab('sushi', 'prep')" id="kds-tab-sushi-prep" class="px-3 py-1 rounded text-xs font-bold transition bg-sky-600 text-white">En Preparación</button>
+                            <button onclick="switchKdsTab('sushi', 'history')" id="kds-tab-sushi-history" class="px-3 py-1 rounded text-xs font-bold transition text-gray-400 hover:text-white">Historial de Salida</button>
+                        </div>
+                        <button onclick="toggle86Modal('sushi')" class="bg-red-600/30 hover:bg-red-600 border border-red-500 text-red-300 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center space-x-2">
+                            <i class="fa-solid fa-ban"></i>
+                            <span>Gestionar Sushi Agotado</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="kds-sushi-orders-grid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto flex-1 p-1"></div>
             </div>
 
             <!-- SECCIÓN KDS BARRA / BEBIDAS -->
@@ -276,10 +306,16 @@
                         <i class="fa-solid fa-martini-glass-citrus text-indigo-400 text-2xl"></i>
                         <h2 class="text-lg font-bold">Pantalla KDS - Barra (Solo Bebidas)</h2>
                     </div>
-                    <button onclick="toggle86Modal('barra')" class="bg-red-600/30 hover:bg-red-600 border border-red-500 text-red-300 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center space-x-2">
-                        <i class="fa-solid fa-ban"></i>
-                        <span>Gestionar Bebidas Agotadas</span>
-                    </button>
+                    <div class="flex items-center space-x-3">
+                        <div class="flex bg-gray-900 p-1 rounded-lg border border-gray-700">
+                            <button onclick="switchKdsTab('barra', 'prep')" id="kds-tab-barra-prep" class="px-3 py-1 rounded text-xs font-bold transition bg-indigo-600 text-white">En Preparación</button>
+                            <button onclick="switchKdsTab('barra', 'history')" id="kds-tab-barra-history" class="px-3 py-1 rounded text-xs font-bold transition text-gray-400 hover:text-white">Historial de Salida</button>
+                        </div>
+                        <button onclick="toggle86Modal('barra')" class="bg-red-600/30 hover:bg-red-600 border border-red-500 text-red-300 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center space-x-2">
+                            <i class="fa-solid fa-ban"></i>
+                            <span>Gestionar Bebidas Agotadas</span>
+                        </button>
+                    </div>
                 </div>
                 <div id="kds-bar-orders-grid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto flex-1 p-1"></div>
             </div>
@@ -431,6 +467,13 @@
         let premiosPendientesMesa = [];
         let premioEnEsperaDeSeleccion = null;
 
+        // Pestañas activas para los KDS (prep vs history)
+        let kdsActiveTab = {
+            cocina: 'prep',
+            sushi: 'prep',
+            barra: 'prep'
+        };
+
         let checkinData = {
             tipo: 'nuevo',
             nombre: '',
@@ -455,52 +498,56 @@
         let kdsOrders = [];
 
         const menuCatalog = [
-            { id: 101, nombre: "Edamames", categoria: "entradas", precio: 8.00, ingredientes: ["Edamames", "Sal"], destino: "cocina" },
-            { id: 102, nombre: "Edamames Salteados", categoria: "entradas", precio: 9.00, ingredientes: ["Edamames", "Salsa especial", "Sal"], destino: "cocina" },
-            { id: 103, nombre: "Edamames Togarashi", categoria: "entradas", precio: 9.00, ingredientes: ["Edamames", "Togarashi", "Sal"], destino: "cocina" },
+            // ENTRADAS (DESTINO: SUSHI - Entradas frías / barra de sushi)
+            { id: 101, nombre: "Edamames", categoria: "entradas", precio: 8.00, ingredientes: ["Edamames", "Sal"], destino: "sushi" },
+            { id: 102, nombre: "Edamames Salteados", categoria: "entradas", precio: 9.00, ingredientes: ["Edamames", "Salsa especial", "Sal"], destino: "sushi" },
+            { id: 103, nombre: "Edamames Togarashi", categoria: "entradas", precio: 9.00, ingredientes: ["Edamames", "Togarashi", "Sal"], destino: "sushi" },
             { id: 104, nombre: "Gyozas", categoria: "entradas", precio: 9.00, ingredientes: ["Gyozas salteadas", "Salsa ponzu", "Aderezo de cayena"], destino: "cocina" },
-            { id: 105, nombre: "Coquitos", categoria: "entradas", precio: 12.00, ingredientes: ["Salmón chileno", "Aguacate", "Queso Crema", "Salsa Anguila", "Salsa Fuji"], destino: "cocina" },
-            { id: 106, nombre: "Tataki", categoria: "entradas", precio: 12.00, ingredientes: ["Atún importado", "Ajonjolí negro", "Pimienta molida", "MayoCurry", "Salsa flambeada"], destino: "cocina" },
-            { id: 107, nombre: "Ensalada Neptuno", categoria: "entradas", precio: 13.00, ingredientes: ["Ensalada dinamita", "Wakame", "Salmón Chileno", "Atún Importado", "Aguacate", "Ajonjolí negro"], destino: "cocina" },
-            { id: 108, nombre: "Smokey Roll", categoria: "entradas", precio: 13.00, ingredientes: ["Arroz nishiki", "Masago", "Nueces", "Anguila", "Kani Crispy", "Salmón ahumado", "Mayo Curry"], destino: "cocina" },
-            { id: 109, nombre: "Honolulu", categoria: "entradas", precio: 13.00, ingredientes: ["Arroz", "Chispas tempura", "Salmón chileno", "Pasta dinamita", "Masago", "Salsa anguila", "Fuji"], destino: "cocina" },
-            { id: 110, nombre: "Kani Salad", categoria: "entradas", precio: 13.00, ingredientes: ["Kani Premium", "Chispas Tempura", "Ajonjolí Negro", "Salsa Mayo Kani"], destino: "cocina" },
-            { id: 111, nombre: "Tropical", categoria: "entradas", precio: 13.00, ingredientes: ["Plátano", "Queso crema", "Aguacate", "Cebollín", "Salmón", "Atún", "Dinamita", "Queso Brie", "Fuji", "Teriyaki", "Sriracha"], destino: "cocina" },
-            { id: 112, nombre: "Tartar Trufado", categoria: "entradas", precio: 12.00, ingredientes: ["Atún Importado", "Aguacate", "Wakame", "Masago", "Ajonjolí Tostado", "Aderezo de Trufa"], destino: "cocina" },
-            { id: 113, nombre: "XOXO (NEW!)", categoria: "entradas", precio: 12.00, ingredientes: ["Nori crunch", "Arroz nishiki", "Aguacate", "Queso crema", "Atún spicy", "Langostino tempura", "Salmón mae ploy"], destino: "cocina" },
+            { id: 105, nombre: "Coquitos", categoria: "entradas", precio: 12.00, ingredientes: ["Salmón chileno", "Aguacate", "Queso Crema", "Salsa Anguila", "Salsa Fuji"], destino: "sushi" },
+            { id: 106, nombre: "Tataki", categoria: "entradas", precio: 12.00, ingredientes: ["Atún importado", "Ajonjolí negro", "Pimienta molida", "MayoCurry", "Salsa flambeada"], destino: "sushi" },
+            { id: 107, nombre: "Ensalada Neptuno", categoria: "entradas", precio: 13.00, ingredientes: ["Ensalada dinamita", "Wakame", "Salmón Chileno", "Atún Importado", "Aguacate", "Ajonjolí negro"], destino: "sushi" },
+            { id: 108, nombre: "Smokey Roll", categoria: "entradas", precio: 13.00, ingredientes: ["Arroz nishiki", "Masago", "Nueces", "Anguila", "Kani Crispy", "Salmón ahumado", "Mayo Curry"], destino: "sushi" },
+            { id: 109, nombre: "Honolulu", categoria: "entradas", precio: 13.00, ingredientes: ["Arroz", "Chispas tempura", "Salmón chileno", "Pasta dinamita", "Masago", "Salsa anguila", "Fuji"], destino: "sushi" },
+            { id: 110, nombre: "Kani Salad", categoria: "entradas", precio: 13.00, ingredientes: ["Kani Premium", "Chispas Tempura", "Ajonjolí Negro", "Salsa Mayo Kani"], destino: "sushi" },
+            { id: 111, nombre: "Tropical", categoria: "entradas", precio: 13.00, ingredientes: ["Plátano", "Queso crema", "Aguacate", "Cebollín", "Salmón", "Atún", "Dinamita", "Queso Brie", "Fuji", "Teriyaki", "Sriracha"], destino: "sushi" },
+            { id: 112, nombre: "Tartar Trufado", categoria: "entradas", precio: 12.00, ingredientes: ["Atún Importado", "Aguacate", "Wakame", "Masago", "Ajonjolí Tostado", "Aderezo de Trufa"], destino: "sushi" },
+            { id: 113, nombre: "XOXO (NEW!)", categoria: "entradas", precio: 12.00, ingredientes: ["Nori crunch", "Arroz nishiki", "Aguacate", "Queso crema", "Atún spicy", "Langostino tempura", "Salmón mae ploy"], destino: "sushi" },
             { id: 114, nombre: "Trio de Tacos", categoria: "entradas", precio: 13.00, ingredientes: ["Lomito", "Dinamita", "Kani crispy", "Pimienta", "Aceite de trufa", "Hoja de arroz tempurizado"], destino: "cocina" },
 
-            { id: 201, nombre: "Alaska Roll", categoria: "rolls", precio: 11.00, ingredientes: ["Salmón chileno", "Aguacate", "Queso crema", "Ajonjolí tostado"], destino: "cocina" },
-            { id: 202, nombre: "Bugatti Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Queso de cabra", "Langostino tempura", "Aguacate", "Salmón chileno", "Tocineta crocante", "Chutney de piña"], destino: "cocina" },
-            { id: 203, nombre: "Liv Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Langostino tempura", "Kani", "Aguacate", "Spicy tuna", "Cebollín", "Ajonjolí tostado"], destino: "cocina" },
-            { id: 204, nombre: "Sex on the Beach", categoria: "rolls", precio: 12.00, ingredientes: ["Langostinos tempura crunchy", "Spicy mayo", "Wakame"], destino: "cocina" },
-            { id: 205, nombre: "Natura Roll", categoria: "rolls", precio: 13.00, ingredientes: ["Langostinos tempura", "Masago", "Cebollín", "Aguacate", "Salsa fuji", "Ajonjolí negro"], destino: "cocina" },
-            { id: 206, nombre: "Crunchy Roll", categoria: "rolls", precio: 14.00, ingredientes: ["Papel de soya", "Atún", "Aguacate", "Queso crema", "Chispas tempura", "Salsa anguila"], destino: "cocina" },
-            { id: 207, nombre: "Trufa Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Atún importado", "Aguacate", "Spicy tuna", "Aderezo de trufa", "Salsa dragón", "Sriracha"], destino: "cocina" },
-            { id: 208, nombre: "VK Roll", categoria: "rolls", precio: 14.00, ingredientes: ["Salmón chileno", "Aguacate", "Tempurizado con cereal", "Dinamita", "Salsa anguila"], destino: "cocina" },
-            { id: 209, nombre: "Mookah Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Kani", "Cebollín", "Salsa dragón", "Salmón chileno", "Salsa de anguila", "Nueces", "Ajonjolí negro"], destino: "cocina" },
-            { id: 210, nombre: "Fre Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Kani tempura", "Dinamita", "Aguacate", "Plátano", "Queso brie flambeado", "Ajonjolí negro"], destino: "cocina" },
-            { id: 211, nombre: "Blancanieves Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Soy bean paper", "Kani", "Aguacate", "Chispas tempura", "Salmón chileno", "Masago", "Mayo-citrus"], destino: "cocina" },
-            { id: 212, nombre: "Prena Roll", categoria: "rolls", precio: 16.00, ingredientes: ["Salmón chileno", "Atún importado", "Kani", "Aguacate", "Wakame", "Masago", "Ajonjolí negro"], destino: "cocina" },
-            { id: 213, nombre: "Marley Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Dinamita", "Aguacate", "Arroz", "Soy bean paper", "Salsa sweet & spicy"], destino: "cocina" },
-            { id: 214, nombre: "Vulcano Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Kani crispy", "Queso crema", "Cebollín", "Aguacate", "Langostinos crunchy", "Salsa dragón"], destino: "cocina" },
-            { id: 215, nombre: "Coco Ceviche (NEW!)", categoria: "rolls", precio: 15.00, ingredientes: ["Arroz nishiki con coco", "Ceviche de pescado blanco", "Hilos de batata tempurizada"], destino: "cocina" },
-            { id: 216, nombre: "Salmón Roll (NEW!)", categoria: "rolls", precio: 15.00, ingredientes: ["Kani", "Camarones crispy", "Queso crema", "Arroz nishiki", "Nori", "Salmón tempura", "Masago"], destino: "cocina" },
-            { id: 217, nombre: "Street Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Salmón", "Aguacate", "Camarones crunchy", "Cebollín", "Kani crunchy", "Salsa tocineta", "Maíz plum", "Sriracha"], destino: "cocina" },
-            { id: 218, nombre: "Kraken Roll (NEW!)", categoria: "rolls", precio: 15.00, ingredientes: ["Atún spicy", "Aguacate", "Soybean", "Kani premium", "Salsa blanca", "Masago", "Vegetales crocantes"], destino: "cocina" },
-            { id: 219, nombre: "Adán Roll (NEW!)", categoria: "rolls", precio: 15.00, ingredientes: ["Soybean", "Arroz nishiki", "Queso crema", "Cebollín", "Salmón", "Almendra", "Manzana verde", "Aguacate", "Chutney"], destino: "cocina" },
-            { id: 220, nombre: "Blade Roll (NEW!)", categoria: "rolls", precio: 15.00, ingredientes: ["Kani premium", "Queso crema", "Cebollín", "Arroz nishiki", "Salmón con trufa", "Salsa anguila", "Sal fina"], destino: "cocina" },
-            { id: 221, nombre: "Ava Roll (NEW!)", categoria: "rolls", precio: 15.00, ingredientes: ["Camarones salteados", "Aguacate", "Soybean", "Pasta dinamita", "Salmón ahumado", "Mantequilla clarificada", "Chispas tempura"], destino: "cocina" },
-            { id: 222, nombre: "Nikkei", categoria: "rolls", precio: 14.00, ingredientes: ["Salmón", "Chispas rojas", "Dragon", "Cebolla crispy", "Camarón tempura panco", "Soybean", "Queso crema", "Aguacate", "Salsa ají amarillo"], destino: "cocina" },
-            { id: 223, nombre: "305 Roll", categoria: "rolls", precio: 14.00, ingredientes: ["Soybean", "Arroz nishiki", "Queso crema", "Salmón", "Aguacate", "Atún", "Salsa dragon", "Chutney de piña", "Tajín"], destino: "cocina" },
+            // ROLLS (DESTINO: SUSHI)
+            { id: 201, nombre: "Alaska Roll", categoria: "rolls", precio: 11.00, ingredientes: ["Salmón chileno", "Aguacate", "Queso crema", "Ajonjolí tostado"], destino: "sushi" },
+            { id: 202, nombre: "Bugatti Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Queso de cabra", "Langostino tempura", "Aguacate", "Salmón chileno", "Tocineta crocante", "Chutney de piña"], destino: "sushi" },
+            { id: 203, nombre: "Liv Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Langostino tempura", "Kani", "Aguacate", "Spicy tuna", "Cebollín", "Ajonjolí tostado"], destino: "sushi" },
+            { id: 204, nombre: "Sex on the Beach", categoria: "rolls", precio: 12.00, ingredientes: ["Langostinos tempura crunchy", "Spicy mayo", "Wakame"], destino: "sushi" },
+            { id: 205, nombre: "Natura Roll", categoria: "rolls", precio: 13.00, ingredientes: ["Langostinos tempura", "Masago", "Cebollín", "Aguacate", "Salsa fuji", "Ajonjolí negro"], destino: "sushi" },
+            { id: 206, nombre: "Crunchy Roll", categoria: "rolls", precio: 14.00, ingredientes: ["Papel de soya", "Atún", "Aguacate", "Queso crema", "Chispas tempura", "Salsa anguila"], destino: "sushi" },
+            { id: 207, nombre: "Trufa Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Atún importado", "Aguacate", "Spicy tuna", "Aderezo de trufa", "Salsa dragón", "Sriracha"], destino: "sushi" },
+            { id: 208, nombre: "VK Roll", categoria: "rolls", precio: 14.00, ingredientes: ["Salmón chileno", "Aguacate", "Tempurizado con cereal", "Dinamita", "Salsa anguila"], destino: "sushi" },
+            { id: 209, nombre: "Mookah Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Kani", "Cebollín", "Salsa dragón", "Salmón chileno", "Salsa de anguila", "Nueces", "Ajonjolí negro"], destino: "sushi" },
+            { id: 210, nombre: "Fre Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Kani tempura", "Dinamita", "Aguacate", "Plátano", "Queso brie flambeado", "Ajonjolí negro"], destino: "sushi" },
+            { id: 211, nombre: "Blancanieves Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Soy bean paper", "Kani", "Aguacate", "Chispas tempura", "Salmón chileno", "Masago", "Mayo-citrus"], destino: "sushi" },
+            { id: 212, nombre: "Prena Roll", categoria: "rolls", precio: 16.00, ingredientes: ["Salmón chileno", "Atún importado", "Kani", "Aguacate", "Wakame", "Masago", "Ajonjolí negro"], destino: "sushi" },
+            { id: 213, nombre: "Marley Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Dinamita", "Aguacate", "Arroz", "Soy bean paper", "Salsa sweet & spicy"], destino: "sushi" },
+            { id: 214, nombre: "Vulcano Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Kani crispy", "Queso crema", "Cebollín", "Aguacate", "Langostinos crunchy", "Salsa dragón"], destino: "sushi" },
+            { id: 215, nombre: "Coco Ceviche (NEW!)", categoria: "rolls", precio: 15.00, ingredientes: ["Arroz nishiki con coco", "Ceviche de pescado blanco", "Hilos de batata tempurizada"], destino: "sushi" },
+            { id: 216, nombre: "Salmón Roll (NEW!)", categoria: "rolls", precio: 15.00, ingredientes: ["Kani", "Camarones crispy", "Queso crema", "Arroz nishiki", "Nori", "Salmón tempura", "Masago"], destino: "sushi" },
+            { id: 217, nombre: "Street Roll", categoria: "rolls", precio: 15.00, ingredientes: ["Salmón", "Aguacate", "Camarones crunchy", "Cebollín", "Kani crunchy", "Salsa tocineta", "Maíz plum", "Sriracha"], destino: "sushi" },
+            { id: 218, nombre: "Kraken Roll (NEW!)", categoria: "rolls", precio: 15.00, ingredientes: ["Atún spicy", "Aguacate", "Soybean", "Kani premium", "Salsa blanca", "Masago", "Vegetales crocantes"], destino: "sushi" },
+            { id: 219, nombre: "Adán Roll (NEW!)", categoria: "rolls", precio: 15.00, ingredientes: ["Soybean", "Arroz nishiki", "Queso crema", "Cebollín", "Salmón", "Almendra", "Manzana verde", "Aguacate", "Chutney"], destino: "sushi" },
+            { id: 220, nombre: "Blade Roll (NEW!)", categoria: "rolls", precio: 15.00, ingredientes: ["Kani premium", "Queso crema", "Cebollín", "Arroz nishiki", "Salmón con trufa", "Salsa anguila", "Sal fina"], destino: "sushi" },
+            { id: 221, nombre: "Ava Roll (NEW!)", categoria: "rolls", precio: 15.00, ingredientes: ["Camarones salteados", "Aguacate", "Soybean", "Pasta dinamita", "Salmón ahumado", "Mantequilla clarificada", "Chispas tempura"], destino: "sushi" },
+            { id: 222, nombre: "Nikkei", categoria: "rolls", precio: 14.00, ingredientes: ["Salmón", "Chispas rojas", "Dragon", "Cebolla crispy", "Camarón tempura panco", "Soybean", "Queso crema", "Aguacate", "Salsa ají amarillo"], destino: "sushi" },
+            { id: 223, nombre: "305 Roll", categoria: "rolls", precio: 14.00, ingredientes: ["Soybean", "Arroz nishiki", "Queso crema", "Salmón", "Aguacate", "Atún", "Salsa dragon", "Chutney de piña", "Tajín"], destino: "sushi" },
 
+            // CALIENTES (DESTINO: COCINA)
             { id: 301, nombre: "Arroz Teriyaki", categoria: "calientes", precio: 15.00, ingredientes: ["Zanahoria", "Cebolla", "Pimentón", "Proteína (Pollo o Carne)"], destino: "cocina" },
             { id: 302, nombre: "Tallarines Teriyaki", categoria: "calientes", precio: 15.00, ingredientes: ["Zanahoria", "Cebolla", "Pimentón", "Proteína (Pollo o Carne)"], destino: "cocina" },
 
-            { id: 401, nombre: "Poke Amarillo (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Camarón grill", "Kani", "Piña", "Aguacate", "Cebolla tempura", "Salsa fuji", "Wakame", "Tobico", "Sésamo"], destino: "cocina" },
-            { id: 402, nombre: "Poke Azul (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Atún abrazado", "Salmón", "Edamame", "Aguacate", "Hilos de batata", "Salsa anguila", "Wakame", "Tobico", "Sésamo"], destino: "cocina" },
-            { id: 403, nombre: "Poke Rojo (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Edamames", "Piña", "Salmón spicy", "Dinamita", "Wakame", "Tobico", "Sésamo"], destino: "cocina" },
-            { id: 404, nombre: "Poke Mookah (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Atún", "Salmón spicy", "Aguacate", "Edamame", "Maíz inflado", "Salsa dragón", "Salsa anguila", "Wakame", "Tobico", "Sésamo"], destino: "cocina" },
+            // POKES (DESTINO: SUSHI)
+            { id: 401, nombre: "Poke Amarillo (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Camarón grill", "Kani", "Piña", "Aguacate", "Cebolla tempura", "Salsa fuji", "Wakame", "Tobico", "Sésamo"], destino: "sushi" },
+            { id: 402, nombre: "Poke Azul (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Atún abrazado", "Salmón", "Edamame", "Aguacate", "Hilos de batata", "Salsa anguila", "Wakame", "Tobico", "Sésamo"], destino: "sushi" },
+            { id: 403, nombre: "Poke Rojo (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Edamames", "Piña", "Salmón spicy", "Dinamita", "Wakame", "Tobico", "Sésamo"], destino: "sushi" },
+            { id: 404, nombre: "Poke Mookah (NEW!)", categoria: "pokes", precio: 15.00, ingredientes: ["Atún", "Salmón spicy", "Aguacate", "Edamame", "Maíz inflado", "Salsa dragón", "Salsa anguila", "Wakame", "Tobico", "Sésamo"], destino: "sushi" },
 
             // BEBIDAS (DESTINO: BARRA)
             { id: 601, nombre: "Coca-Cola", categoria: "bebidas", precio: 2.50, ingredientes: ["Lata 355ml", "Hielo"], destino: "barra" },
@@ -558,11 +605,11 @@
 
         async function loadKdsOrdersFromSupabase() {
             try {
-                // ORDENAR POR TIEMPO MÁS ANTIGUO PRIMERO (ASCENDING: TRUE) PARA PRIORIDAD EN KDS
-                const { data, error } = await supabaseClient.from('kds_comandas').select('*').neq('estado', 'despachado').order('creado_ms', { ascending: true });
+                const { data, error } = await supabaseClient.from('kds_comandas').select('*').order('creado_ms', { ascending: true });
                 if (!error && data) {
                     kdsOrders = data;
                     renderKdsGrid('cocina');
+                    renderKdsGrid('sushi');
                     renderKdsGrid('barra');
                 }
             } catch (err) { console.error("Error cargando KDS:", err); }
@@ -720,7 +767,6 @@
             await cargarClientesRegulares();
             await loadMesasFromSupabase();
             await loadKdsOrdersFromSupabase();
-            
             await loadAgotadosFromSupabase(true);
             
             subscribeToRealtimeChanges();
@@ -765,6 +811,7 @@
                 } else {
                     currentMeseroName = currentMeseroEmail;
                     if (currentMeseroEmail.includes('cocina')) currentUserRole = 'cocina';
+                    else if (currentMeseroEmail.includes('sushi')) currentUserRole = 'sushi';
                     else if (currentMeseroEmail.includes('barra')) currentUserRole = 'barra';
                     else if (currentMeseroEmail.includes('admin')) currentUserRole = 'admin';
                     else currentUserRole = 'mesero';
@@ -790,23 +837,33 @@
         function applyRolePermissions() {
             const navPos = document.getElementById('nav-pos');
             const navKitchen = document.getElementById('nav-kds-kitchen');
+            const navSushi = document.getElementById('nav-kds-sushi');
             const navBar = document.getElementById('nav-kds-bar');
 
             if (currentUserRole === 'mesero') {
                 navKitchen.classList.add('hidden');
+                navSushi.classList.add('hidden');
                 navBar.classList.add('hidden');
                 switchMainView('pos');
             } else if (currentUserRole === 'cocina') {
                 navPos.classList.add('hidden');
+                navSushi.classList.add('hidden');
                 navBar.classList.add('hidden');
                 switchMainView('kds-kitchen');
+            } else if (currentUserRole === 'sushi') {
+                navPos.classList.add('hidden');
+                navKitchen.classList.add('hidden');
+                navBar.classList.add('hidden');
+                switchMainView('kds-sushi');
             } else if (currentUserRole === 'barra') {
                 navPos.classList.add('hidden');
                 navKitchen.classList.add('hidden');
+                navSushi.classList.add('hidden');
                 switchMainView('kds-bar');
             } else if (currentUserRole === 'admin') {
                 navPos.classList.remove('hidden');
                 navKitchen.classList.remove('hidden');
+                navSushi.classList.remove('hidden');
                 navBar.classList.remove('hidden');
                 switchMainView('pos');
             }
@@ -870,12 +927,16 @@
         }
 
         function switchMainView(view) {
-            if (currentUserRole === 'mesero' && (view === 'kds-kitchen' || view === 'kds-bar')) {
-                alert("⛔ Acceso denegado: Los meseros no tienen permiso para acceder a las pantallas KDS de cocina o barra.");
+            if (currentUserRole === 'mesero' && (view === 'kds-kitchen' || view === 'kds-sushi' || view === 'kds-bar')) {
+                alert("⛔ Acceso denegado: Los meseros no tienen permiso para acceder a las pantallas KDS.");
                 return;
             }
             if (currentUserRole === 'cocina' && view !== 'kds-kitchen') {
                 alert("⛔ Acceso denegado: Tu usuario está asignado exclusivamente al KDS de Cocina.");
+                return;
+            }
+            if (currentUserRole === 'sushi' && view !== 'kds-sushi') {
+                alert("⛔ Acceso denegado: Tu usuario está asignado exclusivamente al KDS de Sushi Bar.");
                 return;
             }
             if (currentUserRole === 'barra' && view !== 'kds-bar') {
@@ -885,18 +946,37 @@
 
             document.getElementById('main-view-pos').classList.toggle('hidden', view !== 'pos');
             document.getElementById('main-view-kds-kitchen').classList.toggle('hidden', view !== 'kds-kitchen');
+            document.getElementById('main-view-kds-sushi').classList.toggle('hidden', view !== 'kds-sushi');
             document.getElementById('main-view-kds-bar').classList.toggle('hidden', view !== 'kds-bar');
 
             const btnPos = document.getElementById('nav-pos');
             const btnKitchen = document.getElementById('nav-kds-kitchen');
+            const btnSushi = document.getElementById('nav-kds-sushi');
             const btnBar = document.getElementById('nav-kds-bar');
 
             if (btnPos) btnPos.className = "px-3 py-1 rounded text-xs font-bold transition " + (view === 'pos' ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white");
             if (btnKitchen) btnKitchen.className = "px-3 py-1 rounded text-xs font-bold transition " + (view === 'kds-kitchen' ? "bg-amber-600 text-white" : "text-gray-400 hover:text-white");
+            if (btnSushi) btnSushi.className = "px-3 py-1 rounded text-xs font-bold transition " + (view === 'kds-sushi' ? "bg-sky-600 text-white" : "text-gray-400 hover:text-white");
             if (btnBar) btnBar.className = "px-3 py-1 rounded text-xs font-bold transition " + (view === 'kds-bar' ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white");
 
             if (view === 'kds-kitchen') renderKdsGrid('cocina');
+            if (view === 'kds-sushi') renderKdsGrid('sushi');
             if (view === 'kds-bar') renderKdsGrid('barra');
+        }
+
+        function switchKdsTab(destino, tab) {
+            kdsActiveTab[destino] = tab;
+            const btnPrep = document.getElementById(`kds-tab-${destino}-prep`);
+            const btnHist = document.getElementById(`kds-tab-${destino}-history`);
+
+            if (tab === 'prep') {
+                btnPrep.className = `px-3 py-1 rounded text-xs font-bold transition ${destino === 'cocina' ? 'bg-amber-600' : destino === 'sushi' ? 'bg-sky-600' : 'bg-indigo-600'} text-white`;
+                btnHist.className = "px-3 py-1 rounded text-xs font-bold transition text-gray-400 hover:text-white";
+            } else {
+                btnPrep.className = "px-3 py-1 rounded text-xs font-bold transition text-gray-400 hover:text-white";
+                btnHist.className = `px-3 py-1 rounded text-xs font-bold transition ${destino === 'cocina' ? 'bg-amber-600' : destino === 'sushi' ? 'bg-sky-600' : 'bg-indigo-600'} text-white`;
+            }
+            renderKdsGrid(destino);
         }
 
         function switchRole(role) {
@@ -1319,7 +1399,7 @@
                 mesa_numero: mesa.numero,
                 mesero: currentMeseroName,
                 destino: itemSeleccionado.destino,
-                items_json: JSON.stringify([{ nombre: itemSeleccionado.nombre, qty: 1, paraLlevar: false, notaIndividual: "Cortesía Ruleta", ingredientesObj: [] }]),
+                items_json: JSON.stringify([{ nombre: itemSeleccionado.nombre, qty: 1, paraLlevar: false, ingredientesObj: [] }]),
                 nota: `Cortesía Ruleta Canjeada (${premioObj.premio_ganado})`,
                 estado: 'por_empezar',
                 creado_ms: Date.now()
@@ -1479,8 +1559,7 @@
             itemsList.forEach(item => {
                 const inactivosStr = item.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
                 const paraLlevarFlag = item.paraLlevar ? '1' : '0';
-                const notaInd = item.notaIndividual || '';
-                const key = `${item.id}||${inactivosStr}||${paraLlevarFlag}||${notaInd}`;
+                const key = `${item.id}||${inactivosStr}||${paraLlevarFlag}`;
 
                 if (groupedMap.has(key)) {
                     const existing = groupedMap.get(key);
@@ -1489,7 +1568,6 @@
                     groupedMap.set(key, {
                         ...item,
                         qty: item.qty || 1,
-                        notaIndividual: item.notaIndividual || '',
                         ingredientesObj: JSON.parse(JSON.stringify(item.ingredientesObj)),
                         paraLlevar: !!item.paraLlevar
                     });
@@ -1525,7 +1603,7 @@
             }
 
             const ingredientesObj = item.ingredientes.map(ing => ({ nombre: ing, activo: true }));
-            currentOrder.push({ ...item, qty: 1, ingredientesObj: ingredientesObj, paraLlevar: false, notaIndividual: "" });
+            currentOrder.push({ ...item, qty: 1, ingredientesObj: ingredientesObj, paraLlevar: false });
             renderOrder();
         }
 
@@ -1566,12 +1644,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- NOTA INDIVIDUAL POR PLATO -->
-                        <div>
-                            <input type="text" value="${i.notaIndividual || ''}" onchange="updateItemNoteGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, this.value)" placeholder="Nota específica para este plato (ej: bien dorado, extra salsa)..." class="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1 text-[10px] text-amber-200 focus:outline-none focus:border-indigo-500">
-                        </div>
-
                         <div class="text-[10px] bg-gray-950 p-2 rounded border border-gray-800">
                             <p class="font-semibold text-indigo-300 mb-1">Ingredientes (clic para quitar/restaurar):</p>
                             <div class="flex flex-wrap gap-1">
@@ -1587,15 +1659,6 @@
             }).join('');
 
             updateTotalsDisplay();
-        }
-
-        function updateItemNoteGroup(itemId, inactivosStr, paraLlevar, newNote) {
-            currentOrder.forEach(i => {
-                const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
-                if (i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar) {
-                    i.notaIndividual = newNote;
-                }
-            });
         }
 
         function toggleParaLlevarGroup(itemId, inactivosStr, currentEstado) {
@@ -1630,7 +1693,6 @@
                     currentOrder.push({
                         ...refItem,
                         qty: 1,
-                        notaIndividual: refItem.notaIndividual || '',
                         ingredientesObj: JSON.parse(JSON.stringify(refItem.ingredientesObj)),
                         paraLlevar: refItem.paraLlevar
                     });
@@ -1710,7 +1772,6 @@
                 let detalles = [];
                 if (inactivos.length > 0) detalles.push(`Sin ${inactivos.join(', sin ')}`);
                 if (i.paraLlevar) detalles.push(`📦 PARA LLEVAR`);
-                if (i.notaIndividual && i.notaIndividual.trim() !== '') detalles.push(`Nota: ${i.notaIndividual.trim()}`);
                 if (detalles.length > 0) desc += ` (${detalles.join(' - ')})`;
                 return desc;
             }).join(' | ');
@@ -1740,7 +1801,9 @@
                         .eq('telefono', telefonoCliente);
                 }
 
+                // Enrutamiento automático según destino: cocina, sushi o barra
                 const kitchenItems = groupedOrder.filter(i => i.destino === 'cocina');
+                const sushiItems = groupedOrder.filter(i => i.destino === 'sushi');
                 const barItems = groupedOrder.filter(i => i.destino === 'barra');
                 let createdKdsIds = [];
 
@@ -1755,6 +1818,19 @@
                         creado_ms: Date.now()
                     }]).select();
                     if (resK && resK.length > 0) createdKdsIds.push(resK[0].id);
+                }
+
+                if (sushiItems.length > 0) {
+                    const { data: resS } = await supabaseClient.from('kds_comandas').insert([{
+                        mesa_numero: mesa.numero,
+                        mesero: currentMeseroName,
+                        destino: 'sushi',
+                        items_json: JSON.stringify(sushiItems),
+                        nota: generalNote,
+                        estado: 'por_empezar',
+                        creado_ms: Date.now()
+                    }]).select();
+                    if (resS && resS.length > 0) createdKdsIds.push(resS[0].id);
                 }
 
                 if (barItems.length > 0) {
@@ -1784,7 +1860,7 @@
 
                 await syncMesaToSupabase(mesa);
 
-                alert(`✅ ¡Pedido de $${newOrderTotal.toFixed(2)} (${cantidadComensales} comensales) enviado correctamente a Cocina/Barra!`);
+                alert(`✅ ¡Pedido de $${newOrderTotal.toFixed(2)} (${cantidadComensales} comensales) enviado correctamente a Cocina / Sushi / Barra!`);
                 currentOrder = [];
                 document.getElementById('order-notes').value = '';
                 renderOrder();
@@ -1800,14 +1876,20 @@
         }
 
         function renderKdsGrid(destino) {
-            const containerId = destino === 'cocina' ? 'kds-kitchen-orders-grid' : 'kds-bar-orders-grid';
+            const containerId = destino === 'cocina' ? 'kds-kitchen-orders-grid' : destino === 'sushi' ? 'kds-sushi-orders-grid' : 'kds-bar-orders-grid';
             const container = document.getElementById(containerId);
-            
-            // FILTRAR POR DESTINO Y ORDENAR AUTOMÁTICAMENTE DE MÁS ANTIGUO A MÁS NUEVO (PRIORIDAD 1)
-            const filtered = kdsOrders.filter(o => o.destino === destino).sort((a, b) => a.creado_ms - b.creado_ms);
+            const activeTab = kdsActiveTab[destino]; // 'prep' o 'history'
+
+            let filtered = [];
+            if (activeTab === 'prep') {
+                filtered = kdsOrders.filter(o => o.destino === destino && o.estado !== 'despachado');
+            } else {
+                // Historial de salida (últimas comandas despachadas)
+                filtered = kdsOrders.filter(o => o.destino === destino && o.estado === 'despachado');
+            }
 
             if (filtered.length === 0) {
-                container.innerHTML = `<p class="col-span-full text-center text-gray-500 italic py-12">No hay comandas pendientes en ${destino}.</p>`;
+                container.innerHTML = `<p class="col-span-full text-center text-gray-500 italic py-12">No hay comandas ${activeTab === 'prep' ? 'pendientes' : 'en el historial de salida'} para ${destino}.</p>`;
                 return;
             }
 
@@ -1815,37 +1897,36 @@
                 const items = JSON.parse(o.items_json || '[]');
                 const mins = Math.floor((Date.now() - o.creado_ms) / 60000);
                 
-                let cardBg = o.estado === 'por_empezar' ? 'border-red-500 bg-red-950/20' : 'border-amber-500 bg-amber-950/20';
-                let statusBadge = o.estado === 'por_empezar' ? '<span class="bg-red-900 text-red-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Por Empezar</span>' : '<span class="bg-amber-900 text-amber-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Preparando</span>';
+                let cardBg = o.estado === 'por_empezar' ? 'border-red-500 bg-red-950/20' : o.estado === 'preparando' ? 'border-amber-500 bg-amber-950/20' : 'border-emerald-500 bg-emerald-950/20';
+                let statusBadge = o.estado === 'por_empezar' ? '<span class="bg-red-900 text-red-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Por Empezar</span>' : o.estado === 'preparando' ? '<span class="bg-amber-900 text-amber-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Preparando</span>' : '<span class="bg-emerald-900 text-emerald-200 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Despachado ✓</span>';
 
                 let tieneNotaGeneral = o.nota && o.nota.trim() !== '' && o.nota.toLowerCase() !== 'sin notas';
 
                 return `
-                    <div class="border-2 ${cardBg} rounded-xl p-4 flex flex-col justify-between shadow-lg relative">
-                        <!-- INSIGNIA DE PRIORIDAD SEGÚN TIEMPO EN ESPERA -->
-                        <div class="absolute -top-3 left-3 bg-amber-500 text-gray-950 text-[10px] font-black px-2 py-0.5 rounded-full shadow border border-amber-300">
-                            PRIORIDAD #${idx + 1} (${mins} min)
-                        </div>
-
-                        <div class="pt-1">
-                            <div class="flex justify-between items-center border-b border-gray-700 pb-2 mb-2 mt-1">
-                                <span class="font-bold text-base text-white">${o.mesa_numero}</span>
+                    <div class="border-2 ${cardBg} rounded-xl p-4 flex flex-col justify-between shadow-lg mb-4">
+                        <div>
+                            <!-- Banderola de Prioridad superior limpia -->
+                            <div class="flex justify-between items-center bg-gray-900/80 px-3 py-1.5 rounded-lg border border-gray-700 mb-3">
+                                <span class="font-extrabold text-xs text-indigo-300">Prioridad #${idx + 1}</span>
                                 ${statusBadge}
                             </div>
-                            <p class="text-[10px] text-gray-400 mb-2">Mesero: <span class="text-indigo-300 font-bold">${o.mesero}</span> • Hace ${mins} min</p>
+
+                            <div class="flex justify-between items-center border-b border-gray-700 pb-2 mb-2">
+                                <span class="font-bold text-base text-white">${o.mesa_numero}</span>
+                                <span class="text-[10px] text-gray-400">Hace ${mins} min</span>
+                            </div>
+                            <p class="text-[10px] text-gray-400 mb-2">Mesero: <span class="text-indigo-300 font-bold">${o.mesero}</span></p>
                             
                             <div class="space-y-2.5 my-2">
                                 ${items.map(i => {
                                     let inactivos = i.ingredientesObj ? i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre) : [];
                                     let itemLlevar = i.paraLlevar;
-                                    let notaInd = i.notaIndividual;
                                     return `
                                         <div class="p-2 rounded border ${itemLlevar ? 'bg-amber-500/20 border-amber-400' : 'bg-gray-900 border-gray-800'}">
                                             <div class="flex justify-between items-center">
                                                 <p class="text-xs font-bold text-white">• ${i.qty || 1}x ${i.nombre}</p>
                                                 ${itemLlevar ? '<span class="bg-amber-500 text-gray-950 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">📦 EMPACAR / LLEVAR</span>' : ''}
                                             </div>
-                                            ${notaInd ? `<p class="text-[10px] text-amber-300 font-bold mt-1"><i class="fa-solid fa-pen-to-square mr-1"></i>Nota: ${notaInd}</p>` : ''}
                                             ${inactivos.length > 0 ? `<p class="text-[11px] text-red-400 font-bold mt-1">⚠️ Sin: ${inactivos.join(', ')}</p>` : ''}
                                         </div>
                                     `;
@@ -1861,10 +1942,13 @@
                         </div>
 
                         <div class="pt-3 border-t border-gray-700 flex space-x-2 mt-4">
-                            ${o.estado === 'por_empezar' ? 
-                                `<button onclick="updateKdsStatus(${o.id}, 'preparando')" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded text-xs transition">Empezar a Preparar</button>` :
-                                `<button onclick="updateKdsStatus(${o.id}, 'despachado')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-xs transition">Marcar Listo / Despachado ✓</button>`
-                            }
+                            ${activeTab === 'prep' ? (
+                                o.estado === 'por_empezar' ? 
+                                    `<button onclick="updateKdsStatus(${o.id}, 'preparando')" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded text-xs transition">Empezar a Preparar</button>` :
+                                    `<button onclick="updateKdsStatus(${o.id}, 'despachado')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-xs transition">Marcar Listo / Llamar Mesero ✓</button>`
+                            ) : (
+                                `<button onclick="updateKdsStatus(${o.id}, 'preparando')" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white font-bold py-1.5 rounded text-xs transition">Reabrir / Devolver a Preparación</button>`
+                            )}
                         </div>
                     </div>
                 `;
@@ -1901,7 +1985,7 @@
             const modal = document.getElementById('modal-86');
             modal.classList.toggle('hidden');
             if (!modal.classList.contains('hidden')) {
-                document.getElementById('modal-86-title').innerHTML = `<i class="fa-solid fa-ban text-red-400 mr-2"></i>Gestión de Agotados (${destino === 'cocina' ? 'Comidas y Postres' : 'Bebidas'})`;
+                document.getElementById('modal-86-title').innerHTML = `<i class="fa-solid fa-ban text-red-400 mr-2"></i>Gestión de Agotados (${destino === 'cocina' ? 'Platos Calientes y Postres' : destino === 'sushi' ? 'Rolls, Pokes y Entradas' : 'Bebidas'})`;
                 document.getElementById('modal-86-search-input').value = '';
                 render86List();
             }
