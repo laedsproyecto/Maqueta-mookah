@@ -226,10 +226,23 @@
                                         <span id="order-total-ves" class="text-[10px] text-emerald-300/70 block font-mono">Bs. 0,00</span>
                                     </div>
                                 </div>
+
+                                <!-- SUBTOTALES Y COSTO POR SERVICIO 10% -->
+                                <div class="border-t border-gray-700 pt-2 space-y-1">
+                                    <div class="flex justify-between items-center text-gray-300">
+                                        <span>Consumo (Subtotal):</span>
+                                        <span id="subtotal-consumo-usd" class="font-semibold text-white">$0.00</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-indigo-300">
+                                        <span>Costo por Servicio (10%):</span>
+                                        <span id="subtotal-servicio-usd" class="font-semibold">$0.00</span>
+                                    </div>
+                                </div>
+
                                 <div class="flex justify-between items-start border-t border-gray-700 pt-2 mt-1">
                                     <div class="space-y-1">
-                                        <p class="font-bold text-xs text-indigo-300">Cuenta Dólares:</p>
-                                        <p class="font-bold text-xs text-amber-300">Cuenta Bolívares (BCV):</p>
+                                        <p class="font-bold text-xs text-indigo-300">TOTAL EN DÓLARES ($):</p>
+                                        <p class="font-bold text-xs text-amber-300">Total Tasa Oficial (BCV):</p>
                                     </div>
                                     <div class="text-right space-y-1">
                                         <span id="grand-total-account" class="text-emerald-400 font-bold text-sm block">$0.00</span>
@@ -1399,7 +1412,7 @@
                 mesa_numero: mesa.numero,
                 mesero: currentMeseroName,
                 destino: itemSeleccionado.destino,
-                items_json: JSON.stringify([{ nombre: itemSeleccionado.nombre, qty: 1, paraLlevar: false, ingredientesObj: [] }]),
+                items_json: JSON.stringify([{ nombre: itemSeleccionado.nombre, qty: 1, paraLlevar: false, ingredientesObj: [], notaItem: '' }]),
                 nota: `Cortesía Ruleta Canjeada (${premioObj.premio_ganado})`,
                 estado: 'por_empezar',
                 creado_ms: Date.now()
@@ -1559,7 +1572,8 @@
             itemsList.forEach(item => {
                 const inactivosStr = item.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
                 const paraLlevarFlag = item.paraLlevar ? '1' : '0';
-                const key = `${item.id}||${inactivosStr}||${paraLlevarFlag}`;
+                const notaItemKey = (item.notaItem || '').trim();
+                const key = `${item.id}||${inactivosStr}||${paraLlevarFlag}||${notaItemKey}`;
 
                 if (groupedMap.has(key)) {
                     const existing = groupedMap.get(key);
@@ -1569,7 +1583,8 @@
                         ...item,
                         qty: item.qty || 1,
                         ingredientesObj: JSON.parse(JSON.stringify(item.ingredientesObj)),
-                        paraLlevar: !!item.paraLlevar
+                        paraLlevar: !!item.paraLlevar,
+                        notaItem: item.notaItem || ''
                     });
                 }
             });
@@ -1603,7 +1618,7 @@
             }
 
             const ingredientesObj = item.ingredientes.map(ing => ({ nombre: ing, activo: true }));
-            currentOrder.push({ ...item, qty: 1, ingredientesObj: ingredientesObj, paraLlevar: false });
+            currentOrder.push({ ...item, qty: 1, ingredientesObj: ingredientesObj, paraLlevar: false, notaItem: '' });
             renderOrder();
         }
 
@@ -1628,7 +1643,7 @@
                         <div class="flex justify-between items-center">
                             <div class="flex items-center space-x-2">
                                 <span class="font-bold text-white text-sm">${i.qty}x ${i.nombre}</span>
-                                <button onclick="toggleParaLlevarGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar})" class="px-2 py-0.5 rounded text-[10px] font-black transition ${i.paraLlevar ? 'bg-amber-500 text-gray-950 shadow' : 'bg-gray-800 text-gray-400 hover:text-white'}">
+                                <button onclick="toggleParaLlevarGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, '${encodeURIComponent(i.notaItem || '')}')" class="px-2 py-0.5 rounded text-[10px] font-black transition ${i.paraLlevar ? 'bg-amber-500 text-gray-950 shadow' : 'bg-gray-800 text-gray-400 hover:text-white'}">
                                     <i class="fa-solid fa-box-open mr-1"></i>${i.paraLlevar ? '📦 PARA LLEVAR' : 'Para Llevar'}
                                 </button>
                             </div>
@@ -1638,20 +1653,26 @@
                                     <span class="text-[9px] text-gray-400 font-mono block">Bs. ${subtotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                                 </div>
                                 <div class="flex items-center space-x-1">
-                                    <button onclick="changeItemQtyGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, -1)" class="bg-gray-800 hover:bg-gray-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">-</button>
-                                    <button onclick="changeItemQtyGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, 1)" class="bg-gray-800 hover:bg-gray-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">+</button>
-                                    <button onclick="removeGroupFromOrder(${i.id}, '${inactivosStr}', ${i.paraLlevar})" class="text-red-400 hover:text-red-300 ml-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                                    <button onclick="changeItemQtyGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, '${encodeURIComponent(i.notaItem || '')}', -1)" class="bg-gray-800 hover:bg-gray-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">-</button>
+                                    <button onclick="changeItemQtyGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, '${encodeURIComponent(i.notaItem || '')}', 1)" class="bg-gray-800 hover:bg-gray-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">+</button>
+                                    <button onclick="removeGroupFromOrder(${i.id}, '${inactivosStr}', ${i.paraLlevar}, '${encodeURIComponent(i.notaItem || '')}')" class="text-red-400 hover:text-red-300 ml-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
                                 </div>
                             </div>
                         </div>
-                        <div class="text-[10px] bg-gray-950 p-2 rounded border border-gray-800">
-                            <p class="font-semibold text-indigo-300 mb-1">Ingredientes (clic para quitar/restaurar):</p>
-                            <div class="flex flex-wrap gap-1">
-                                ${i.ingredientesObj.map((ing, ingIdx) => `
-                                    <span onclick="toggleIngredientGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, ${ingIdx})" class="px-2 py-0.5 rounded cursor-pointer border font-semibold transition ${ing.activo ? 'bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700' : 'bg-red-950 text-red-400 border-red-800 line-through'}">
-                                        ${ing.activo ? '✓ ' + ing.nombre : '✕ Sin ' + ing.nombre}
-                                    </span>
-                                `).join('')}
+                        <div class="text-[10px] bg-gray-950 p-2 rounded border border-gray-800 space-y-2">
+                            <div>
+                                <p class="font-semibold text-indigo-300 mb-1">Ingredientes (clic para quitar/restaurar):</p>
+                                <div class="flex flex-wrap gap-1">
+                                    ${i.ingredientesObj.map((ing, ingIdx) => `
+                                        <span onclick="toggleIngredientGroup(${i.id}, '${inactivosStr}', ${i.paraLlevar}, '${encodeURIComponent(i.notaItem || '')}', ${ingIdx})" class="px-2 py-0.5 rounded cursor-pointer border font-semibold transition ${ing.activo ? 'bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700' : 'bg-red-950 text-red-400 border-red-800 line-through'}">
+                                            ${ing.activo ? '✓ ' + ing.nombre : '✕ Sin ' + ing.nombre}
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <!-- NOTA ESPECÍFICA PARA ESTE ÍTEM (LÍNEA ROJA SOLICITADA) -->
+                            <div>
+                                <input type="text" onchange="updateItemNote(${i.id}, '${inactivosStr}', ${i.paraLlevar}, '${encodeURIComponent(i.notaItem || '')}', this.value)" value="${i.notaItem || ''}" placeholder="Nota específica de este ítem (ej: bien cocido, sin salsa...)" class="w-full bg-gray-900 border border-red-500/60 rounded px-2 py-1 text-[10px] text-white focus:outline-none focus:border-red-400">
                             </div>
                         </div>
                     </div>
@@ -1661,20 +1682,24 @@
             updateTotalsDisplay();
         }
 
-        function toggleParaLlevarGroup(itemId, inactivosStr, currentEstado) {
+        function toggleParaLlevarGroup(itemId, inactivosStr, currentEstado, encodedNota) {
+            const notaKey = decodeURIComponent(encodedNota);
             currentOrder.forEach(i => {
                 const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
-                if (i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === currentEstado) {
+                const itemNota = i.notaItem || '';
+                if (i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === currentEstado && itemNota === notaKey) {
                     i.paraLlevar = !currentEstado;
                 }
             });
             renderOrder();
         }
 
-        function toggleIngredientGroup(itemId, inactivosStr, paraLlevar, ingIdx) {
+        function toggleIngredientGroup(itemId, inactivosStr, paraLlevar, encodedNota, ingIdx) {
+            const notaKey = decodeURIComponent(encodedNota);
             const targetItem = currentOrder.find(i => {
                 const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
-                return i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar;
+                const itemNota = i.notaItem || '';
+                return i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar && itemNota === notaKey;
             });
 
             if (targetItem) {
@@ -1683,24 +1708,39 @@
             renderOrder();
         }
 
-        function changeItemQtyGroup(itemId, inactivosStr, paraLlevar, delta) {
+        function updateItemNote(itemId, inactivosStr, paraLlevar, encodedNota, newNote) {
+            const notaKey = decodeURIComponent(encodedNota);
+            currentOrder.forEach(i => {
+                const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
+                const itemNota = i.notaItem || '';
+                if (i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar && itemNota === notaKey) {
+                    i.notaItem = newNote;
+                }
+            });
+        }
+
+        function changeItemQtyGroup(itemId, inactivosStr, paraLlevar, encodedNota, delta) {
+            const notaKey = decodeURIComponent(encodedNota);
             if (delta > 0) {
                 const refItem = currentOrder.find(i => {
                     const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
-                    return i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar;
+                    const itemNota = i.notaItem || '';
+                    return i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar && itemNota === notaKey;
                 });
                 if (refItem) {
                     currentOrder.push({
                         ...refItem,
                         qty: 1,
                         ingredientesObj: JSON.parse(JSON.stringify(refItem.ingredientesObj)),
-                        paraLlevar: refItem.paraLlevar
+                        paraLlevar: refItem.paraLlevar,
+                        notaItem: refItem.notaItem || ''
                     });
                 }
             } else {
                 const idx = currentOrder.findIndex(i => {
                     const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
-                    return i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar;
+                    const itemNota = i.notaItem || '';
+                    return i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar && itemNota === notaKey;
                 });
                 if (idx > -1) {
                     currentOrder.splice(idx, 1);
@@ -1709,10 +1749,12 @@
             renderOrder();
         }
 
-        function removeGroupFromOrder(itemId, inactivosStr, paraLlevar) {
+        function removeGroupFromOrder(itemId, inactivosStr, paraLlevar, encodedNota) {
+            const notaKey = decodeURIComponent(encodedNota);
             currentOrder = currentOrder.filter(i => {
                 const itemInactivos = i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre).sort().join(',');
-                return !(i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar);
+                const itemNota = i.notaItem || '';
+                return !(i.id === itemId && itemInactivos === inactivosStr && !!i.paraLlevar === paraLlevar && itemNota === notaKey);
             });
             renderOrder();
         }
@@ -1729,16 +1771,26 @@
             let newOrderTotal = 0;
             currentOrder.forEach(i => newOrderTotal += i.precio * (i.qty || 1));
 
-            let grandTotal = consumedTotal + newOrderTotal;
-            let consumedTotalBs = consumedTotal * bcvRate;
-            let newOrderTotalBs = newOrderTotal * bcvRate;
+            // Consumo Subtotal general de la cuenta (Previo + Nueva Tanda)
+            let consumoSubtotal = consumedTotal + newOrderTotal;
+            // Costo por servicio 10%
+            let costoServicio = consumoSubtotal * 0.10;
+            // Gran Total en Dólares incluyendo el 10%
+            let grandTotal = consumoSubtotal + costoServicio;
+
+            let consumoSubtotalBs = consumoSubtotal * bcvRate;
+            let costoServicioBs = costoServicio * bcvRate;
             let grandTotalBs = grandTotal * bcvRate;
 
             document.getElementById('summary-consumed-total').innerText = `$${consumedTotal.toFixed(2)}`;
             document.getElementById('summary-consumed-ves').innerText = `Bs. ${consumedTotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
             document.getElementById('order-total').innerText = `$${newOrderTotal.toFixed(2)}`;
-            document.getElementById('order-total-ves').innerText = `Bs. ${newOrderTotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('order-total-ves').innerText = `Bs. ${(newOrderTotal * bcvRate).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            // Actualizar etiquetas de subtotales solicitadas
+            document.getElementById('subtotal-consumo-usd').innerText = `$${consumoSubtotal.toFixed(2)}`;
+            document.getElementById('subtotal-servicio-usd').innerText = `$${costoServicio.toFixed(2)}`;
 
             document.getElementById('grand-total-account').innerText = `$${grandTotal.toFixed(2)}`;
             document.getElementById('grand-total-ves').innerText = `Bs. ${grandTotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
@@ -1772,6 +1824,7 @@
                 let detalles = [];
                 if (inactivos.length > 0) detalles.push(`Sin ${inactivos.join(', sin ')}`);
                 if (i.paraLlevar) detalles.push(`📦 PARA LLEVAR`);
+                if (i.notaItem && i.notaItem.trim() !== '') detalles.push(`Nota: ${i.notaItem.trim()}`);
                 if (detalles.length > 0) desc += ` (${detalles.join(' - ')})`;
                 return desc;
             }).join(' | ');
@@ -1884,7 +1937,6 @@
             if (activeTab === 'prep') {
                 filtered = kdsOrders.filter(o => o.destino === destino && o.estado !== 'despachado');
             } else {
-                // Historial de salida (últimas comandas despachadas)
                 filtered = kdsOrders.filter(o => o.destino === destino && o.estado === 'despachado');
             }
 
@@ -1921,13 +1973,15 @@
                                 ${items.map(i => {
                                     let inactivos = i.ingredientesObj ? i.ingredientesObj.filter(ing => !ing.activo).map(ing => ing.nombre) : [];
                                     let itemLlevar = i.paraLlevar;
+                                    let notaItemStr = i.notaItem && i.notaItem.trim() !== '' ? i.notaItem.trim() : null;
                                     return `
-                                        <div class="p-2 rounded border ${itemLlevar ? 'bg-amber-500/20 border-amber-400' : 'bg-gray-900 border-gray-800'}">
+                                        <div class="p-2 rounded border ${itemLlevar ? 'bg-amber-500/20 border-amber-400' : 'bg-gray-900 border-gray-800'} space-y-1">
                                             <div class="flex justify-between items-center">
                                                 <p class="text-xs font-bold text-white">• ${i.qty || 1}x ${i.nombre}</p>
                                                 ${itemLlevar ? '<span class="bg-amber-500 text-gray-950 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">📦 EMPACAR / LLEVAR</span>' : ''}
                                             </div>
-                                            ${inactivos.length > 0 ? `<p class="text-[11px] text-red-400 font-bold mt-1">⚠️ Sin: ${inactivos.join(', ')}</p>` : ''}
+                                            ${inactivos.length > 0 ? `<p class="text-[11px] text-red-400 font-bold">⚠️ Sin: ${inactivos.join(', ')}</p>` : ''}
+                                            ${notaItemStr ? `<p class="text-[11px] text-amber-300 font-black bg-amber-950/60 p-1 rounded border border-amber-800">📝 Nota ítem: ${notaItemStr}</p>` : ''}
                                         </div>
                                     `;
                                 }).join('')}
@@ -2083,3 +2137,4 @@
     </script>
 </body>
 </html>
+```[cite: 18]
